@@ -302,10 +302,8 @@ class CompanionConfigServer @Inject constructor(
         
         // 2. Sync Debrid Settings
         payload.debrid?.let { debrid ->
-            if (!debrid.token.isNullOrBlank()) {
-                Log.d("CompanionServer", "Syncing Real-Debrid token")
-                debridPreferences.saveRealDebridToken(debrid.token)
-            }
+            // Real-Debrid was removed (K2). Older companions still send `token`; ignoring it
+            // keeps them working rather than failing the whole sync on one dead field.
             val mediaFusionUrl = debrid.mediaFusionUrl?.trim().orEmpty()
             if (mediaFusionUrl.isNotEmpty()) {
                 val safeMediaFusionUrl = CompanionUrlValidator.normalizeSafeHttpUrl(mediaFusionUrl)

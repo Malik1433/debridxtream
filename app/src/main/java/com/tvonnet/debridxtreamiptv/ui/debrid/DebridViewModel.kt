@@ -2,7 +2,6 @@ package com.tvonnet.debridxtreamiptv.ui.debrid
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.tvonnet.debridxtreamiptv.data.debrid.repository.DebridAccountRepository
 import com.tvonnet.debridxtreamiptv.data.debrid.repository.AddonCatalogRepository
 import com.tvonnet.debridxtreamiptv.data.debrid.repository.CatalogItem
 import com.tvonnet.debridxtreamiptv.data.Result
@@ -32,7 +31,6 @@ import javax.inject.Inject
  */
 @HiltViewModel
 class DebridViewModel @Inject constructor(
-    private val debridAccountRepo: DebridAccountRepository,
     private val catalogRepo: AddonCatalogRepository,
     private val debridPrefs: DebridPreferences
 ) : ViewModel() {
@@ -47,32 +45,13 @@ class DebridViewModel @Inject constructor(
     private var cachedRows: List<DebridRow> = emptyList()
     private var catalogStateVersion: Long = 0L
     
-    fun checkAuthStatus() {
-        viewModelScope.launch {
-            val authState = debridAccountRepo.getCachedAuthState()
-
-            // Start catalog bootstrap immediately so startup is cache-first / non-blocking.
-            loadCatalog()
-
-            if (authState != null) {
-                val refreshResult = debridAccountRepo.refreshAuthStateIfNeeded()
-                if (refreshResult is Result.Error && shouldClearAuthState(refreshResult.exception)) {
-                    debridPrefs.clearRealDebridToken()
-                }
-
-                // Verify token is still valid (force refresh once on auth error)
-                debridAccountRepo.getUser().onSuccess {
-                    // Auth valid
-                }.onFailure { error ->
-                    if (isAuthError(error)) {
-                        val forcedRefresh = debridAccountRepo.refreshAuthState(force = true)
-                        if (forcedRefresh is Result.Error && shouldClearAuthState(forcedRefresh.exception)) {
-                            debridPrefs.clearRealDebridToken()
-                        }
-                    }
-                }
-            }
-        }
+    /**
+     * Kept as the Debrid home's entry point (K2, 2026-09-05). It used to verify a Real-Debrid
+     * session and then bootstrap the catalogue; with Real-Debrid gone only the bootstrap is left,
+     * and it stays cache-first / non-blocking exactly as before.
+     */
+    fun bootstrapCatalog() {
+        viewModelScope.launch { loadCatalog() }
     }
     
     fun loadCatalog(force: Boolean = false) {

@@ -9,7 +9,7 @@ import com.tvonnet.debridxtreamiptv.data.debrid.model.AddonStream
  * signal and the alternates are the H2 failover path — a dead link retries the same file
  * from another addon before the file is given up on.
  *
- * MUST run before DebridCacheVerifier.verifyRealDebridCacheStatuses: the verifier only
+ * Ran before the Real-Debrid cache verifier, which K2 removed; the ordering note below is
  * checks the first 10 hashes, and on a duplicate-heavy list those checks were being spent
  * on copies of the same 3-4 files.
  */

@@ -37,8 +37,8 @@ object Entitlements {
     }
 
     /**
-     * Whether the customer has actually supplied a debrid service — any Stremio addon, a
-     * Real-Debrid token, or a MediaFusion URL.
+     * Whether the customer has actually supplied a debrid service — any Stremio addon, or a
+     * MediaFusion URL.
      *
      * For labels and empty states, never for hiding. A surface that quietly vanishes teaches the
      * customer nothing; an empty one that says how to fill it teaches them everything.
@@ -46,7 +46,6 @@ object Entitlements {
     fun isDebridConfigured(context: Context): Boolean {
         val prefs = DebridPreferences(context.applicationContext)
         return prefs.getStremioAddonUrls().isNotEmpty() ||
-            !prefs.getRealDebridToken().isNullOrBlank() ||
             !prefs.getMediaFusionUrl().isNullOrBlank()
     }
 }

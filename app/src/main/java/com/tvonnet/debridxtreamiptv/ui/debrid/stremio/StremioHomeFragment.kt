@@ -137,7 +137,7 @@ class StremioHomeFragment :
         selectNav("home", initial = true)
         setupObservers()
 
-        debridVm.checkAuthStatus()
+        debridVm.bootstrapCatalog()
         discoverVm  // touch to init
         view.post { view.findViewById<View>(R.id.navTabHome)?.requestFocus() }
         showSetupGuideIfNoDebridService()

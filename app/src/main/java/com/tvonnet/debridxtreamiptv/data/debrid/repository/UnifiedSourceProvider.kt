@@ -4,7 +4,6 @@ import android.util.Log
 import com.tvonnet.debridxtreamiptv.data.debrid.model.AddonStream
 import com.tvonnet.debridxtreamiptv.data.debrid.source.AddonRemoteDataSource
 import com.tvonnet.debridxtreamiptv.data.debrid.source.DynamicAddonFetcher
-import com.tvonnet.debridxtreamiptv.data.debrid.source.RealDebridRemoteDataSource
 import com.tvonnet.debridxtreamiptv.data.debrid.source.StremioAddonFetcher
 import com.tvonnet.debridxtreamiptv.data.debrid.source.TmdbRemoteDataSource
 import com.tvonnet.debridxtreamiptv.data.prefs.DebridPreferences
@@ -40,8 +39,6 @@ class UnifiedSourceProvider @Inject constructor(
     private val dynamicAddonFetcher: DynamicAddonFetcher,
     private val stremioAddonFetcher: StremioAddonFetcher,
     private val debridPrefs: DebridPreferences,
-    private val realDebridRemote: RealDebridRemoteDataSource,
-    private val realDebridRateLimiter: RealDebridRateLimiter,
     private val releaseLanguageRepository: com.tvonnet.debridxtreamiptv.data.debrid.language.ReleaseLanguageRepository,
     private val credentialsPrefs: com.tvonnet.debridxtreamiptv.data.prefs.CredentialsPreferences
 ) {
@@ -49,12 +46,10 @@ class UnifiedSourceProvider @Inject constructor(
     /** USP-5: registry + dynamic/Stremio addon discovery (owns the scrape limit). */
     private val addonFetcher = AddonSourceFetcher(addonRemote, dynamicAddonFetcher, stremioAddonFetcher, debridPrefs)
 
-    /** USP-4: Real-Debrid cache-status resolution (TTL cache + rate-limiter cooldowns). */
-    private val cacheVerifier = DebridCacheVerifier(realDebridRemote, realDebridRateLimiter)
 
     /** USP-7: the debrid movie/episode discovery pipeline. */
     private val orchestrator = DebridSourceOrchestrator(
-        tmdbRemote, mediaFusionFetcher, settingsPrefs, debridPrefs, addonFetcher, cacheVerifier
+        tmdbRemote, mediaFusionFetcher, settingsPrefs, debridPrefs, addonFetcher
     )
 
     companion object {

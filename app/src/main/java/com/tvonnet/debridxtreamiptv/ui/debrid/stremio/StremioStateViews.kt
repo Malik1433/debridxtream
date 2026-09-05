@@ -141,7 +141,7 @@ internal class StremioStateViews(
         root.findViewById<View>(R.id.debrid_setup_recheck)?.setOnClickListener {
             if (Entitlements.isDebridConfigured(context)) {
                 setConnected(true)
-                fragment.debridVm.checkAuthStatus()
+                fragment.debridVm.bootstrapCatalog()
                 fragment.debridVm.loadCatalog(force = true)
             } else {
                 Toast.makeText(context, R.string.debrid_still_not_connected, Toast.LENGTH_LONG)

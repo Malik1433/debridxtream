@@ -31,7 +31,6 @@ internal class DebridSourceOrchestrator(
     private val settingsPrefs: com.tvonnet.debridxtreamiptv.data.prefs.SettingsPreferences,
     private val debridPrefs: DebridPreferences,
     private val addonFetcher: AddonSourceFetcher,
-    private val cacheVerifier: DebridCacheVerifier
 ) {
 
     companion object {
@@ -93,7 +92,7 @@ internal class DebridSourceOrchestrator(
             if (addonStreams.isNotEmpty()) {
                 logMovieProviderBreakdown(addonStreams, title, imdbId)
 
-                val cacheStatusByHash = cacheVerifier.verifyRealDebridCacheStatuses(addonStreams, priorityInfoHash)
+                val cacheStatusByHash = emptyMap<String, com.tvonnet.debridxtreamiptv.data.repository.DebridCacheStatus>()
                 val movieSources = convertAddonStreamsToMovieSources(
                     addonStreams, title, cacheStatusByHash, alternatesByPrimary(fileGroups)
                 )
@@ -170,7 +169,7 @@ internal class DebridSourceOrchestrator(
                 sourcesByProvider.forEach { (source, streams) ->
                     Log.e(TAG, "   - ${providerDisplayName(source)}: ${streams.size} sources")
                 }
-                val cacheStatusByHash = cacheVerifier.verifyRealDebridCacheStatuses(addonStreams, priorityInfoHash)
+                val cacheStatusByHash = emptyMap<String, com.tvonnet.debridxtreamiptv.data.repository.DebridCacheStatus>()
                 return@coroutineScope convertAddonStreamsToMovieSources(
                     addonStreams, title, cacheStatusByHash, alternatesByPrimary(fileGroups)
                 )
@@ -236,7 +235,7 @@ internal class DebridSourceOrchestrator(
         if (scoped.any { streamMatchesStableIdentity(it, stablePriorityId) }) {
             val scopedStreams = prioritizeAddonStreams(deduplicateStreams(scoped))
             Log.i(TAG, "Scoped resume fetch hit (episode): provider=${q.preferredSourceType}, streams=${scopedStreams.size} — skipping full discovery")
-            val cacheStatusByHash = cacheVerifier.verifyRealDebridCacheStatuses(scopedStreams, q.priorityInfoHash)
+            val cacheStatusByHash = emptyMap<String, com.tvonnet.debridxtreamiptv.data.repository.DebridCacheStatus>()
             return convertAddonStreamsToMovieSources(scopedStreams, q.title, cacheStatusByHash)
         }
         Log.i(TAG, "Scoped resume fetch miss (episode): provider=${q.preferredSourceType} — falling back to full discovery")
@@ -315,7 +314,7 @@ internal class DebridSourceOrchestrator(
                 deduplicateStreams(UnifiedSourceProvider.filterMismatchedAddonMovieStreams(scoped, title, yearHint))
             )
             Log.i(TAG, "Scoped resume fetch hit: provider=$preferredSourceType, streams=${scopedStreams.size} — skipping full discovery")
-            val cacheStatusByHash = cacheVerifier.verifyRealDebridCacheStatuses(scopedStreams, priorityInfoHash)
+            val cacheStatusByHash = emptyMap<String, com.tvonnet.debridxtreamiptv.data.repository.DebridCacheStatus>()
             return convertAddonStreamsToMovieSources(scopedStreams, title, cacheStatusByHash)
         }
         Log.i(TAG, "Scoped resume fetch miss: provider=$preferredSourceType — falling back to full discovery")

@@ -982,13 +982,33 @@ logout, so the state went with it; the Debrid home already had the right empty s
 removed across all six locales — `StringResourceParityTest` is what makes that safe to do in bulk.
 **Account logout still clears the stored token**, so K1 changes the UI and nothing about the data.
 
-**K2 — the resolver and its storage. NOT STARTED, and it needs its own device pass.** `RealDebrid*`
-api/model/source/rate-limiter, `DebridAccountRepository`, the auth-state keys in
-`DebridPreferences`, and the RD arms inside `DebridLinkResolver` / `DebridCacheVerifier` /
-`DebridPlaybackRepository` / `UnifiedSourceProvider`. The gate before starting: confirm on the
-device that **no addon in use ever returns a magnet** rather than a direct link — if one does,
-removing this stops those sources resolving, and the failure would look like “sources are broken”
-rather than “RD is gone”.
+**K2 — the resolver and its storage. DONE.** The gate was answered twice over. The owner
+confirmed the addons never return magnets, and the device agrees: the four configured addons are
+**StremThru and Debridio**, both debrid PROXIES that resolve on their side and hand back a plain
+HTTP link. Then the code settled it — `DebridLinkResolver.resolve()` called `checkAuth()` before
+any Real-Debrid work, and with no stored token that returned
+`NotAuthenticatedException(“Real-Debrid configuration missing”)`. **Every RD branch was already
+dead at runtime, not merely unused**; the only live path was the direct-stream passthrough.
+
+Removed: `RealDebrid` api/service-factory/qualifiers/constants/models/remote-source/rate-limiter,
+`DebridAccountRepository`, `TorrentFileMatcher`, `DebridCacheVerifier`, the auth-refresh
+worker **and its scheduler** (which had no callers at all), the auth state in `DebridPreferences`,
+and the RD arms in the playback repository, the source provider and the orchestrator.
+`DebridLinkResolver` went 402 lines → 76 and now passes a direct link through or returns a clear
+error. Nine main-source files and two tests deleted.
+
+Three things were deliberately KEPT, and each would have been a bug to drop:
+- `resolveCacheStatus` (moved to `SourceHelpers`) — it lived in the verifier but was never
+  RD-specific: it is the branch that marks a StremThru/Debridio stream `DIRECT_STREAM`.
+- `clearRealDebridToken()` — reading the token has no callers now, but a device that once
+  authorised RD still has the OAuth token on disk, and account logout should keep scrubbing it.
+- The companion payload’s `token` field — accepted and ignored, so an older companion or portal
+  does not fail its whole sync on one dead field.
+
+`DebridFailure`’s user-facing messages no longer name Real-Debrid: the classifier still runs, but
+over ADDON failures now, and telling a customer their “Real-Debrid session expired” for a service
+they do not have is worse than saying nothing. (Those messages are still hardcoded English — a
+pre-existing l10n gap, not one this created.)
 
 ---
 

@@ -9,24 +9,22 @@ import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
-import com.tvonnet.debridxtreamiptv.data.debrid.api.RealDebridAuthInterceptor
 import com.tvonnet.debridxtreamiptv.data.debrid.model.DebridRowConfig
-import com.tvonnet.debridxtreamiptv.data.debrid.model.RealDebridAuthState
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * Secure storage for Debrid-related configuration, including Real-Debrid OAuth tokens
+ * Secure storage for Debrid-related configuration: the addon config links (which carry the
+ * user's own service key inside the URL)
  * and user-customizable catalog/add-on preferences.
  */
 @Singleton
 class DebridPreferences @Inject constructor(
     @ApplicationContext context: Context
-) : RealDebridAuthInterceptor.AccessTokenProvider {
+) {
 
     private val gson = Gson()
-    private val authStateType = object : TypeToken<RealDebridAuthState>() {}.type
     private val rowConfigListType = object : TypeToken<List<DebridRowConfig>>() {}.type
     private val stringListType = object : TypeToken<List<String>>() {}.type
 
@@ -62,29 +60,6 @@ class DebridPreferences @Inject constructor(
         }
     }
 
-    override fun getAccessToken(): String? {
-        return getAuthState()?.accessToken
-    }
-
-    fun saveAuthState(state: RealDebridAuthState) {
-        sharedPreferences.edit()
-            .putString(KEY_REAL_DEBRID_AUTH_STATE, gson.toJson(state))
-            .apply()
-    }
-
-    fun getAuthState(): RealDebridAuthState? {
-        val stored = sharedPreferences.getString(KEY_REAL_DEBRID_AUTH_STATE, null) ?: return null
-        return runCatching {
-            gson.fromJson<RealDebridAuthState>(stored, authStateType)
-        }.getOrNull()
-    }
-
-    fun clearAuthState() {
-        sharedPreferences.edit()
-            .remove(KEY_REAL_DEBRID_AUTH_STATE)
-            .apply()
-    }
-
     fun saveSelectedAddonIds(ids: Set<String>) {
         sharedPreferences.edit()
             .putStringSet(KEY_SELECTED_ADDON_IDS, ids)
@@ -115,32 +90,15 @@ class DebridPreferences @Inject constructor(
     /**
      * Convenience methods for ViewModel access
      */
-    fun getRealDebridToken(): String? {
-        return getAuthState()?.accessToken
-    }
-
-    fun saveRealDebridToken(token: String) {
-        // For simple token storage, create minimal auth state
-        val now = System.currentTimeMillis()
-        val state = RealDebridAuthState(
-            accessToken = token,
-            refreshToken = "",
-            clientId = getRealDebridClientId(),
-            clientSecret = "",
-            tokenType = "Bearer",
-            scope = null,
-            issuedAt = now,
-            expiresAt = now + (3600 * 1000L) // 1 hour default
-        )
-        saveAuthState(state)
-    }
-
+    /**
+     * Real-Debrid is gone (K2, 2026-09-05), but a device that once authorised it still has the
+     * OAuth token sitting in this file. Reading it has no callers any more; SCRUBBING it does, so
+     * account logout keeps removing it and a dead secret does not outlive the feature.
+     */
     fun clearRealDebridToken() {
-        clearAuthState()
-    }
-
-    fun getRealDebridClientId(): String {
-        return sharedPreferences.getString(KEY_CLIENT_ID, DEFAULT_CLIENT_ID) ?: DEFAULT_CLIENT_ID
+        sharedPreferences.edit()
+            .remove(KEY_REAL_DEBRID_AUTH_STATE)
+            .apply()
     }
 
     companion object {
@@ -149,10 +107,8 @@ class DebridPreferences @Inject constructor(
         private const val KEY_REAL_DEBRID_AUTH_STATE = "real_debrid_auth_state"
         private const val KEY_SELECTED_ADDON_IDS = "selected_addon_ids"
         private const val KEY_ROW_CONFIGS = "row_configs"
-        private const val KEY_CLIENT_ID = "client_id"
         
         // Real-Debrid OAuth client ID (public, from RealDebrid API)
-        private const val DEFAULT_CLIENT_ID = "X245A4XAIBGVM"
         private const val KEY_MEDIA_FUSION_URL = "media_fusion_url"
 
         // Settings Overhaul Keys

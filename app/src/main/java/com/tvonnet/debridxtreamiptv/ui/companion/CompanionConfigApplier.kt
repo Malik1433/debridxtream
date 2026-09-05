@@ -49,9 +49,7 @@ object CompanionConfigApplier {
                 ?.mapNotNull { it as? String }
         )
 
-        if (!token.isNullOrBlank()) {
-            debridPrefs.saveRealDebridToken(token)
-        }
+        // Real-Debrid was removed (K2); `token` is accepted and ignored for older clients.
         val safeMediaFusionUrl = mediaFusionUrl?.let { CompanionUrlValidator.normalizeSafeHttpUrl(it) }
         if (safeMediaFusionUrl != null) {
             debridPrefs.saveMediaFusionUrl(safeMediaFusionUrl)
@@ -67,7 +65,6 @@ object CompanionConfigApplier {
         val mediafusionLegacy = data["mediafusion"] as? String
         val stremioUrlsLegacy = data["stremioAddonUrls"] as? List<*>
 
-        debridTokenLegacy?.takeIf { it.isNotBlank() }?.let { debridPrefs.saveRealDebridToken(it) }
         mediafusionLegacy
             ?.let { CompanionUrlValidator.normalizeSafeHttpUrl(it) }
             ?.let { debridPrefs.saveMediaFusionUrl(it) }

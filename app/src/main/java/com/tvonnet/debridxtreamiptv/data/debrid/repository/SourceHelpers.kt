@@ -292,3 +292,33 @@ internal fun isDebridContent(
         Log.d(TAG, "🤖 Debrid detection for '$title': $shouldUseDebrid (category: $categoryId)")
         return shouldUseDebrid
     }
+
+/**
+ * Pure per-stream cache-status decision: a direct/MediaFusion URL always wins, then a verified
+ * status for the stream's infoHash, then the addon's own "cached" hint (only a hard `false`
+ * downgrades to NOT_CACHED).
+ *
+ * Moved here from DebridCacheVerifier when Real-Debrid was removed (K2, 2026-09-05). The verifier
+ * was the RD `instantAvailability` lookup and went with it; THIS was never RD-specific, and it is
+ * the branch that marks the addons actually in use as DIRECT_STREAM. [cacheStatusByHash] is empty
+ * now, which is what it already resolved to without an RD token.
+ */
+internal fun resolveCacheStatus(
+    addonStream: com.tvonnet.debridxtreamiptv.data.debrid.model.AddonStream,
+    mediaFusionUrl: String?,
+    directUrl: String?,
+    infoHash: String?,
+    cacheStatusByHash: Map<String, com.tvonnet.debridxtreamiptv.data.repository.DebridCacheStatus>
+): com.tvonnet.debridxtreamiptv.data.repository.DebridCacheStatus {
+    if (mediaFusionUrl != null || directUrl != null) {
+        return com.tvonnet.debridxtreamiptv.data.repository.DebridCacheStatus.DIRECT_STREAM
+    }
+
+    val verified = infoHash?.let { cacheStatusByHash[it] }
+    if (verified != null) return verified
+
+    return when (parseCachedValue(addonStream.extras["cached"])) {
+        false -> com.tvonnet.debridxtreamiptv.data.repository.DebridCacheStatus.NOT_CACHED
+        else -> com.tvonnet.debridxtreamiptv.data.repository.DebridCacheStatus.UNKNOWN
+    }
+}

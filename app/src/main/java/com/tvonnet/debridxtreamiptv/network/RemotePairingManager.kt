@@ -131,9 +131,7 @@ class RemotePairingManager @Inject constructor(
         }
         
         payload.debrid?.let { debrid ->
-            if (!debrid.token.isNullOrBlank()) {
-                debridPreferences.saveRealDebridToken(debrid.token)
-            }
+            // Real-Debrid was removed (K2); `token` is accepted and ignored for older clients.
             val mediaFusionUrl = debrid.mediaFusionUrl?.trim().orEmpty()
             val safeMediaFusionUrl = CompanionUrlValidator.normalizeSafeHttpUrl(mediaFusionUrl)
             if (safeMediaFusionUrl != null) {

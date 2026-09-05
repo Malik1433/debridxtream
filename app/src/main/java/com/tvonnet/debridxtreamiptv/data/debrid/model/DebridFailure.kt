@@ -46,24 +46,24 @@ object DebridFailureClassifier {
     private val FAILURE_RULES = listOf(
         FailureRule(
             type = DebridFailureType.RATE_LIMITED,
-            message = "Real-Debrid rate limit hit. Wait a little before trying more sources.",
+            message = "Rate limit hit. Wait a little before trying more sources.",
             httpCodes = setOf(429),
             markers = listOf("429", "rate limit"),
         ),
         FailureRule(
             type = DebridFailureType.LEGAL_RESTRICTION,
-            message = "This source is blocked by Real-Debrid. Try another source.",
+            message = "This source is blocked by its provider. Try another source.",
             httpCodes = setOf(451),
             markers = listOf("451", "legal restriction", "legal restrictions", "restricted due to"),
         ),
         FailureRule(
             type = DebridFailureType.COPYRIGHT_BLOCKED,
-            message = "This source was removed or blocked by Real-Debrid. Try another source.",
+            message = "This source was removed or blocked. Try another source.",
             markers = listOf("copyright", "removed from debrid", "removed from the debrid", "infringement"),
         ),
         FailureRule(
             type = DebridFailureType.AUTH_REQUIRED,
-            message = "Real-Debrid session expired. Sign in again.",
+            message = "The add-on rejected this request. Check the add-on in Settings.",
             httpCodes = setOf(401, 403),
             markers = listOf("unauthorized", "forbidden"),
         ),
@@ -75,7 +75,7 @@ object DebridFailureClassifier {
         ),
         FailureRule(
             type = DebridFailureType.NOT_CACHED,
-            message = "This source is not cached on Real-Debrid. Try a VERIFIED source.",
+            message = "This source is not cached. Try a VERIFIED source.",
             markers = listOf("not cached", "torrent_not_downloaded"),
         ),
         // B1/A1: "Torrent not ready after N attempts" (poll timeout), a torrent
@@ -86,12 +86,12 @@ object DebridFailureClassifier {
         // auto-advances to the next source.
         FailureRule(
             type = DebridFailureType.NOT_CACHED,
-            message = "This source isn't ready on Real-Debrid. Trying the next source…",
+            message = "This source isn't ready yet. Trying the next source…",
             markers = listOf("not ready", "no links available", "no download url", "waiting_files_selection"),
         ),
         FailureRule(
             type = DebridFailureType.NETWORK,
-            message = "Network issue while contacting Real-Debrid. Try again.",
+            message = "Network issue while contacting the add-on. Try again.",
             markers = listOf("timeout", "socket", "connection", "network", "unknownhost"),
         ),
     )
@@ -116,7 +116,7 @@ object DebridFailureClassifier {
         val rule = FAILURE_RULES.firstOrNull { it.matches(httpCode, raw) }
             ?: return DebridResolutionException(
                 type = DebridFailureType.UNKNOWN,
-                message = "Real-Debrid could not play this source. Try another source.",
+                message = "This source could not be played. Try another source.",
                 cause = error
             )
         return DebridResolutionException(

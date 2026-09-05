@@ -2,8 +2,6 @@ package com.tvonnet.debridxtreamiptv.data.debrid.di
 
 import com.tvonnet.debridxtreamiptv.data.debrid.api.AddonCatalogService
 import com.tvonnet.debridxtreamiptv.data.debrid.api.AddonCatalogServiceFactory
-import com.tvonnet.debridxtreamiptv.data.debrid.api.RealDebridApiService
-import com.tvonnet.debridxtreamiptv.data.debrid.api.RealDebridServiceFactory
 import com.tvonnet.debridxtreamiptv.data.debrid.api.TmdbApiService
 import com.tvonnet.debridxtreamiptv.data.debrid.api.TorBoxApiService
 import com.tvonnet.debridxtreamiptv.data.prefs.DebridPreferences
@@ -21,31 +19,6 @@ import javax.inject.Singleton
 @Module
 @InstallIn(SingletonComponent::class)
 object DebridModule {
-
-    @Provides
-    @Singleton
-    @RealDebridOAuth
-    fun provideRealDebridOAuthService(base: OkHttpClient): RealDebridApiService {
-        // Phase 6: `base` is the app's shared OkHttpClient (AppModule.provideOkHttpClient) — one
-        // 32-connection pool + dispatcher shared across all debrid clients; each derives its own
-        // client (+ its own auth) via newBuilder(). No auth lives on the base.
-        return RealDebridServiceFactory.create(base)
-    }
-
-    @Provides
-    @Singleton
-    @RealDebridAuthorized
-    fun provideRealDebridAuthorizedService(
-        base: OkHttpClient,
-        preferences: DebridPreferences,
-        repoProvider: javax.inject.Provider<com.tvonnet.debridxtreamiptv.data.debrid.repository.DebridAccountRepository>
-    ): RealDebridApiService {
-        // Adapt Provider<Repo> to Provider<TokenRefresher>
-        val refresherProvider = javax.inject.Provider<com.tvonnet.debridxtreamiptv.data.debrid.api.RealDebridAuthInterceptor.TokenRefresher> { 
-            repoProvider.get() 
-        }
-        return RealDebridServiceFactory.create(base, preferences, refresherProvider)
-    }
 
     @Provides
     @Singleton

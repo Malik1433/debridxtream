@@ -2,13 +2,12 @@ package com.tvonnet.debridxtreamiptv.data.debrid.repository
 
 import android.content.Context
 import com.tvonnet.debridxtreamiptv.data.Result
-import com.tvonnet.debridxtreamiptv.data.debrid.source.RealDebridRemoteDataSource
 import okhttp3.OkHttpClient
 import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * Torrent → Real-Debrid → stream resolution, plus the pre-playback readiness probe for addon
+ * Addon source → stream resolution, plus the pre-playback readiness probe for addon
  * proxies. A facade over three collaborators (C6):
  *
  * - [DebridLinkResolver] — add-magnet → poll → select file → unrestrict, with the resolution cache,
@@ -23,18 +22,11 @@ import javax.inject.Singleton
  */
 @Singleton
 class DebridPlaybackRepository @Inject constructor(
-    realDebridRemote: RealDebridRemoteDataSource,
-    debridAccountRepository: DebridAccountRepository,
     okHttpClient: OkHttpClient,
-    realDebridRateLimiter: RealDebridRateLimiter
 ) {
     private val readinessProbe = AddonProxyReadinessProbe(okHttpClient)
 
-    private val linkResolver = DebridLinkResolver(
-        realDebridRemote = realDebridRemote,
-        debridAccountRepository = debridAccountRepository,
-        realDebridRateLimiter = realDebridRateLimiter,
-    )
+    private val linkResolver = DebridLinkResolver()
 
     // ── addon-proxy readiness ──────────────────────────────────────────────────
 
@@ -64,7 +56,8 @@ class DebridPlaybackRepository @Inject constructor(
     // ── link resolution ────────────────────────────────────────────────────────
 
     /**
-     * Resolve a magnet/infoHash to a streamable URL via Real-Debrid.
+     * Resolve an addon source to a streamable URL. See [DebridLinkResolver] for what that
+     * means since Real-Debrid was removed (K2).
      * Pass [bypassCache]=true on a retry so a dead link is never served back from cache.
      */
     @Suppress("LongParameterList") // established public API; callers pass these by name
