@@ -899,10 +899,22 @@ Two things came out of doing it, and both matter more than the version number:
   came out of the DATA FACADE and took the app down. It now falls back to plain prefs, which is
   safe *here specifically* because what is stored is a salted SHA-256 of the PIN, never the PIN.
 
-⚠️ **Open, and deliberately not decided alone:** `DebridPreferences` and `TorBoxPreferences` create
-their stores unguarded too — but they hold real bearer secrets, so the three options are
-crash / plaintext token on disk / drop the token and make the user re-link. That is a security
-trade-off for the owner to pick, not something to choose in a dependency batch.
+**CLOSED the same day, once the owner supplied the missing fact.** `DebridPreferences` and
+`TorBoxPreferences` were unguarded too, and the question looked like “which is worse, a crash or a
+plaintext token”. The owner's answer reframed it: this app stores **no per-service API keys** —
+addons are added as a config/manifest LINK that the addon site (AIO, StremThru…) generates FROM
+your API key, so **the credential is inside the URL**, and those URLs live in
+`pref_stremio_addon_urls` in this very store. The Real-Debrid OAuth token that made the file look
+sensitive is the legacy fallback the owner no longer uses.
+
+So plaintext was never acceptable — it would silently downgrade the thing that actually matters
+from encrypted to cleartext — and the answer is [`InMemoryPrefs`]: on a KeyStore failure the
+session runs unconfigured instead of crashing, and **nothing on disk is touched**, so a device
+that recovers comes back with every addon intact. That last property is why this beats the
+obvious “delete the corrupt keyset and retry”, which throws the user's configuration away.
+`InMemoryPrefsTest` covers it — and earned its keep immediately by catching a real erasure bug in
+the first draft: a generic `(values[key] as? T)` helper always succeeds, so `getInt()` returned a
+`String`.
 
 **J2 — the rest of the gap, measured.** Nothing below is a known defect; this is a modernisation
 programme, and the honest reason it has not happened is the blocker in J3, not neglect.

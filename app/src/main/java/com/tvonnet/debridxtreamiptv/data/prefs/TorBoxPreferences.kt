@@ -15,18 +15,28 @@ import javax.inject.Singleton
 class TorBoxPreferences @Inject constructor(
     @ApplicationContext context: Context
 ) {
+    /**
+     * Encrypted, with an in-memory fallback — see [DebridPreferences] for the reasoning. This file
+     * holds a TorBox API token, so plain prefs is not an acceptable degradation and a crash is not
+     * an acceptable one either.
+     */
     private val sharedPreferences by lazy {
-        val masterKey = MasterKey.Builder(context)
-            .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
-            .build()
+        try {
+            val masterKey = MasterKey.Builder(context)
+                .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+                .build()
 
-        EncryptedSharedPreferences.create(
-            context,
-            PREFS_NAME,
-            masterKey,
-            EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
-            EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
-        )
+            EncryptedSharedPreferences.create(
+                context,
+                PREFS_NAME,
+                masterKey,
+                EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+                EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+            )
+        } catch (e: Exception) {
+            android.util.Log.e("TorBoxPreferences", "EncryptedSharedPreferences unavailable; token not available this session", e)
+            InMemoryPrefs()
+        }
     }
 
     fun getToken(): String? {

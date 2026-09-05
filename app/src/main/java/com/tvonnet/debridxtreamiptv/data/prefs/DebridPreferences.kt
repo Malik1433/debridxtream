@@ -30,18 +30,36 @@ class DebridPreferences @Inject constructor(
     private val rowConfigListType = object : TypeToken<List<DebridRowConfig>>() {}.type
     private val stringListType = object : TypeToken<List<String>>() {}.type
 
+    /**
+     * Encrypted, with an IN-MEMORY fallback (2026-09-05).
+     *
+     * This used to call `create` unguarded, so a device with a broken AndroidKeyStore path got a
+     * crash on first access. The fallback is deliberately [InMemoryPrefs] and NOT plain prefs,
+     * because of what lives in this file: `pref_stremio_addon_urls` and the registry URLs are
+     * addon CONFIG links, and those links are generated from the user's own API key on the addon's
+     * site — the credential is inside the URL. Writing them to a plain file would be a silent
+     * downgrade from encrypted to cleartext.
+     *
+     * Nothing on disk is touched, so a device that recovers its KeyStore comes back with every
+     * addon and setting intact. While degraded the session simply behaves as unconfigured.
+     */
     private val sharedPreferences by lazy {
-        val masterKey = MasterKey.Builder(context)
-            .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
-            .build()
+        try {
+            val masterKey = MasterKey.Builder(context)
+                .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+                .build()
 
-        EncryptedSharedPreferences.create(
-            context,
-            PREFS_NAME,
-            masterKey,
-            EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
-            EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
-        )
+            EncryptedSharedPreferences.create(
+                context,
+                PREFS_NAME,
+                masterKey,
+                EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+                EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+            )
+        } catch (e: Exception) {
+            android.util.Log.e(TAG, "EncryptedSharedPreferences unavailable; running unconfigured this session", e)
+            InMemoryPrefs()
+        }
     }
 
     override fun getAccessToken(): String? {
@@ -126,6 +144,7 @@ class DebridPreferences @Inject constructor(
     }
 
     companion object {
+        private const val TAG = "DebridPreferences"
         private const val PREFS_NAME = "debrid_secure_prefs"
         private const val KEY_REAL_DEBRID_AUTH_STATE = "real_debrid_auth_state"
         private const val KEY_SELECTED_ADDON_IDS = "selected_addon_ids"
