@@ -1012,6 +1012,49 @@ pre-existing l10n gap, not one this created.)
 
 ---
 
+### Tier L — the parental PIN locked the owner out *(reported 2026-09-06)*
+
+**The report:** "enabling it the first time never asked me to set a PIN; now disabling asks for one."
+Both halves are true, and the second follows from the first.
+
+**Root cause, from the code rather than a guess.** `PinWheelState` pre-filled all four boxes with
+`0`, and OK both advanced the cursor and, on the last box, COMPLETED the entry — the old
+`PinWheelStateTest` asserted exactly that. So four OK presses on a fresh wheel produced `"0000"`.
+`askNewPin` chains two wheels (set, then confirm), so **eight OK presses set and confirmed a PIN
+nobody chose**, and `setPin` writes `KEY_ENABLED = true` with it. On a television that is not an
+exotic sequence: turning the toggle on IS an OK press, and a remote repeats keys on its own.
+
+The owner therefore saw parental controls switch on with no question asked, and was then asked for
+a PIN that had never been shown to them. A safety feature had locked them out of their own setting.
+
+**The fix, in three layers — the first alone is enough, the other two are belt and braces:**
+
+1. **OK never enters a digit.** Boxes start EMPTY; only UP/DOWN or a number key fills one, and the
+   cursor cannot move past a box the user has not deliberately set. Mashing OK is now a no-op, and
+   `pin` returns `""` until all four digits exist, so a partial entry can never be stored.
+2. **Finishing is a separate, labelled Confirm button**, disabled until all four digits are chosen.
+   The last digit hands focus to it, so the next OK is a deliberate "yes" rather than the tail of
+   entering digits.
+3. **Auto-repeat is dropped and the first 600 ms of key input is ignored** — that is the window a
+   press carried over from the control that opened the dialog lands in.
+
+**And it is recoverable, which it never was.** Every prompt that asks for the EXISTING PIN (turn
+off, unlock, change) now offers **Forgot PIN?**, which asks for the **account password** and then
+clears the PIN and switches the controls off. It has to be something the account holder knows and a
+child in the room does not — which rules out the device key, printed on the home screen. The
+provider password is already on the device, so this is verified locally: a lock-out must be
+recoverable with the internet down.
+
+Entered digits are masked as well; only the digit being turned is legible, because a PIN typed on a
+television is readable across the room.
+
+**The lesson worth keeping:** the old behaviour was *tested* — `PinWheelStateTest` asserted "OK
+advances, and completes only on the last box" and passed. The test locked in the defect because it
+described the mechanism instead of the requirement. The requirement is "a PIN the user did not
+choose can never be created", and that is what the suite asserts now.
+
+---
+
 ## 4. Known landmines — never regress these
 
 Carried from hard-won incidents; every phase must respect them.

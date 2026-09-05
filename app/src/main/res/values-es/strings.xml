@@ -879,7 +879,7 @@
     <string name="s_pin_saved">El control parental está activado</string>
     <string name="s_pin_off">El control parental está desactivado</string>
     <string name="s_pin_unlocked">Categorías para adultos visibles 30 minutos</string>
-    <string name="s_pin_wheel_hint">▲▼ dígito   ◀▶ siguiente   OK confirmar</string>
+    <string name="s_pin_wheel_hint">▲▼ dígito   ◀▶ mover   luego Confirmar</string>
     <string name="s_pin_hint">4 dígitos</string>
     <string name="a11y_pin_digit">Dígito %1$d del PIN</string>
 
@@ -912,4 +912,13 @@
     <string name="f_update_version_available">La versión %1$s está disponible.</string>
     <string name="f_update_download_failed">No se pudo descargar la actualización. Inténtalo más tarde.\n(%1$s)</string>
     <string name="c_unknown_error">Error desconocido</string>
+    <string name="s_pin_confirm_button">Confirmar</string>
+    <string name="s_pin_forgot">¿Olvidaste el PIN?</string>
+    <string name="s_pin_reset_title">Restablecer el control parental</string>
+    <string name="s_pin_reset_message">Introduce la contraseña de tu cuenta. El control parental se desactivará y se eliminará el PIN.</string>
+    <string name="s_pin_reset_hint">Contraseña de la cuenta</string>
+    <string name="s_pin_reset_confirm">Restablecer</string>
+    <string name="s_pin_reset_done">Control parental restablecido</string>
+    <string name="s_pin_reset_wrong">Esa no es la contraseña de la cuenta</string>
+    <string name="s_pin_reset_unavailable">No hay contraseña de la cuenta en este dispositivo</string>
 </resources>

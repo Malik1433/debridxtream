@@ -879,7 +879,7 @@
     <string name="s_pin_saved">Il controllo genitori è attivo</string>
     <string name="s_pin_off">Il controllo genitori è disattivato</string>
     <string name="s_pin_unlocked">Categorie per adulti visibili per 30 minuti</string>
-    <string name="s_pin_wheel_hint">▲▼ cifra   ◀▶ avanti   OK conferma</string>
+    <string name="s_pin_wheel_hint">▲▼ cifra   ◀▶ sposta   poi Conferma</string>
     <string name="s_pin_hint">4 cifre</string>
     <string name="a11y_pin_digit">Cifra %1$d del PIN</string>
 
@@ -912,4 +912,13 @@
     <string name="f_update_version_available">La versione %1$s è disponibile.</string>
     <string name="f_update_download_failed">Impossibile scaricare l\'aggiornamento. Riprova più tardi.\n(%1$s)</string>
     <string name="c_unknown_error">Errore sconosciuto</string>
+    <string name="s_pin_confirm_button">Conferma</string>
+    <string name="s_pin_forgot">PIN dimenticato?</string>
+    <string name="s_pin_reset_title">Reimposta il controllo genitori</string>
+    <string name="s_pin_reset_message">Inserisci la password del tuo account. Il controllo genitori verrà disattivato e il PIN rimosso.</string>
+    <string name="s_pin_reset_hint">Password dell\'account</string>
+    <string name="s_pin_reset_confirm">Reimposta</string>
+    <string name="s_pin_reset_done">Controllo genitori reimpostato</string>
+    <string name="s_pin_reset_wrong">Non è la password dell\'account</string>
+    <string name="s_pin_reset_unavailable">Nessuna password dell\'account su questo dispositivo</string>
 </resources>

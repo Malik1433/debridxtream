@@ -879,7 +879,7 @@
     <string name="s_pin_saved">Le contrôle parental est activé</string>
     <string name="s_pin_off">Le contrôle parental est désactivé</string>
     <string name="s_pin_unlocked">Catégories adultes affichées 30 minutes</string>
-    <string name="s_pin_wheel_hint">▲▼ chiffre   ◀▶ suivant   OK valider</string>
+    <string name="s_pin_wheel_hint">▲▼ chiffre   ◀▶ déplacer   puis Confirmer</string>
     <string name="s_pin_hint">4 chiffres</string>
     <string name="a11y_pin_digit">Chiffre %1$d du code</string>
 
@@ -912,4 +912,13 @@
     <string name="f_update_version_available">La version %1$s est disponible.</string>
     <string name="f_update_download_failed">Impossible de télécharger la mise à jour. Réessayez plus tard.\n(%1$s)</string>
     <string name="c_unknown_error">Erreur inconnue</string>
+    <string name="s_pin_confirm_button">Confirmer</string>
+    <string name="s_pin_forgot">PIN oublié ?</string>
+    <string name="s_pin_reset_title">Réinitialiser le contrôle parental</string>
+    <string name="s_pin_reset_message">Saisis le mot de passe de ton compte. Le contrôle parental sera désactivé et le PIN supprimé.</string>
+    <string name="s_pin_reset_hint">Mot de passe du compte</string>
+    <string name="s_pin_reset_confirm">Réinitialiser</string>
+    <string name="s_pin_reset_done">Contrôle parental réinitialisé</string>
+    <string name="s_pin_reset_wrong">Ce n\'est pas le mot de passe du compte</string>
+    <string name="s_pin_reset_unavailable">Aucun mot de passe de compte sur cet appareil</string>
 </resources>

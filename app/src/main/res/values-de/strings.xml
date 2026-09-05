@@ -880,7 +880,7 @@
     <string name="s_pin_saved">Kindersicherung ist aktiv</string>
     <string name="s_pin_off">Kindersicherung ist aus</string>
     <string name="s_pin_unlocked">Erwachsenen-Kategorien 30 Minuten sichtbar</string>
-    <string name="s_pin_wheel_hint">▲▼ Ziffer   ◀▶ Weiter   OK bestätigen</string>
+    <string name="s_pin_wheel_hint">▲▼ Ziffer   ◀▶ wechseln   dann Bestätigen</string>
     <string name="s_pin_hint">4 Ziffern</string>
     <string name="a11y_pin_digit">PIN-Ziffer %1$d</string>
 
@@ -913,4 +913,13 @@
     <string name="f_update_version_available">Version %1$s ist verfügbar.</string>
     <string name="f_update_download_failed">Update konnte nicht heruntergeladen werden. Bitte später erneut versuchen.\n(%1$s)</string>
     <string name="c_unknown_error">Unbekannter Fehler</string>
+    <string name="s_pin_confirm_button">Bestätigen</string>
+    <string name="s_pin_forgot">PIN vergessen?</string>
+    <string name="s_pin_reset_title">Kindersicherung zurücksetzen</string>
+    <string name="s_pin_reset_message">Gib dein Kontopasswort ein. Die Kindersicherung wird ausgeschaltet und die PIN entfernt.</string>
+    <string name="s_pin_reset_hint">Kontopasswort</string>
+    <string name="s_pin_reset_confirm">Zurücksetzen</string>
+    <string name="s_pin_reset_done">Kindersicherung zurückgesetzt</string>
+    <string name="s_pin_reset_wrong">Das ist nicht das Kontopasswort</string>
+    <string name="s_pin_reset_unavailable">Auf diesem Gerät ist kein Kontopasswort gespeichert</string>
 </resources>
