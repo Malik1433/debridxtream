@@ -63,8 +63,17 @@ if [ "${anr:-0}" -eq 0 ]; then say "ANRs in the log buffer: 0  PASS"; else say "
 #
 # Both ceilings are RATCHETS, exactly like config/detekt/debt-ledger.txt: they may only ever be
 # LOWERED. Raising one to make a release pass is the thing this is here to prevent.
-BUDGET_JANK_PCT=75          # release 3.0.6 on the Fire TV measured 69.6%
-BUDGET_P95_MS=250           # 95th-percentile frame time
+# Measured on 3.1.2 / Fire TV .64, two consecutive runs: 8% + 18ms and 0% + 15ms. The ceilings
+# below are ~4x that, so a slower catalogue state does not cause a false FAIL while a real
+# regression still does.
+#
+# NOTE the number this replaced. The old line reported "69.6% janky" and everyone read it as
+# "the app janks": it was gfxinfo over the WHOLE process lifetime, which is dominated by the
+# cold start. Measured over navigation, which is what a user feels, the app is smooth. The lesson
+# is the reason this section was rewritten - a number nothing gates is a number nobody checks the
+# meaning of.
+BUDGET_JANK_PCT=30
+BUDGET_P95_MS=60
 
 $ADB -s "$SERIAL" shell "dumpsys gfxinfo $PKG reset" >/dev/null 2>&1
 # 20 D-pad downs and back up: crosses the Home rails, which is where the app actually janks.

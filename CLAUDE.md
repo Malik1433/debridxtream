@@ -206,11 +206,22 @@ watched going down.
   reports a 242ms "cold start" because it is timing RecoveryActivity, not the app; (2) a release
   smoke must reach a Hilt ViewModel screen, because an orphaned `@HiltViewModel` only crashes
   under R8 (see the memory note). **Re-measured on the shipped release build 3.0.6 (vC 117),
-  2026-09-02: cold-start median 1447ms (1519 / 1408 / 1447) — PASS, 0 ANRs, 69.6% janky
-  frames.** The budget is met; the debug-build 5207ms is history. Jank is still only reported,
-  not gated — the number to watch next.
-- **No crash-free target.** Crashlytics ships and is wired, but nothing states what "healthy"
-  is. Suggested: **crash-free sessions ≥ 99.5%**, checked per release.
+  2026-09-02: cold-start median 1447ms (1519 / 1408 / 1447) — PASS, 0 ANRs.** The budget is met;
+  the debug-build 5207ms is history. Re-measured on 3.1.2 / vC 123, 2026-09-05: **median 1477ms
+  and 1374ms** over two runs.
+  ⭐ **Jank is GATED since 2026-09-05, and the old number was measuring the wrong thing.**
+  `perf_check.sh` now RESETS gfxinfo, drives a fixed 40-keypress scroll on Home and gates the
+  result, so it means the same thing every run: **janky frames ≤ 30%** and **95th-percentile frame
+  ≤ 60ms**, both RATCHETS like the debt ledger — only ever LOWERED, never raised to pass a release.
+  The "69.6% janky" figure everyone read as "the app janks" was gfxinfo over the WHOLE process
+  lifetime, dominated by the cold start. Measured over NAVIGATION the same Fire TV reports **8%
+  and 0% janky, p95 18ms and 15ms** across consecutive runs. The app is smooth; the metric was not.
+- **Crash-free target: SET 2026-09-05 — crash-free sessions ≥ 99.5%, read per release.** There is
+  no adb answer to this one, and reading it over the API needs a service account nobody has
+  provisioned, so it is a CHECK rather than a gate: `perf_check.sh` and `landmine_check.sh` (M6)
+  both end by printing it with the console link, and a release is not signed off until someone has
+  read the number for the PREVIOUS build. An unticked checkbox is the point — the old failure was
+  that nothing anywhere said what "healthy" meant.
 - **Testing policy is a COUNT, not a rule.** `WORLD_CLASS_ROADMAP.md` E4/E5 track 17 instrumented
   and 81 unit test files, which says how many exist but not what must be covered. **Rule: every new
   collaborator class gets a unit test, and every playback landmine listed in the player memory notes

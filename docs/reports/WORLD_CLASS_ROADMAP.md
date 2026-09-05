@@ -844,9 +844,14 @@ budget numbers that were printed but never compared to anything.
 - **I5 — the two budget numbers that were only ever printed.** `perf_check.sh` reported jank from
   whatever `gfxinfo` happened to be holding, which is mostly the launch and depends on what the
   device had been doing; it gated nothing. It now **resets the counters, drives a fixed 40-keypress
-  scroll on Home, then reads** — same work every run — and gates **janky frames ≤ 75%** (3.0.6
-  measured 69.6%) and **95th-percentile frame ≤ 250ms**. Both are ratchets on the debt-ledger rule:
-  only ever LOWERED. **E13 (crash-free sessions ≥ 99.5%)** has no adb answer and the API needs a
+  scroll on Home, then reads** — same work every run — and gates **janky frames ≤ 30%** and
+  **95th-percentile frame ≤ 60ms**, ratchets on the debt-ledger rule: only ever LOWERED.
+  ⭐ **The first run of the new gate corrected the record.** The “69.6% janky” number this replaced
+  was gfxinfo over the whole process lifetime — mostly the cold start — and it had been read as
+  “the app janks”. Measured over NAVIGATION on 3.1.2, the same Fire TV reports **8% then 0% janky,
+  p95 18ms then 15ms**. The ceilings were set from that, not from the old number: ~4x the worst
+  observation, so a slower catalogue state cannot cause a false FAIL while a real regression still
+  does. A number nothing gates is a number nobody checks the meaning of. **E13 (crash-free sessions ≥ 99.5%)** has no adb answer and the API needs a
   service account nobody has provisioned, so it is an explicit unticked CHECK with the console link,
   printed by both `perf_check.sh` and `landmine_check.sh` (M6). A checkbox someone must read beats a
   target nobody wrote down.
