@@ -1,3 +1,11 @@
+// androidx.security-crypto reached 1.1.0 STABLE on 2026-09-05 (it had been shipping as
+// 1.1.0-alpha06 - an alpha crypto library holding real credentials) and the SAME release deprecated
+// EncryptedSharedPreferences / MasterKey. It still works, AndroidX ships no replacement, and all
+// four stores in this app depend on the identical scheme, so the suppression is deliberate:
+// replacing the storage layer is its own planned change with its own migration, not a drive-by.
+// The file-level form is needed because the deprecation also fires on the imports.
+@file:Suppress("DEPRECATION")
+
 package com.tvonnet.debridxtreamiptv.data.parental
 
 import android.content.Context
@@ -30,15 +38,40 @@ class ParentalControls @Inject constructor(@ApplicationContext private val conte
 
     private val policy = ParentalPolicy()
 
+    /**
+     * Encrypted, with a plain fallback (2026-09-05).
+     *
+     * This used to call `EncryptedSharedPreferences.create` unguarded. `ParentalControls` is
+     * injected into `XtreamRepository`, so on a device where the AndroidKeyStore path fails — which
+     * the credential store has a comment about, having seen it on Fire OS — the throw came out of
+     * the DATA FACADE and took the app with it. A crash is strictly worse than either alternative,
+     * and the credential store already answers this the same way.
+     *
+     * The trade-off, stated rather than hidden: on the fallback the PIN lands in plain prefs. What
+     * is stored is a SALTED SHA-256 of the PIN, never the PIN, so the file is not a password
+     * either way — see [ParentalPolicy]. A device that once had encryption and later cannot get it
+     * reads the plain file instead and looks unconfigured; it does not lock anybody out, and it is
+     * recoverable by setting the PIN again.
+     *
+     * DEPRECATION: androidx.security-crypto reached 1.1.0 stable and deprecated this API in the
+     * same release. It still works, there is no AndroidX replacement, and this app's credential
+     * store depends on the identical scheme — so both call sites are suppressed HERE with the
+     * reason, and replacing the storage layer is its own planned change, not a drive-by.
+     */
     private val prefs: SharedPreferences by lazy {
-        val masterKey = MasterKey.Builder(context).setKeyScheme(MasterKey.KeyScheme.AES256_GCM).build()
-        EncryptedSharedPreferences.create(
-            context,
-            PREFS_NAME,
-            masterKey,
-            EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
-            EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
-        )
+        try {
+            val masterKey = MasterKey.Builder(context).setKeyScheme(MasterKey.KeyScheme.AES256_GCM).build()
+            EncryptedSharedPreferences.create(
+                context,
+                PREFS_NAME,
+                masterKey,
+                EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+                EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+            )
+        } catch (e: Exception) {
+            android.util.Log.w(TAG, "EncryptedSharedPreferences unavailable; using plain fallback", e)
+            context.getSharedPreferences(PREFS_NAME + "_plain", Context.MODE_PRIVATE)
+        }
     }
 
     @Volatile private var adultCategoryIds: Set<String> = emptySet()

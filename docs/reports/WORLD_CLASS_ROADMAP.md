@@ -876,6 +876,76 @@ decisions, not defects.
 
 ---
 
+### Tier J — dependencies: what is actually behind, and what the real blocker is *(2026-09-05)*
+
+"Deps are about a year behind" had been an audit line with no numbers behind it, which is how it
+stayed open. Every version below was READ from the artifact repository on 2026-09-05, not guessed,
+so the next person starts from facts.
+
+**J1 — the one that was a defect, fixed: `androidx.security:security-crypto`
+`1.1.0-alpha06` → `1.1.0`.** An ALPHA crypto library was holding the Xtream username and password,
+the Real-Debrid OAuth token, the TorBox token and the parental PIN hash in four
+`EncryptedSharedPreferences` stores. 1.1.0 is stable now, so that finding is simply closed.
+
+Two things came out of doing it, and both matter more than the version number:
+
+- **The same 1.1.0 release DEPRECATES `EncryptedSharedPreferences` and `MasterKey`** (24 warnings,
+  four files). It still works and AndroidX ships no replacement, so the API stays and the
+  suppression is file-level with the reason written next to it in `ParentalControls`. Replacing the
+  storage layer is its own change with its own migration — the failure mode of getting it wrong is
+  every user logged out — so it is NOT a drive-by.
+- **`ParentalControls` created its store unguarded**, unlike `CredentialsPreferences`. It is
+  injected into `XtreamRepository`, so on a device where the AndroidKeyStore path fails the throw
+  came out of the DATA FACADE and took the app down. It now falls back to plain prefs, which is
+  safe *here specifically* because what is stored is a salted SHA-256 of the PIN, never the PIN.
+
+⚠️ **Open, and deliberately not decided alone:** `DebridPreferences` and `TorBoxPreferences` create
+their stores unguarded too — but they hold real bearer secrets, so the three options are
+crash / plaintext token on disk / drop the token and make the user re-link. That is a security
+trade-off for the owner to pick, not something to choose in a dependency batch.
+
+**J2 — the rest of the gap, measured.** Nothing below is a known defect; this is a modernisation
+programme, and the honest reason it has not happened is the blocker in J3, not neglect.
+
+| | in use | latest stable | note |
+|---|---|---|---|
+| AGP | 8.7.1 | 9.4.0 | major |
+| Kotlin | 1.9.25 | 2.4.10 | major — K2 |
+| media3 / ExoPlayer | 1.5.0 | 1.11.0 | ⛔ see J4 |
+| Room | 2.6.1 | 2.8.4 | schema + migration test needed |
+| lifecycle | 2.8.7 | 2.11.0 | |
+| activity / fragment | 1.9.3 / 1.8.5 | 1.13.0 / 1.9.0 | |
+| core-ktx / appcompat | 1.13.1 / 1.7.0 | 1.19.0 / 1.8.0 | wants compileSdk 36 |
+| work | 2.9.1 | 2.11.2 | |
+| paging | 3.3.2 | 3.5.1 | |
+| recyclerview / constraintlayout | 1.3.2 / 2.1.4 | 1.4.0 / 2.2.2 | |
+| OkHttp / Retrofit | 4.12.0 / 2.9.0 | 5.5.0 / 3.0.0 | both major |
+| Glide | 4.16.0 | 5.0.9 | major |
+| Firebase BoM | 33.1.2 | 34.18.0 | major |
+| Ktor (companion server) | 2.3.7 | 3.x | major |
+| Gson / coroutines | 2.10.1 / 1.9.0 | 2.14.0 / 1.11.0 | |
+| Hilt | 2.51.1 | 2.60.1 | |
+| MockK / Robolectric | 1.13.8 / 4.11.1 | 1.14.11 / 4.16.1 | test-only |
+
+**J3 — the actual blocker, and the order it has to be done in.** Most of the AndroidX rows are not
+independent: the current versions are what **compileSdk 35 + Kotlin 1.9.25 + kapt** can consume.
+Newer AndroidX wants compileSdk 36, and Kotlin 2.x wants **KSP instead of kapt** — and this build
+runs kapt for Room, Hilt (×2) and Glide. So the sequence is
+`compileSdk 36` → `Kotlin 2.x` → `kapt → KSP` → `AGP 9` → the AndroidX rows fall out almost for
+free. Bumping the leaves first just produces resolution failures. That is one project per step,
+each with its own device pass — not a batch, and it should be scheduled as such rather than
+attempted opportunistically.
+
+**J4 — media3 stays pinned at 1.5.0 on purpose, and this is the note that stops someone "helpfully"
+bumping it.** §4 of this document lists playback landmines that were each found on a real Fire TV
+and cost real debugging: the TsExtractor flags that froze live TS, the `LiveConfiguration` seek loop
+that froze every `.ts` channel, the tunnel-plane teardown that turned a 4K mid-stream switch black,
+the HDMI audio wedge. Every one of them lives in the layer media3 owns. A six-minor jump is
+therefore a **playback project with a full landmine pass on the device**, and it must not ride along
+with anything else — if it regresses, the bisect has to land on media3 and nothing else.
+
+---
+
 ## 4. Known landmines — never regress these
 
 Carried from hard-won incidents; every phase must respect them.
@@ -1036,6 +1106,9 @@ Carried from hard-won incidents; every phase must respect them.
 
 | 2026-09-05 | **Tier I (`25fb62e8`) - the residue the gates could not see.** Every gate was green, so what was left was what no gate looks at. Two unowned coroutines: `UpdateManager.download` on a bare `CoroutineScope(IO)` outlived its screen and dismissed a dead window / `startActivity`d a dead Activity (now the asking Activity's `lifecycleScope`); `EpisodesAdapterV2` minted a fresh detached scope PER LONG-PRESS with no handler, so a failed Room write reached the thread's uncaught handler - a disk error crashed the app (now the adapter-scope pattern its two siblings already had). `ProgressDialog` (deprecated since API 26) -> `UpdateProgressDialog`, incl. one main-thread hop per WHOLE PERCENT instead of one per 64K chunk. Five shared controls drawn at TV sizes on a touchscreen, split into `values/dimens_touch.xml` (>=48dp) + `values-television/` (the 10-foot sizes). 29 dialog/toast literals -> resources, 19 new keys x 5 locales, generic buttons -> `android.R.string.cancel/ok`. **`StringResourceParityTest` is the new gate** (translated-in-one => translated-in-all, no orphan keys, identical format arguments) - mutation-checked, and `res/` declared as a test input because without it a translation edit left the task UP-TO-DATE and the check silently did not run. `perf_check.sh` now RESETS gfxinfo, drives a fixed 40-keypress scroll and GATES janky <= 75% + p95 <= 250ms (ratchets, only ever lowered); **E13 crash-free >= 99.5% is an explicit unticked CHECK** with the console link, in `perf_check.sh` and `landmine_check.sh` (M6). | 8 | 1 | 0 | 47 | `25fb62e8` |
 | 2026-09-05 | **`SeriesRepository` 817 -> 585 (`05035587`).** The file the project's own notes call out: an extraction that "moved the problem instead of solving it". Two collaborators now own what they should - `SeriesDetailFetcher` (253 lines: one series' seasons and episodes, memory -> disk -> `get_series_info` bounded at 15s -> the `get_series`+`get_series_episodes` rebuild) and `SeriesCategoryHealth` (85 lines: which categories the provider is failing on, and the 2-minute cooldown that hands back the LAST GOOD LIST rather than an empty one - an empty answer during a cooldown is indistinguishable from data loss). Bodies verbatim, signatures unchanged, no caller moved. `SeriesCategoryHealthTest` covers the cooldown window directly for the first time (mutation-checked). **`KotlinFilesOver600Lines` 16 -> 15** in the ledger, which is what locks the gain in. | 8 | 1 | 0 | 47 | `05035587` |
+
+| 2026-09-05 | **Tier J - dependencies (`__J__`).** `androidx.security:security-crypto` `1.1.0-alpha06` -> **`1.1.0` stable**: an ALPHA crypto library had been holding the Xtream username/password, the Real-Debrid OAuth token, the TorBox token and the parental PIN hash. Read-compatibility with stores written by alpha06 was the actual risk and it was verified on the LOGGED-IN Fire TV - 3.1.3 installed over 3.1.2 came up still signed in, catalogue loaded, Continue Watching intact. Two findings fell out: the same release **deprecates** `EncryptedSharedPreferences`/`MasterKey` (24 warnings, 4 files - suppressed at file level with the reason, because AndroidX ships no replacement and swapping the storage layer is its own migration), and **`ParentalControls` created its store unguarded** while `CredentialsPreferences` did not - it is injected into `XtreamRepository`, so a KeyStore failure threw out of the DATA FACADE and killed the app; it now falls back to plain prefs, which is safe there and only there because the stored value is a salted SHA-256 of the PIN. `DebridPreferences`/`TorBoxPreferences` are still unguarded and left open ON PURPOSE: they hold real bearer secrets, so crash-vs-plaintext-vs-re-link is the owner's call. **The rest of the gap is now measured, not guessed** (§Tier J table, read from the repositories on the day): the blocker is `compileSdk 36` -> `Kotlin 2.x` -> `kapt->KSP` -> `AGP 9`, in that order, and **media3 stays pinned at 1.5.0** because every playback landmine in §4 lives in the layer it owns. | 8 | 1 | 0 | 47 | `__J__` |
+| 2026-09-05 | **`landmine_check.sh` L3 was flaky, and a flaky release gate is worse than none (`__J__`).** The 3.1.3 run FAILED L3 with `state=6` - BUFFERING - because L1's cold-start section force-stops the app three times, so when playback was started before the script ran, L3 sampled a freshly re-created, still-buffering player. The MediaSession was working. L3 now POLLS for the expected state for up to 12 s instead of sampling once; the assertion is unchanged, only the timing tolerance. Verified by reproducing the exact failing order (playback first, then the full run with perf): **0 automated FAILs**. | 8 | 1 | 0 | 47 | `__J__` |
 
 *(Append one row per landed phase. The three numeric columns may never increase.)*
 

@@ -1,3 +1,7 @@
+// Deprecated-API suppression: see data/parental/ParentalControls.kt for why security-crypto's
+// EncryptedSharedPreferences is still used after 1.1.0 deprecated it.
+@file:Suppress("DEPRECATION")
+
 package com.tvonnet.debridxtreamiptv.data.prefs
 
 import android.content.Context

@@ -87,13 +87,29 @@ if [ $((after - before)) -ge 3 ]; then pass "L2 $((after - before)) MediaCodecLo
 
 # ── L3 ────────────────────────────────────────────────────────────────────────
 echo "[L3] MediaSession via the system path"
+# Wait for the session to SETTLE on the expected state instead of sampling once.
+# state=6 is BUFFERING, and it is a legitimate transient: L1's cold-start runs force-stop the app
+# three times, so when the operator started playback before running this script the player is
+# freshly re-created and still buffering when L3 fires. A single sample turned that into a FAIL on
+# 3.1.3 while the MediaSession was in fact working (2026-09-05). A gate that depends on the
+# operator's timing is a gate nobody trusts - so poll, and keep the assertion exactly as strict.
+await_state() {
+    local want="$1" i st
+    for i in $(seq 1 12); do
+        st=$(session_state)
+        [ "$st" = "$want" ] && { printf '%s' "$st"; return 0; }
+        sleep 1
+    done
+    printf '%s' "${st:-no session}"
+    return 1
+}
 pid_before=$(adb shell pidof $PKG | tr -d '\r')
-adb shell media dispatch pause; sleep 4
-st=$(session_state); pid_after=$(adb shell pidof $PKG | tr -d '\r')
-if [ "$st" = "state=2" ] && [ -n "$pid_after" ] && [ "$pid_after" = "$pid_before" ]; then pass "L3 pause -> $st, process alive"; else fail "L3 pause -> '${st:-no session}' pid $pid_before -> '${pid_after:-dead}'"; fi
-adb shell media dispatch play; sleep 4
-st=$(session_state)
-if [ "$st" = "state=3" ]; then pass "L3 play -> $st"; else fail "L3 play -> '${st:-no session}'"; fi
+adb shell media dispatch pause; sleep 2
+st=$(await_state "state=2"); pid_after=$(adb shell pidof $PKG | tr -d '\r')
+if [ "$st" = "state=2" ] && [ -n "$pid_after" ] && [ "$pid_after" = "$pid_before" ]; then pass "L3 pause -> $st, process alive"; else fail "L3 pause -> '$st' pid $pid_before -> '${pid_after:-dead}'"; fi
+adb shell media dispatch play; sleep 2
+st=$(await_state "state=3")
+if [ "$st" = "state=3" ]; then pass "L3 play -> $st"; else fail "L3 play -> '$st'"; fi
 
 # ── L4 / L5 ───────────────────────────────────────────────────────────────────
 echo "[L4] audio sink health   [L5] crash / ANR"

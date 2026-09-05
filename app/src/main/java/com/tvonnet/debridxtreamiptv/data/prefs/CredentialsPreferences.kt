@@ -1,3 +1,7 @@
+// Deprecated-API suppression: see data/parental/ParentalControls.kt for why security-crypto's
+// EncryptedSharedPreferences is still used after 1.1.0 deprecated it.
+@file:Suppress("DEPRECATION")
+
 package com.tvonnet.debridxtreamiptv.data.prefs
 
 import android.content.Context
@@ -10,9 +14,15 @@ class CredentialsPreferences(private val context: Context) {
     private val identityPrefs = IdentityPreferences(context)
 
     // Phase 5: the sensitive credential values (server_url / username / password / logged_in) live in
-    // an ENCRYPTED prefs file. If EncryptedSharedPreferences can't be created (security-crypto is still
-    // alpha and its AndroidKeyStore path is flaky on some Fire OS builds), fall back to the plain prefs
-    // so the user is never crashed or locked out — no worse than before this change.
+    // an ENCRYPTED prefs file. If EncryptedSharedPreferences can't be created (its AndroidKeyStore
+    // path is flaky on some Fire OS builds), fall back to the plain prefs so the user is never
+    // crashed or locked out — no worse than before this change.
+    //
+    // 2026-09-05: security-crypto went 1.1.0-alpha06 -> 1.1.0 STABLE (an alpha crypto library was
+    // holding these credentials), and the same release deprecated this API. It still works and
+    // AndroidX offers no replacement, so the suppression is deliberate and the reason lives next to
+    // the other call site in ParentalControls. Read-compatibility with prefs written by alpha06 was
+    // verified on the logged-in Fire TV: the session survived the upgrade.
     private val credsPrefs: SharedPreferences = try {
         val masterKey = MasterKey.Builder(context)
             .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
