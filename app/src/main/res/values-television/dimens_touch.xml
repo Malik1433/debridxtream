@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Touch-target sizes — the TELEVISION answer (2026-09-05). See values/dimens_touch.xml for why
+  this is split at all. These are the sizes the 10-foot designs were drawn at; a remote does not
+  need a hit area, so raising them here would only make the chrome heavier at three metres.
+-->
+<resources>
+    <dimen name="tap_min">32dp</dimen>
+    <dimen name="touch_favorite_remove">32dp</dimen>
+    <dimen name="touch_favorite_remove_pad">6dp</dimen>
+    <dimen name="touch_next_episode_play">26dp</dimen>
+    <dimen name="touch_dialog_button_height">32dp</dimen>
+</resources>

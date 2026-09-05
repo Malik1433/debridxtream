@@ -93,7 +93,7 @@ class SettingsMaintenanceActions(
                 }
             } catch (e: Exception) {
                 android.util.Log.e(TAG, "IPTV refresh failed", e)
-                Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_LONG).show()
+                Toast.makeText(context, context.getString(R.string.f_error_detail, e.message.orEmpty()), Toast.LENGTH_LONG).show()
             } finally {
                 running = null
                 percent = 0
@@ -125,13 +125,13 @@ class SettingsMaintenanceActions(
             try {
                 val result = repository.fetchAndSaveEpg()
                 if (result is com.tvonnet.debridxtreamiptv.data.Result.Success) {
-                    Toast.makeText(context, "EPG synced: ${result.data} programs", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, context.getString(R.string.f_epg_synced, result.data), Toast.LENGTH_SHORT).show()
                 } else {
                     Toast.makeText(context, context.getString(R.string.c_epg_sync_failed_please_try), Toast.LENGTH_LONG).show()
                 }
             } catch (e: Exception) {
                 android.util.Log.e(TAG, "EPG sync failed", e)
-                Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_LONG).show()
+                Toast.makeText(context, context.getString(R.string.f_error_detail, e.message.orEmpty()), Toast.LENGTH_LONG).show()
             }
         }
     }
@@ -252,9 +252,9 @@ class SettingsMaintenanceActions(
                 }
                 if (fragment.isAdded) {
                     // Log error but avoid showing "not attached" toast if that was the issue
-                    val msg = e.message ?: "Unknown error"
+                    val msg = e.message ?: context.getString(R.string.c_unknown_error)
                     if (!msg.contains("not been attached yet")) {
-                        Toast.makeText(context, "Error: $msg", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, context.getString(R.string.f_error_detail, msg), Toast.LENGTH_SHORT).show()
                     }
                 }
             }

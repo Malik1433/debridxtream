@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Touch-target sizes — the PHONE answer (2026-09-05).
+
+  §"Two platforms, two rulebooks": a handset control must be at least 48dp on its short side, and
+  five shared controls were below it — a 32dp remove-favourite button, a 26dp up-next play circle,
+  and 32dp buttons in the resume dialog. They were sized for a television, where the size of a
+  control is a VIEWING-DISTANCE question and not a hit-area one: the D-pad lands on it exactly,
+  however small it is drawn.
+
+  So this is the one thing the rulebook says IS device-specific, and it is split the same way the
+  rest of the viewing-distance numbers are: `values/` answers for the phone, `values-television/`
+  keeps the sizes those designs were drawn at. Same layout, same ids — only the number differs.
+-->
+<resources>
+    <!-- Minimum short side of anything a finger has to hit. Material's floor, not a target. -->
+    <dimen name="tap_min">48dp</dimen>
+
+    <!-- Favourites grid: the small X over the poster corner. -->
+    <dimen name="touch_favorite_remove">48dp</dimen>
+    <dimen name="touch_favorite_remove_pad">14dp</dimen>
+
+    <!-- The player's up-next prompt: the play circle that starts the next episode early. -->
+    <dimen name="touch_next_episode_play">48dp</dimen>
+
+    <!-- Resume-or-start-over, asked after a source is picked. -->
+    <dimen name="touch_dialog_button_height">48dp</dimen>
+</resources>

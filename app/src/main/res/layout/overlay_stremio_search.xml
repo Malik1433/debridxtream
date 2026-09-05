@@ -95,8 +95,8 @@
 
                 <ImageView
                     android:id="@+id/search_clear"
-                    android:layout_width="40dp"
-                    android:layout_height="40dp"
+                    android:layout_width="@dimen/tap_min"
+                    android:layout_height="@dimen/tap_min"
                     android:background="?attr/selectableItemBackgroundBorderless"
                     android:clickable="true"
                     android:contentDescription="@string/clear"

@@ -22,4 +22,11 @@
     <string name="f_no_program_information">No program information</string>
     <string name="f_channel_col">CHANNEL</string>
     <string name="f_now_marker">NOW</string>
+    <string name="f_percent">%1$d%%</string>
+    <string name="f_episode_number">Episode %1$d</string>
+    <string name="f_error_detail">Error: %1$s</string>
+    <string name="f_epg_synced">EPG synced: %1$d programs</string>
+    <string name="f_stremio_addons_count">Stremio Addons (%1$d)</string>
+    <string name="f_update_version_available">Version %1$s is available.</string>
+    <string name="f_update_download_failed">Could not download the update. Please try again later.\n(%1$s)</string>
 </resources>

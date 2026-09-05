@@ -677,10 +677,10 @@ class SeriesDetailActivity : AppCompatActivity() {
         androidx.appcompat.app.AlertDialog.Builder(this)
             .setTitle(R.string.c_real_debrid_not_configured)
             .setMessage(R.string.c_you_need_to_configure_real)
-            .setPositiveButton("Configure") { _, _ ->
+            .setPositiveButton(R.string.c_configure) { _, _ ->
                  navigateToSettings()
             }
-            .setNegativeButton("Cancel", null)
+            .setNegativeButton(android.R.string.cancel, null)
             .show()
     }
 

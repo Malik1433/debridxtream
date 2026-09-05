@@ -269,7 +269,7 @@
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btn_watch_now"
             android:layout_width="0dp"
-            android:layout_height="44dp"
+            android:layout_height="@dimen/tap_min"
             android:layout_weight="1"
             android:text="@string/series_detail_watch_now"
             android:backgroundTint="@color/brand_cyan"
@@ -294,7 +294,7 @@
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btn_watch_trailer"
             android:layout_width="0dp"
-            android:layout_height="44dp"
+            android:layout_height="@dimen/tap_min"
             android:layout_weight="1"
             android:text="@string/ui_watch_trailer"
             android:backgroundTint="@color/glass_card_bg_light"
@@ -322,7 +322,7 @@
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btn_add_favorite"
             android:layout_width="0dp"
-            android:layout_height="44dp"
+            android:layout_height="@dimen/tap_min"
             android:layout_weight="1"
             android:text="@string/series_detail_add_to_favorites"
             android:backgroundTint="@color/glass_card_bg_light"

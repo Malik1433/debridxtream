@@ -28,11 +28,11 @@ object UiModeChooser {
         AlertDialog.Builder(activity)
             .setTitle(R.string.c_how_are_you_using_this)
             .setMessage(R.string.c_pick_the_layout_that_fits)
-            .setPositiveButton("TV / remote") { d, _ ->
+            .setPositiveButton(R.string.c_mode_tv_remote) { d, _ ->
                 prefs.setUiModeOverride(UiModeResolver.OVERRIDE_TV)
                 d.dismiss()
             }
-            .setNegativeButton("Phone / touch") { d, _ ->
+            .setNegativeButton(R.string.c_mode_phone_touch) { d, _ ->
                 prefs.setUiModeOverride(UiModeResolver.OVERRIDE_MOBILE)
                 d.dismiss()
             }

@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    The update download's progress, replacing android.app.ProgressDialog (deprecated since API 26
+    and removed from the design guidance long before that). Deliberately has NO buttons: the
+    download is not cancellable, so on a television there is nothing for the D-pad to land on and
+    nothing that can be dismissed by accident.
+
+    Percent is drawn as text as well as a bar — at three metres a bar that has barely moved and a
+    bar that is stuck look identical.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:paddingStart="24dp"
+    android:paddingEnd="24dp"
+    android:paddingTop="20dp"
+    android:paddingBottom="8dp">
+
+    <TextView
+        android:id="@+id/tv_update_progress_message"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textColor="@color/source_text_primary"
+        android:textSize="16sp"
+        tools:text="Downloading update…" />
+
+    <ProgressBar
+        android:id="@+id/pb_update_progress"
+        style="?android:attr/progressBarStyleHorizontal"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:max="100"
+        android:indeterminate="false"
+        tools:progress="42" />
+
+    <TextView
+        android:id="@+id/tv_update_progress_percent"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="end"
+        android:layout_marginTop="8dp"
+        android:textColor="@color/text_muted"
+        android:textSize="13sp"
+        android:fontFamily="monospace"
+        tools:text="42%" />
+</LinearLayout>

@@ -3,7 +3,6 @@ package com.tvonnet.debridxtreamiptv.update
 import android.app.Activity
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
-import android.app.ProgressDialog
 import android.content.Intent
 import android.os.Build
 import android.provider.Settings
@@ -12,7 +11,9 @@ import androidx.core.content.FileProvider
 import com.google.firebase.firestore.FirebaseFirestore
 import com.tvonnet.debridxtreamiptv.BuildConfig
 import com.tvonnet.debridxtreamiptv.R
-import kotlinx.coroutines.CoroutineScope
+import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -118,86 +119,98 @@ object UpdateManager {
         forced: Boolean
     ) {
         val message = buildString {
-            append("Version $versionName is available.")
+            append(activity.getString(R.string.f_update_version_available, versionName))
             if (changelog.isNotBlank()) append("\n\n").append(changelog)
-            if (forced) append("\n\nThis update is required to continue.")
+            if (forced) append("\n\n").append(activity.getString(R.string.c_update_required_to_continue))
         }
         val dialog = AlertDialog.Builder(activity)
             .setTitle(R.string.c_update_available)
             .setMessage(message)
             .setCancelable(!forced)
-            .setPositiveButton("Update now") { _, _ -> download(activity, apkUrl, forced) }
-        if (!forced) dialog.setNegativeButton("Later", null)
+            .setPositiveButton(R.string.c_update_now) { _, _ -> download(activity, apkUrl, forced) }
+        if (!forced) dialog.setNegativeButton(R.string.c_update_later, null)
         dialog.show()
     }
 
+    /**
+     * The download is a CHILD of the Activity that asked for it (2026-09-05).
+     *
+     * It used to run on a bare `CoroutineScope(Dispatchers.IO)`, which outlives the screen: leave
+     * the app mid-download and the coroutine still finishes, dismisses a dialog whose window is
+     * gone and calls `startActivity` on a dead Activity. Under `lifecycleScope` the download,
+     * the dialog and the install all die with the screen, and the cached APK is picked up by
+     * [resumePendingInstall] next time — nothing is lost, nothing leaks.
+     */
     private fun download(activity: Activity, apkUrl: String, forced: Boolean) {
-        @Suppress("DEPRECATION")
-        val progress = ProgressDialog(activity).apply {
-            setMessage(activity.getString(R.string.c_downloading_update))
-            setCancelable(false)
-            setProgressStyle(ProgressDialog.STYLE_HORIZONTAL)
-            max = 100
-            show()
+        val scope = (activity as? LifecycleOwner)?.lifecycleScope
+        if (scope == null) {
+            // Every caller today is an AppCompatActivity; a plain Activity would give the download
+            // no owner, and an unowned download is exactly the bug this replaced.
+            Log.e(TAG, "update download needs a LifecycleOwner activity, got ${activity.javaClass.name}")
+            toast(activity, R.string.c_update_failed)
+            return
         }
+        val progress = UpdateProgressDialog(activity, activity.getString(R.string.c_downloading_update))
 
-        CoroutineScope(Dispatchers.IO).launch {
+        scope.launch {
             try {
-                val dir = File(activity.cacheDir, "updates").apply { mkdirs() }
-                val apk = File(dir, "app-update.apk")
-                if (apk.exists()) apk.delete()
-
-                streamApkTo(apk, apkUrl, progress)
-
-                withContext(Dispatchers.Main) {
-                    progress.dismiss()
-                    installApk(activity, apk)
+                val apk = withContext(Dispatchers.IO) {
+                    val dir = File(activity.cacheDir, "updates").apply { mkdirs() }
+                    File(dir, "app-update.apk").also { if (it.exists()) it.delete() }
                 }
+                streamApkTo(apk, apkUrl, progress)
+                progress.dismissQuietly()
+                installApk(activity, apk)
+            } catch (ce: CancellationException) {
+                // The screen went away. Leave the part-file behind: the next attempt deletes it.
+                progress.dismissQuietly()
+                throw ce
             } catch (e: Exception) {
                 Log.e(TAG, "update download failed", e)
-                withContext(Dispatchers.Main) {
-                    progress.dismiss()
-                    showDownloadFailedDialog(activity, apkUrl, forced, e)
-                }
+                progress.dismissQuietly()
+                showDownloadFailedDialog(activity, apkUrl, forced, e)
             }
         }
     }
 
     // Streams the APK to disk in 64K chunks, publishing percent progress to the dialog.
-    @Suppress("DEPRECATION")
-    private suspend fun streamApkTo(apk: File, apkUrl: String, progress: ProgressDialog) {
-        http.newCall(Request.Builder().url(apkUrl).build()).execute().use { resp ->
-            if (!resp.isSuccessful) throw IllegalStateException("HTTP ${resp.code}")
-            val body = resp.body ?: throw IllegalStateException("empty body")
-            copyBodyToFile(body, apk, progress)
+    private suspend fun streamApkTo(apk: File, apkUrl: String, progress: UpdateProgressDialog) {
+        withContext(Dispatchers.IO) {
+            http.newCall(Request.Builder().url(apkUrl).build()).execute().use { resp ->
+                if (!resp.isSuccessful) throw IllegalStateException("HTTP ${resp.code}")
+                val body = resp.body ?: throw IllegalStateException("empty body")
+                copyBodyToFile(body, apk, progress)
+            }
         }
     }
 
-    @Suppress("DEPRECATION")
-    private suspend fun copyBodyToFile(body: okhttp3.ResponseBody, apk: File, progress: ProgressDialog) {
+    private suspend fun copyBodyToFile(body: okhttp3.ResponseBody, apk: File, progress: UpdateProgressDialog) {
         val total = body.contentLength()
         body.byteStream().use { input ->
             apk.outputStream().use { out -> copyLoop(input, out, total, progress) }
         }
     }
 
-    @Suppress("DEPRECATION")
     private suspend fun copyLoop(
         input: java.io.InputStream,
         out: java.io.OutputStream,
         total: Long,
-        progress: ProgressDialog
+        progress: UpdateProgressDialog
     ) {
         val buf = ByteArray(64 * 1024)
         var read: Int
         var done = 0L
+        var lastPct = -1
         while (input.read(buf).also { read = it } != -1) {
             out.write(buf, 0, read)
             done += read
-            if (total > 0) {
-                val pct = ((done * 100) / total).toInt()
-                withContext(Dispatchers.Main) { progress.progress = pct }
-            }
+            if (total <= 0) continue
+            // One main-thread hop per WHOLE PERCENT, not per 64K chunk: a 16 MB APK was posting
+            // ~250 runnables to set the same integer.
+            val pct = ((done * 100) / total).toInt()
+            if (pct == lastPct) continue
+            lastPct = pct
+            withContext(Dispatchers.Main) { progress.percent(pct) }
         }
     }
 
@@ -205,10 +218,10 @@ object UpdateManager {
     private fun showDownloadFailedDialog(activity: Activity, apkUrl: String, forced: Boolean, e: Exception) {
         AlertDialog.Builder(activity)
             .setTitle(R.string.c_update_failed)
-            .setMessage("Could not download the update. Please try again later.\n(${e.message})")
+            .setMessage(activity.getString(R.string.f_update_download_failed, e.message.orEmpty()))
             .setCancelable(!forced)
-            .setPositiveButton("Retry") { _, _ -> download(activity, apkUrl, forced) }
-            .apply { if (!forced) setNegativeButton("Later", null) }
+            .setPositiveButton(R.string.c_update_retry) { _, _ -> download(activity, apkUrl, forced) }
+            .apply { if (!forced) setNegativeButton(R.string.c_update_later, null) }
             .show()
     }
 

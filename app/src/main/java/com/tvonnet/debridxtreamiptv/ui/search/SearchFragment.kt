@@ -270,7 +270,7 @@ class SearchFragment :
         }
         state ?: return
         val items = scopedResults(state)
-        countTv.text = "${items.size} RESULTS"
+        countTv.text = getString(R.string.f_results_caps, items.size)
         // The 3 result sources (VOD/series/live) stream in as separate emits for the SAME
         // query. Only reset scroll-to-top on a genuinely NEW query, and never while the user
         // is already browsing the results — updatePreservingFocus keeps their spot otherwise.

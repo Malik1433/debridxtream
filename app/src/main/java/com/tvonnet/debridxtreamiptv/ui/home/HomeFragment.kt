@@ -497,7 +497,7 @@ class HomeFragment : Fragment(), HomeRouterHost {
         androidx.appcompat.app.AlertDialog.Builder(ctx)
             .setCustomTitle(title)
             .setMessage(message)
-            .setPositiveButton("OK", null)
+            .setPositiveButton(android.R.string.ok, null)
             .show()
             .findViewById<android.widget.TextView>(android.R.id.message)?.textSize = 17f
     }

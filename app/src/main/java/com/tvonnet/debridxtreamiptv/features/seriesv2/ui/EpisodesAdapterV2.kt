@@ -15,7 +15,12 @@ import com.tvonnet.debridxtreamiptv.features.seriesv2.data.model.EpisodeEntityV2
 import dagger.hilt.EntryPoint
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @EntryPoint
 @InstallIn(SingletonComponent::class)
@@ -32,8 +37,27 @@ class EpisodesAdapterV2(
     private val onEpisodeFocused: (EpisodeEntityV2) -> Unit = {}
 ) : PagingDataAdapter<EpisodeEntityV2, EpisodesAdapterV2.EpisodeViewHolder>(EpisodeDiffCallback) {
 
+    private companion object { const val TAG = "EpisodesAdapterV2" }
+
     init {
         stateRestorationPolicy = StateRestorationPolicy.PREVENT_WHEN_EMPTY
+    }
+
+    /**
+     * The long-press "mark watched" write, owned (2026-09-05).
+     *
+     * It used to run on a fresh `CoroutineScope(Dispatchers.IO)` minted per click: nothing
+     * cancelled it, and — worse — a scope built without a handler routes a failed Room write to
+     * the thread's uncaught-exception handler, so a disk error on a long-press crashed the app.
+     * This is the pattern the sibling adapters already use ([CinEpisodeAdapter],
+     * [SeriesEpisodeAdapter]): one scope per adapter, cancelled with the adapter, the write
+     * itself inside `runCatching` on IO.
+     */
+    private val adapterScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+
+    override fun onDetachedFromRecyclerView(recyclerView: RecyclerView) {
+        super.onDetachedFromRecyclerView(recyclerView)
+        adapterScope.cancel()
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): EpisodeViewHolder {
@@ -120,7 +144,9 @@ class EpisodesAdapterV2(
                     val identityKey = watchedIdentityKey(item)
                     if (identityKey != null) {
                         val isWatched = watchedKeys.contains(identityKey)
-                        val title = if (isWatched) "Mark as Unwatched" else "Mark as Watched"
+                        val title = context.getString(
+                            if (isWatched) R.string.c_mark_as_unwatched else R.string.c_mark_as_watched
+                        )
                         androidx.appcompat.app.AlertDialog.Builder(context)
                             .setTitle(item.title)
                             .setItems(arrayOf(title)) { _, _ ->
@@ -130,7 +156,8 @@ class EpisodesAdapterV2(
                                 )
                                 val repo = entryPoint.watchedStateRepository()
                                 val historyPrefs = com.tvonnet.debridxtreamiptv.data.prefs.WatchHistoryPreferences(context)
-                                kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+                                adapterScope.launch {
+                                    val outcome = withContext(Dispatchers.IO) { runCatching {
                                     val currentState = repo.getState(identityKey) ?: com.tvonnet.debridxtreamiptv.data.local.entity.WatchedStateEntity(
                                         identityKey = identityKey,
                                         contentType = com.tvonnet.debridxtreamiptv.data.local.entity.WatchedStateEntity.CONTENT_TYPE_EPISODE,
@@ -148,6 +175,10 @@ class EpisodesAdapterV2(
                                     )
                                     repo.setManualWatched(currentState, !isWatched, System.currentTimeMillis())
                                     historyPrefs.removeContinueWatchingItem(item.episodeId)
+                                    } }
+                                    outcome.onFailure { e ->
+                                        android.util.Log.w(TAG, "mark-watched write failed", e)
+                                    }
                                 }
                             }
                             .show()

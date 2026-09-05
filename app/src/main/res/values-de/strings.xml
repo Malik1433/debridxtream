@@ -899,4 +899,30 @@
     <!-- Diagnostics consent (2026-09-03) -->
     <string name="s_diagnostics_title">Diagnose &amp; Absturzberichte senden</string>
     <string name="s_diagnostics_desc">Anonym: Absturzberichte und eine Wiedergabe-Zusammenfassung pro Sitzung (Startzeit, Nachpuffern, Fehler). Nie, was du gesehen hast, dein Konto oder dein Anbieter</string>
+    <string name="c_yes">Ja</string>
+    <string name="c_configure">Konfigurieren</string>
+    <string name="c_remove">Entfernen</string>
+    <string name="c_close">Schließen</string>
+    <string name="c_add">Hinzufügen</string>
+    <string name="c_add_addon">+ Addon hinzufügen</string>
+    <string name="c_log_out">Abmelden</string>
+    <string name="c_mode_tv_remote">TV / Fernbedienung</string>
+    <string name="c_mode_phone_touch">Telefon / Touch</string>
+    <string name="c_configured_addon">Konfiguriertes Addon</string>
+    <string name="c_marked_watched">Als gesehen markiert</string>
+    <string name="c_marked_unwatched">Als ungesehen markiert</string>
+    <string name="c_mark_as_watched">Als gesehen markieren</string>
+    <string name="c_mark_as_unwatched">Als ungesehen markieren</string>
+    <string name="c_update_now">Jetzt aktualisieren</string>
+    <string name="c_update_later">Später</string>
+    <string name="c_update_retry">Erneut versuchen</string>
+    <string name="c_update_required_to_continue">Dieses Update ist erforderlich, um fortzufahren.</string>
+    <string name="f_percent">%1$d%%</string>
+    <string name="f_episode_number">Folge %1$d</string>
+    <string name="f_error_detail">Fehler: %1$s</string>
+    <string name="f_epg_synced">EPG synchronisiert: %1$d Sendungen</string>
+    <string name="f_stremio_addons_count">Stremio-Addons (%1$d)</string>
+    <string name="f_update_version_available">Version %1$s ist verfügbar.</string>
+    <string name="f_update_download_failed">Update konnte nicht heruntergeladen werden. Bitte später erneut versuchen.\n(%1$s)</string>
+    <string name="c_unknown_error">Unbekannter Fehler</string>
 </resources>

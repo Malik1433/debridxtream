@@ -336,7 +336,7 @@ class MovieDetailFragmentV2 : Fragment() {
                         Toast.makeText(requireContext(), requireContext().getString(R.string.movie_detail_added_to_favorites), Toast.LENGTH_SHORT).show()
                     }
                 } catch (e: Exception) {
-                    Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, getString(R.string.f_error_detail, e.message.orEmpty()), Toast.LENGTH_SHORT).show()
                 }
             }
         }

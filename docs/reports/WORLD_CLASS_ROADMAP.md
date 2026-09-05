@@ -809,6 +809,60 @@ files**, never into those two.
 
 ---
 
+### Tier I — the residue the gates could not see *(2026-09-05)*
+
+Everything the ratchet, detekt, CI and the test net measure was green when this tier opened. So
+what was left is precisely the class of defect **no gate looks at**: a coroutine with no owner, a
+control sized for a remote sitting on a touchscreen, an English word compiled into a Toast, and two
+budget numbers that were printed but never compared to anything.
+
+- **I1 — the two unowned coroutines.** `UpdateManager.download` ran on a bare
+  `CoroutineScope(Dispatchers.IO)`: leave the screen mid-download and it still finished, dismissed a
+  dialog whose window was gone (`View not attached to window manager`) and called `startActivity` on
+  a dead Activity. It is a child of the asking Activity's `lifecycleScope` now — download, dialog and
+  install die together, and the cached APK is still picked up by `resumePendingInstall`.
+  `EpisodesAdapterV2` minted a **fresh detached scope per long-press**, with no handler: a failed
+  Room write went to the thread's uncaught handler, i.e. a disk error on a long-press crashed the
+  app. It now uses the adapter-scope pattern its two sibling adapters already had
+  (`SupervisorJob` + `Main.immediate`, cancelled in `onDetachedFromRecyclerView`, the write inside
+  `runCatching` on IO).
+- **I2 — `ProgressDialog` retired.** Deprecated since API 26, and the reason it survived was that
+  nothing lints it. Replaced by `UpdateProgressDialog` over `dialog_update_progress`: no buttons (the
+  download is not cancellable, so there is nothing for a D-pad to land on), a `dismissQuietly` that
+  cannot throw, and — the real bug — **one main-thread hop per whole percent** instead of one per
+  64 KB chunk, which was ~250 runnables setting the same integer on a 16 MB APK.
+- **I3 — the phone's sub-48dp controls.** Five shared controls were drawn at TV sizes: the 32dp
+  remove-favourite X, the 26dp up-next play circle, two 32dp resume-dialog buttons, a 40dp search
+  clear and three 44dp detail actions. Fixed the way the rulebook says: **`values/dimens_touch.xml`
+  (phone, ≥48dp) + `values-television/dimens_touch.xml` (the sizes those 10-foot designs were drawn
+  at)**. Same layout, same ids, one number — a remote does not need a hit area.
+- **I4 — the last dialog/toast literals.** 29 call sites across 15 files went to resources: 19 new
+  keys in `strings_code.xml` / `strings_fmt.xml` **translated into all five locales**, and the
+  generic buttons moved to the platform's own `android.R.string.cancel` / `ok`, which are already
+  translated everywhere. What deliberately stays inline is glyph-and-number formatting
+  (`E%02d`, `⭐ $score`, `+$overflow`) — that is not language.
+- **I5 — the two budget numbers that were only ever printed.** `perf_check.sh` reported jank from
+  whatever `gfxinfo` happened to be holding, which is mostly the launch and depends on what the
+  device had been doing; it gated nothing. It now **resets the counters, drives a fixed 40-keypress
+  scroll on Home, then reads** — same work every run — and gates **janky frames ≤ 75%** (3.0.6
+  measured 69.6%) and **95th-percentile frame ≤ 250ms**. Both are ratchets on the debt-ledger rule:
+  only ever LOWERED. **E13 (crash-free sessions ≥ 99.5%)** has no adb answer and the API needs a
+  service account nobody has provisioned, so it is an explicit unticked CHECK with the console link,
+  printed by both `perf_check.sh` and `landmine_check.sh` (M6). A checkbox someone must read beats a
+  target nobody wrote down.
+- **I6 — `CLAUDE.md` said the layout bools are not device-split.** They are: two are not,
+  `settings_categories_are_horizontal` was split on 2026-08-15 with its reason written next to the
+  bool. The rule is now "not split *by default*, and a split needs its reason in
+  `values/bools_ui_mode.xml`", which is what actually happens.
+
+**Still open after this tier, and why:** 16 Kotlin files over 600 lines (the ratchet stops growth;
+shrinking them is ordinary debt work, one responsibility-split per commit — `BasePlayerFragment`
+stays out of it by the C9 decision). A first-launch consent SCREEN — G3 shipped the switch, defaulted
+ON, in Settings › Data & Storage. Background playback (a `MediaSessionService`) and Cast are product
+decisions, not defects.
+
+---
+
 ## 4. Known landmines — never regress these
 
 Carried from hard-won incidents; every phase must respect them.

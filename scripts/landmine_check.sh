@@ -28,6 +28,7 @@
 #   M3  D-pad focus survives a data refresh on Home / Live / Series                   (CC-1)
 #   M4  EPG grid: no ghosted/stacked titles, now/next matches the broadcast           (deOverlap)
 #   M5  series final-episode END: prompt, no ghost auto-advance
+#   M6  crash-free sessions >= 99.5% on the PREVIOUS release (E13, Crashlytics console)
 #
 # Env overrides: ADB=<path to adb>  DEVICE=<serial>
 set -uo pipefail
@@ -129,6 +130,8 @@ MANUAL - tick on the device before quoting the release:
   [ ] M3  D-pad focus survives a data refresh on Home / Live / Series
   [ ] M4  EPG grid: no ghosted/stacked titles, now/next matches the broadcast
   [ ] M5  series final-episode END: prompt shown, no ghost auto-advance
+  [ ] M6  crash-free sessions >= 99.5% on the previous release (E13)
+          https://console.firebase.google.com/project/debridxtream-new/crashlytics
 EOF
 echo "landmine_check: $fails automated FAIL(s)"
 exit $(( fails > 0 ? 1 : 0 ))

@@ -106,7 +106,11 @@ class LiveFavoritesController(
                     Toast.LENGTH_SHORT
                 ).show()
             } catch (e: Exception) {
-                Toast.makeText(fragment.requireContext(), "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+                Toast.makeText(
+                    fragment.requireContext(),
+                    fragment.getString(R.string.f_error_detail, e.message.orEmpty()),
+                    Toast.LENGTH_SHORT
+                ).show()
             }
         }
     }

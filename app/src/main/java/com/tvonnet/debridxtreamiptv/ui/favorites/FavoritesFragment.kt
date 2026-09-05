@@ -117,10 +117,10 @@ class FavoritesFragment : Fragment() {
             androidx.appcompat.app.AlertDialog.Builder(requireContext())
                 .setTitle(R.string.c_clear_all_favorites)
                 .setMessage(R.string.c_are_you_sure_you_want)
-                .setPositiveButton("Yes") { _, _ ->
+                .setPositiveButton(R.string.c_yes) { _, _ ->
                     viewModel.onEvent(FavoritesEvent.ClearAll)
                 }
-                .setNegativeButton("Cancel", null)
+                .setNegativeButton(android.R.string.cancel, null)
                 .show()
         }
     }

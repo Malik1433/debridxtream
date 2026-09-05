@@ -271,7 +271,11 @@ class CinEpisodeAdapter(
             result.onSuccess {
                 if (watched) watchedKeys.add(identityKey) else watchedKeys.remove(identityKey)
                 notifyItemChangedByIdentity(identityKey)
-                Toast.makeText(context, if (watched) "Marked watched" else "Marked unwatched", Toast.LENGTH_SHORT).show()
+                Toast.makeText(
+                    context,
+                    context.getString(if (watched) R.string.c_marked_watched else R.string.c_marked_unwatched),
+                    Toast.LENGTH_SHORT
+                ).show()
             }.onFailure {
                 Toast.makeText(context, context.getString(R.string.c_unable_to_update_watched_state), Toast.LENGTH_SHORT).show()
             }

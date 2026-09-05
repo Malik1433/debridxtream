@@ -43,8 +43,8 @@
         <!-- Remove Button -->
         <ImageButton
             android:id="@+id/btn_remove"
-            android:layout_width="32dp"
-            android:layout_height="32dp"
+            android:layout_width="@dimen/touch_favorite_remove"
+            android:layout_height="@dimen/touch_favorite_remove"
             android:layout_alignTop="@id/iv_thumbnail"
             android:layout_alignStart="@id/iv_thumbnail"
             android:layout_margin="8dp"
@@ -52,7 +52,7 @@
             android:src="@drawable/ic_remove_favorite"
             android:contentDescription="@string/remove_favorite"
             android:focusable="true"
-            android:padding="6dp" />
+            android:padding="@dimen/touch_favorite_remove_pad" />
         
         <!-- Name -->
         <TextView

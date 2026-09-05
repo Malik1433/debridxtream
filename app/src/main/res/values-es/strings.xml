@@ -898,4 +898,30 @@
     <!-- Diagnostics consent (2026-09-03) -->
     <string name="s_diagnostics_title">Enviar diagnósticos e informes de fallos</string>
     <string name="s_diagnostics_desc">Anónimo: informes de fallos y un resumen de reproducción por sesión (tiempo de inicio, rebúfer, errores). Nunca lo que viste, tu cuenta ni tu proveedor</string>
+    <string name="c_yes">Sí</string>
+    <string name="c_configure">Configurar</string>
+    <string name="c_remove">Quitar</string>
+    <string name="c_close">Cerrar</string>
+    <string name="c_add">Añadir</string>
+    <string name="c_add_addon">+ Añadir addon</string>
+    <string name="c_log_out">Cerrar sesión</string>
+    <string name="c_mode_tv_remote">TV / mando</string>
+    <string name="c_mode_phone_touch">Teléfono / táctil</string>
+    <string name="c_configured_addon">Addon configurado</string>
+    <string name="c_marked_watched">Marcado como visto</string>
+    <string name="c_marked_unwatched">Marcado como no visto</string>
+    <string name="c_mark_as_watched">Marcar como visto</string>
+    <string name="c_mark_as_unwatched">Marcar como no visto</string>
+    <string name="c_update_now">Actualizar ahora</string>
+    <string name="c_update_later">Más tarde</string>
+    <string name="c_update_retry">Reintentar</string>
+    <string name="c_update_required_to_continue">Esta actualización es necesaria para continuar.</string>
+    <string name="f_percent">%1$d%%</string>
+    <string name="f_episode_number">Episodio %1$d</string>
+    <string name="f_error_detail">Error: %1$s</string>
+    <string name="f_epg_synced">EPG sincronizada: %1$d programas</string>
+    <string name="f_stremio_addons_count">Addons de Stremio (%1$d)</string>
+    <string name="f_update_version_available">La versión %1$s está disponible.</string>
+    <string name="f_update_download_failed">No se pudo descargar la actualización. Inténtalo más tarde.\n(%1$s)</string>
+    <string name="c_unknown_error">Error desconocido</string>
 </resources>

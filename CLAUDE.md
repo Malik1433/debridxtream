@@ -123,11 +123,14 @@ are BANNED and deleted: the phone is landscape-locked, so an orientation qualifi
 nobody is asking, and a stray file there silently overrides at runtime while being easy to miss
 (exactly what a leftover `layout-port/view_home_sidebar.xml` did until 2026-08-12).
 
-⭐ **The layout bools are deliberately NOT device-split.** `home_nav_is_horizontal`,
-`browse_categories_are_horizontal`, `settings_categories_are_horizontal` live only in `values/`, so
-BOTH form factors get the same answer: the landscape phone wears the TV's layout on purpose. Only
-the VIEWING-DISTANCE numbers differ per device. Do not "fix" a bool by adding a `-television` copy
-without re-deciding that.
+⭐ **A layout bool is NOT device-split by default.** `home_nav_is_horizontal`,
+`browse_categories_are_horizontal` and `epg_strip_is_horizontal` live only in `values/`, so BOTH form
+factors get the same answer: the landscape phone wears the TV's layout on purpose. Only the
+VIEWING-DISTANCE numbers differ per device. Do not "fix" a bool by adding a `-television` copy without
+re-deciding it **and writing the decision next to the bool** — which is exactly what
+`settings_categories_are_horizontal` did on 2026-08-15 (the phone puts the categories in a chip rail
+because two columns do not fit 411dp; the television keeps its vertical rail). Two bools unsplit, one
+split with its reason on file: `values/bools_ui_mode.xml` is the source of truth, not this list.
 
 Same view ids, same view KINDS, same default visibilities — so shared code binds
 to either without knowing which it got. Only genuinely behavioural differences go through a resource
@@ -135,7 +138,9 @@ to either without knowing which it got. Only genuinely behavioural differences g
 
 **Phone (Material / Android handset conventions)**
 - Touch targets **≥48dp**; body text ≥12sp. The 6-9sp "px÷2" trick is a 10-foot rule and is
-  unreadable in the hand.
+  unreadable in the hand. When a SHARED layout carries a control the TV wants smaller, the size goes
+  in `values/dimens_touch.xml` (phone) + `values-television/dimens_touch.xml` (TV) — same layout, same
+  ids, one number. Do not hard-code a sub-48dp size in a layout the phone can reach.
 - **One tap acts.** No focus-first, no select-then-activate, no D-pad legends ("PRESS OK").
 - Bottom navigation for top-level destinations; **Back goes up**, and every screen must be leavable.
 - Vertical scrolling lists and grids — never fixed side-by-side columns.

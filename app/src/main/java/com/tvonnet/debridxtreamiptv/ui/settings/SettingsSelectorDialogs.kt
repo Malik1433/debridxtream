@@ -141,27 +141,27 @@ class SettingsSelectorDialogs(
         }
 
         AlertDialog.Builder(context)
-            .setTitle("Stremio Addons (${urls.size})")
+            .setTitle(context.getString(R.string.f_stremio_addons_count, urls.size))
             .setItems(buildItems()) { _, which ->
                 if (urls.isNotEmpty() && which < urls.size) {
                     val urlToRemove = urls[which]
                     AlertDialog.Builder(context)
                         .setTitle(R.string.c_remove_stremio_addon)
-                        .setMessage(android.net.Uri.parse(urlToRemove).host ?: "Configured addon")
-                        .setPositiveButton("Remove") { d, _ ->
+                        .setMessage(android.net.Uri.parse(urlToRemove).host ?: context.getString(R.string.c_configured_addon))
+                        .setPositiveButton(R.string.c_remove) { d, _ ->
                             viewModel.removeStremioAddonUrl(urlToRemove)
                             Toast.makeText(context, context.getString(R.string.c_stremio_addon_removed), Toast.LENGTH_SHORT).show()
                             d.dismiss()
                         }
-                        .setNegativeButton("Cancel") { d, _ -> d.dismiss() }
+                        .setNegativeButton(android.R.string.cancel) { d, _ -> d.dismiss() }
                         .show()
                 }
             }
-            .setPositiveButton("+ Add Addon") { dialog, _ ->
+            .setPositiveButton(R.string.c_add_addon) { dialog, _ ->
                 dialog.dismiss()
                 showAddStremioAddonInput()
             }
-            .setNegativeButton("Close") { dialog, _ -> dialog.dismiss() }
+            .setNegativeButton(R.string.c_close) { dialog, _ -> dialog.dismiss() }
             .show()
     }
 
@@ -187,7 +187,7 @@ class SettingsSelectorDialogs(
             // Belt and braces: even single-line, the title + message + field can exceed a short
             // landscape screen once fontScale is applied, and a dialog does not scroll by itself.
             .setView(android.widget.ScrollView(context).apply { addView(input) })
-            .setPositiveButton("Add") { dialog, _ ->
+            .setPositiveButton(R.string.c_add) { dialog, _ ->
                 val url = input.text.toString().trim()
                 if (SettingsOptionLabels.isValidStremioManifestUrl(url)) {
                     viewModel.addStremioAddonUrl(url)
@@ -197,7 +197,7 @@ class SettingsSelectorDialogs(
                 }
                 dialog.dismiss()
             }
-            .setNegativeButton("Cancel") { dialog, _ -> dialog.dismiss() }
+            .setNegativeButton(android.R.string.cancel) { dialog, _ -> dialog.dismiss() }
             .show()
     }
 
@@ -206,12 +206,12 @@ class SettingsSelectorDialogs(
         AlertDialog.Builder(context)
             .setTitle(R.string.c_log_out_of_legacy_real)
             .setMessage(R.string.c_you_will_lose_access_to)
-            .setPositiveButton("Log Out") { dialog, _ ->
+            .setPositiveButton(R.string.c_log_out) { dialog, _ ->
                 viewModel.logoutDebrid()
                 dialog.dismiss()
                 Toast.makeText(context, context.getString(R.string.c_logged_out_of_legacy_fallback), Toast.LENGTH_SHORT).show()
             }
-            .setNegativeButton("Cancel") { dialog, _ -> dialog.dismiss() }
+            .setNegativeButton(android.R.string.cancel) { dialog, _ -> dialog.dismiss() }
             .show()
     }
 }

@@ -898,4 +898,30 @@
     <!-- Diagnostics consent (2026-09-03) -->
     <string name="s_diagnostics_title">Envoyer diagnostics et rapports de plantage</string>
     <string name="s_diagnostics_desc">Anonyme : rapports de plantage et un résumé de lecture par session (temps de démarrage, remises en mémoire tampon, erreurs). Jamais ce que vous avez regardé, votre compte ni votre fournisseur</string>
+    <string name="c_yes">Oui</string>
+    <string name="c_configure">Configurer</string>
+    <string name="c_remove">Supprimer</string>
+    <string name="c_close">Fermer</string>
+    <string name="c_add">Ajouter</string>
+    <string name="c_add_addon">+ Ajouter un addon</string>
+    <string name="c_log_out">Se déconnecter</string>
+    <string name="c_mode_tv_remote">TV / télécommande</string>
+    <string name="c_mode_phone_touch">Téléphone / tactile</string>
+    <string name="c_configured_addon">Addon configuré</string>
+    <string name="c_marked_watched">Marqué comme vu</string>
+    <string name="c_marked_unwatched">Marqué comme non vu</string>
+    <string name="c_mark_as_watched">Marquer comme vu</string>
+    <string name="c_mark_as_unwatched">Marquer comme non vu</string>
+    <string name="c_update_now">Mettre à jour</string>
+    <string name="c_update_later">Plus tard</string>
+    <string name="c_update_retry">Réessayer</string>
+    <string name="c_update_required_to_continue">Cette mise à jour est nécessaire pour continuer.</string>
+    <string name="f_percent">%1$d%%</string>
+    <string name="f_episode_number">Épisode %1$d</string>
+    <string name="f_error_detail">Erreur : %1$s</string>
+    <string name="f_epg_synced">EPG synchronisé : %1$d programmes</string>
+    <string name="f_stremio_addons_count">Addons Stremio (%1$d)</string>
+    <string name="f_update_version_available">La version %1$s est disponible.</string>
+    <string name="f_update_download_failed">Impossible de télécharger la mise à jour. Réessayez plus tard.\n(%1$s)</string>
+    <string name="c_unknown_error">Erreur inconnue</string>
 </resources>

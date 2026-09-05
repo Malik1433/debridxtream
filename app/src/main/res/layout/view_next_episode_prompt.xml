@@ -61,8 +61,8 @@
 
             <FrameLayout
                 android:id="@+id/btn_play_now"
-                android:layout_width="26dp"
-                android:layout_height="26dp"
+                android:layout_width="@dimen/touch_next_episode_play"
+                android:layout_height="@dimen/touch_next_episode_play"
                 android:layout_gravity="center"
                 android:focusable="true"
                 android:clickable="true"

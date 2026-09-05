@@ -172,6 +172,16 @@ android {
 
     testOptions {
         unitTests.returnDefaultValues = true
+        unitTests.all { test ->
+            // StringResourceParityTest reads res/values*/strings*.xml straight off disk, and Gradle
+            // has no way to know that: with only sources declared as inputs, editing a translation
+            // leaves the test task UP-TO-DATE and the check silently does not run. (Caught by
+            // mutation-testing it: a deleted German key passed.) Declaring res/ as an input is what
+            // makes the gate real.
+            test.inputs.dir("$projectDir/src/main/res")
+                .withPropertyName("stringResourcesForParityTest")
+                .withPathSensitivity(org.gradle.api.tasks.PathSensitivity.RELATIVE)
+        }
     }
 
 }
