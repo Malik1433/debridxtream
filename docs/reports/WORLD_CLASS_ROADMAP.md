@@ -1048,6 +1048,18 @@ recoverable with the internet down.
 Entered digits are masked as well; only the digit being turned is legible, because a PIN typed on a
 television is readable across the room.
 
+**A second defect, found by testing the fix on the device rather than trusting it.** The first
+cut moved focus to Confirm the instant the fourth digit was set — which made that digit the one
+you could no longer correct — and, worse, the digit row consumed every arrow key, so on a remote
+there was **no way to reach Confirm, Cancel or Forgot PIN at all** except BACK. Focus now moves
+only when the user ASKS to leave the last box (OK or RIGHT on it), and LEFT off the first box /
+RIGHT off an incomplete last box are deliberately NOT consumed, so the framework can take focus to
+the buttons. Both are asserted in `PinWheelStateTest`.
+
+**On the value of the accidental PIN:** it was not `0000`. Entering `0000` on the owner's box was
+refused, so stray digit keys were part of the burst as well as OK presses. The mechanism is the
+finding; the value is not.
+
 **The lesson worth keeping:** the old behaviour was *tested* — `PinWheelStateTest` asserted "OK
 advances, and completes only on the last box" and passed. The test locked in the defect because it
 described the mechanism instead of the requirement. The requirement is "a PIN the user did not

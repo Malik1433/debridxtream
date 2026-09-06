@@ -22,7 +22,8 @@ import com.tvonnet.debridxtreamiptv.data.parental.ParentalPolicy
  *
  * ⚠️ **Three guards, all added 2026-09-06 after the owner was locked out of their own setting.**
  * The old wheel finished on the fourth OK press over pre-filled zeroes, so the OK that switched the
- * toggle on — plus a remote's own key-repeat — set and confirmed a PIN of `0000` that nobody chose:
+ * toggle on — plus a remote's own key-repeat and whatever else was pressed while it was open — set
+ * and confirmed a PIN nobody chose:
  *
  *  1. OK never enters a digit ([PinWheelState]); only UP/DOWN or a number key does.
  *  2. Finishing is a **separate button**, and it stays disabled until all four digits are chosen.
@@ -146,11 +147,11 @@ object ParentalPinDialogs {
                         button.isEnabled = state.isComplete
                         true
                     }
-                    PinWheelState.Outcome.DONE_EDITING -> {
+                    PinWheelState.Outcome.GO_CONFIRM -> {
                         renderWheel(context, boxes, state)
                         button.isEnabled = true
-                        // The last digit is chosen; hand the remote to the button so the next OK
-                        // is a deliberate "yes", not the tail of entering digits.
+                        // Only when the user ASKS to leave the last box - OK or RIGHT on it - so
+                        // the digit they just chose stays correctable until they say they are done.
                         button.requestFocus()
                         true
                     }

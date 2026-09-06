@@ -7,12 +7,16 @@ import com.tvonnet.debridxtreamiptv.data.parental.ParentalPolicy
  * The D-pad PIN wheel's state machine, with no views in it.
  *
  * ⚠️ **Rewritten 2026-09-06 after a real defect.** The first version pre-filled every box with `0`
- * and treated OK as "advance, and on the last box COMPLETE". A television remote repeats keys, and
- * the very act of turning the toggle on is an OK press — so four more OK presses, which is what an
- * impatient press or one auto-repeat produces, silently entered `0000`. [ParentalPinDialogs.askNewPin]
- * chains two of these, so eight presses **set and confirmed a PIN the owner never chose**, switched
- * parental controls on, and then asked for that PIN to switch them off. The owner was locked out of
- * their own setting by pressing OK.
+ * and treated OK as "advance, and on the last box COMPLETE" — the old test asserted exactly that.
+ * So the wheel could finish with digits the user never chose: OK alone yields `0000`, and any
+ * stray UP/DOWN from someone still navigating yields something else. [ParentalPinDialogs.askNewPin]
+ * chains two of these, so a short burst of remote presses — and the very act of turning the toggle
+ * on is an OK press, which a TV remote then repeats — **set and confirmed a PIN the owner never
+ * chose**, switched parental controls on, and then demanded that PIN to switch them off. The owner
+ * was locked out of their own setting.
+ *
+ * (Confirmed on the owner's Fire TV afterwards: the PIN that got stored was NOT `0000`, so stray
+ * digit keys were in the burst too. The mechanism is the point, not the value.)
  *
  * The rule that makes that impossible: **OK never enters a digit.** Boxes start EMPTY, and only
  * UP/DOWN or a number key fills one. Mashing OK now does nothing at all — the cursor cannot move
@@ -37,8 +41,14 @@ class PinWheelState(length: Int = ParentalPolicy.PIN_LENGTH) {
     /** Only meaningful once [isComplete]; empty otherwise, so a partial PIN can never be stored. */
     val pin: String get() = if (isComplete) digits.joinToString("") else ""
 
-    /** What a key did: nothing, changed the display, or finished the last digit. */
-    enum class Outcome { IGNORED, CHANGED, DONE_EDITING }
+    /**
+     * What a key did.
+     *
+     * [IGNORED] is load-bearing: the dialog must NOT consume it, so the framework moves focus out
+     * of the digit row and on to Cancel / Confirm / Forgot PIN. Without that the row is a trap on
+     * a remote - every arrow key means "turn this digit", so there is no way out but BACK.
+     */
+    enum class Outcome { IGNORED, CHANGED, GO_CONFIRM }
 
     fun onKey(keyCode: Int): Outcome = when (keyCode) {
         KeyEvent.KEYCODE_DPAD_UP -> turn(+1)
@@ -61,14 +71,19 @@ class PinWheelState(length: Int = ParentalPolicy.PIN_LENGTH) {
         } else {
             digits[cursor] = (digits[cursor] + delta + 10) % 10
         }
-        return if (isComplete && cursor == digits.lastIndex) Outcome.DONE_EDITING else Outcome.CHANGED
+        // Deliberately NOT GO_CONFIRM: stealing focus the instant the last digit is set would
+        // make that digit the one you cannot correct.
+        return Outcome.CHANGED
     }
 
     private fun move(delta: Int): Outcome {
-        val target = (cursor + delta).coerceIn(0, digits.lastIndex)
+        if (delta < 0 && cursor == 0) return Outcome.IGNORED          // leftwards, out to the buttons
+        if (delta > 0 && cursor == digits.lastIndex) {
+            return if (isComplete) Outcome.GO_CONFIRM else Outcome.IGNORED
+        }
         // Never skip forward over a box that has not been filled: the PIN is entered in order.
         if (delta > 0 && !entered[cursor]) return Outcome.CHANGED
-        cursor = target
+        cursor += delta
         return Outcome.CHANGED
     }
 
@@ -82,16 +97,14 @@ class PinWheelState(length: Int = ParentalPolicy.PIN_LENGTH) {
             cursor++
             return Outcome.CHANGED
         }
-        return if (isComplete) Outcome.DONE_EDITING else Outcome.CHANGED
+        return if (isComplete) Outcome.GO_CONFIRM else Outcome.CHANGED
     }
 
     private fun type(digit: Int): Outcome {
         digits[cursor] = digit
         entered[cursor] = true
-        if (cursor < digits.lastIndex) {
-            cursor++
-            return Outcome.CHANGED
-        }
-        return if (isComplete) Outcome.DONE_EDITING else Outcome.CHANGED
+        // Same rule as turn(): filling the last box does not grab focus.
+        if (cursor < digits.lastIndex) cursor++
+        return Outcome.CHANGED
     }
 }

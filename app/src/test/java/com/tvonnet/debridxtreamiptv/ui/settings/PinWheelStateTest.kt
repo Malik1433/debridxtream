@@ -76,15 +76,45 @@ class PinWheelStateTest {
     }
 
     @Test
-    fun `four deliberate digits complete the PIN and signal DONE_EDITING`() {
+    fun `four deliberate digits complete the PIN, and the last one keeps focus`() {
         val w = PinWheelState()
         assertEquals(Outcome.CHANGED, w.onKey(KeyEvent.KEYCODE_4))
         assertEquals(Outcome.CHANGED, w.onKey(KeyEvent.KEYCODE_NUMPAD_8))
         assertEquals(Outcome.CHANGED, w.onKey(KeyEvent.KEYCODE_2))
-        assertEquals(Outcome.DONE_EDITING, w.onKey(KeyEvent.KEYCODE_1))
+        assertEquals(
+            "filling the last box must NOT jump to Confirm - that digit has to stay correctable",
+            Outcome.CHANGED, w.onKey(KeyEvent.KEYCODE_1)
+        )
 
         assertTrue(w.isComplete)
         assertEquals("4821", w.pin)
+        assertEquals(3, w.cursor)
+    }
+
+    @Test
+    fun `the digit row is escapable - otherwise a remote is trapped in it`() {
+        val w = PinWheelState()
+        assertEquals(
+            "left on the first box leaves the row, so Cancel and Forgot PIN are reachable",
+            Outcome.IGNORED, w.onKey(KeyEvent.KEYCODE_DPAD_LEFT)
+        )
+
+        listOf(KeyEvent.KEYCODE_1, KeyEvent.KEYCODE_2, KeyEvent.KEYCODE_3).forEach { w.onKey(it) }
+        w.onKey(KeyEvent.KEYCODE_DPAD_RIGHT)
+        assertEquals(
+            "right off the last box with an incomplete PIN still lets focus out",
+            Outcome.IGNORED, w.onKey(KeyEvent.KEYCODE_DPAD_RIGHT)
+        )
+    }
+
+    @Test
+    fun `asking to leave a complete PIN goes to Confirm`() {
+        val w = PinWheelState()
+        listOf(KeyEvent.KEYCODE_1, KeyEvent.KEYCODE_2, KeyEvent.KEYCODE_3, KeyEvent.KEYCODE_4)
+            .forEach { w.onKey(it) }
+
+        assertEquals(Outcome.GO_CONFIRM, w.onKey(KeyEvent.KEYCODE_DPAD_RIGHT))
+        assertEquals(Outcome.GO_CONFIRM, w.onKey(KeyEvent.KEYCODE_DPAD_CENTER))
     }
 
     @Test
