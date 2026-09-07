@@ -921,4 +921,8 @@
     <string name="s_pin_reset_done">Controllo genitori reimpostato</string>
     <string name="s_pin_reset_wrong">Non è la password dell\'account</string>
     <string name="s_pin_reset_unavailable">Nessuna password dell\'account su questo dispositivo</string>
+    <string name="s_consent_title">Inviare i dati diagnostici?</string>
+    <string name="s_consent_message">Segnalazioni di arresto anomalo e un riepilogo di riproduzione per sessione: tempo di avvio, rebuffer, errori. Mai cosa hai guardato, il tuo account o il tuo provider.\n\nPuoi cambiarlo quando vuoi in Impostazioni › Dati e archiviazione.</string>
+    <string name="s_consent_allow">Consenti</string>
+    <string name="s_consent_deny">No, grazie</string>
 </resources>

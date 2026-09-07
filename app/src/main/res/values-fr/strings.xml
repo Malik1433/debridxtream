@@ -921,4 +921,8 @@
     <string name="s_pin_reset_done">Contrôle parental réinitialisé</string>
     <string name="s_pin_reset_wrong">Ce n\'est pas le mot de passe du compte</string>
     <string name="s_pin_reset_unavailable">Aucun mot de passe de compte sur cet appareil</string>
+    <string name="s_consent_title">Envoyer des diagnostics ?</string>
+    <string name="s_consent_message">Rapports de plantage et un résumé de lecture par session : temps de démarrage, remises en mémoire tampon, erreurs. Jamais ce que vous avez regardé, votre compte ni votre fournisseur.\n\nVous pouvez changer cela à tout moment dans Paramètres › Données et stockage.</string>
+    <string name="s_consent_allow">Autoriser</string>
+    <string name="s_consent_deny">Non merci</string>
 </resources>

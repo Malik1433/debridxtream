@@ -7,7 +7,7 @@ import androidx.fragment.app.Fragment
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.tvonnet.debridxtreamiptv.R
 import com.tvonnet.debridxtreamiptv.ui.live.phone.PhoneUi
-import com.tvonnet.debridxtreamiptv.util.DestructiveDialog
+import com.tvonnet.debridxtreamiptv.util.DeliberateDialog
 
 /**
  * "Are you sure?", replaced by something worth reading (G4).
@@ -37,8 +37,8 @@ object SettingsConfirmSheet {
         val context = host.requireContext()
         if (context.resources.getBoolean(R.bool.ui_uses_dpad_focus)) {
             // Guarded: on a remote the press that OPENS this can also answer it - see
-            // DestructiveDialog. Sign Out is the most expensive accident in the app.
-            DestructiveDialog.showProtected(
+            // DeliberateDialog. Sign Out is the most expensive accident in the app.
+            DeliberateDialog.showProtected(
                 AlertDialog.Builder(context)
                     .setTitle(spec.title)
                     .setMessage(listOfNotNull(spec.cost, spec.kept).joinToString("\n\n"))

@@ -922,4 +922,8 @@
     <string name="s_pin_reset_done">Kindersicherung zurückgesetzt</string>
     <string name="s_pin_reset_wrong">Das ist nicht das Kontopasswort</string>
     <string name="s_pin_reset_unavailable">Auf diesem Gerät ist kein Kontopasswort gespeichert</string>
+    <string name="s_consent_title">Diagnosedaten senden?</string>
+    <string name="s_consent_message">Absturzberichte und eine Wiedergabe-Zusammenfassung pro Sitzung — Startzeit, Pufferungen, Fehler. Niemals was du gesehen hast, dein Konto oder deinen Anbieter.\n\nDu kannst das jederzeit unter Einstellungen › Daten &amp; Speicher ändern.</string>
+    <string name="s_consent_allow">Erlauben</string>
+    <string name="s_consent_deny">Nein, danke</string>
 </resources>

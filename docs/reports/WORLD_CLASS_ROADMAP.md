@@ -1101,6 +1101,44 @@ button.
 
 ---
 
+### Tier N — diagnostics: asked, not assumed *(2026-09-07)*
+
+G3 shipped the diagnostics switch (Settings › Data & Storage) **defaulted ON**. That was the honest
+half of the job — it made the collection visible and stoppable in one press — but it was a
+**setting, not consent**: nothing in the app had ever asked, and nothing distinguished "yes" from
+"never asked".
+
+**Tri-state, in one place.** `SettingsPreferences.isDiagnosticsEnabled()` is now
+`answered && stored`. Everything downstream — the Settings row, `PlaybackQoeTracker`, and the
+Crashlytics/Analytics collection switches — reads that one function, so a build where the row said
+ON while collection was off is not expressible. Until the question is answered, **nothing leaves
+the device.**
+
+**The existing base is asked too.** A consent screen only new installs ever see leaves everyone
+already running the app unasked, which is the situation it exists to end — so a device that
+updates into this build arrives unanswered, collection off, and gets the prompt once. The cost is
+one dialog; the alternative is calling it consent while nobody consented.
+
+**`DiagnosticsConsentPrompt`**, shown from `MainActivity` beside the existing TV-or-phone chooser:
+
+- **Not cancellable, and not a trap.** Both answers are one press and neither is hidden. A dialog
+  you can dismiss without answering would either nag every launch or silently record a decision
+  nobody made.
+- **`DeliberateDialog`-guarded** — focus starts on "No thanks" and "Allow" is briefly disabled, so
+  the keypress that opened the screen behind it cannot answer it. An accidental "Allow" is consent
+  nobody gave: the same failure the guard was written for, with nothing destroyed and the
+  principle unchanged. (That reuse is also why the guard is no longer called `DestructiveDialog` —
+  the requirement is that **an answer that matters must be deliberate**; destruction is only its
+  commonest case.)
+- **One question per launch.** If the TV-or-phone chooser is still pending it owns that launch and
+  consent asks on the next: two stacked modal dialogs is nobody's idea of a first run.
+
+Copy says what is collected (crash reports, and a per-session playback summary — start-up time,
+rebuffers, errors) and what never is (what you watched, your account, your provider), in all six
+languages. `DiagnosticsConsentStateTest` pins the rule, including the updating-device case.
+
+---
+
 ## 4. Known landmines — never regress these
 
 Carried from hard-won incidents; every phase must respect them.

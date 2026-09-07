@@ -145,7 +145,7 @@ class SettingsSelectorDialogs(
             .setItems(buildItems()) { _, which ->
                 if (urls.isNotEmpty() && which < urls.size) {
                     val urlToRemove = urls[which]
-                    com.tvonnet.debridxtreamiptv.util.DestructiveDialog.showProtected(
+                    com.tvonnet.debridxtreamiptv.util.DeliberateDialog.showProtected(
                         AlertDialog.Builder(context)
                             .setTitle(R.string.c_remove_stremio_addon)
                             .setMessage(android.net.Uri.parse(urlToRemove).host ?: context.getString(R.string.c_configured_addon))

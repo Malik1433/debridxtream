@@ -15,12 +15,23 @@ import com.tvonnet.debridxtreamiptv.data.prefs.SettingsPreferences
  * at start-up and whenever the Settings row changes, and [PlaybackQoeTracker] asks [isEnabled]
  * before every emit, so turning it off is immediate, not next-launch.
  *
- * Default ON: the crash-free target (E13) needs the reports, and the row says exactly what is
- * collected. Nothing here is stored per user; the choice lives in SettingsPreferences.
+ * **2026-09-07: asked, not assumed.** This shipped defaulted ON, which made it a setting rather
+ * than consent - the crash-free target (E13) needs the reports, but wanting the data is not the
+ * same as being allowed it. Collection is now OFF until [DiagnosticsConsentPrompt] has been
+ * answered, on every device including ones that updated into this build. Nothing here is stored
+ * per user; the choice lives in SettingsPreferences.
  */
 object DiagnosticsConsent {
 
     fun isEnabled(context: Context): Boolean = SettingsPreferences(context.applicationContext).isDiagnosticsEnabled()
+
+    /**
+     * True until the customer has answered the question either way. While it is true nothing is
+     * collected - [isEnabled] is false - so the prompt can be shown at leisure without a race
+     * against the first crash.
+     */
+    fun isPending(context: Context): Boolean =
+        !SettingsPreferences(context.applicationContext).hasAnsweredDiagnostics()
 
     /** Apply the stored choice to the SDKs — call once at application start. */
     fun applyStored(context: Context) = applyTo(context, isEnabled(context))

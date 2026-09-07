@@ -114,7 +114,7 @@ class FavoritesFragment : Fragment() {
     private fun setupClearButton() {
         btnClearAll.setOnClickListener {
             // Show confirmation dialog
-            com.tvonnet.debridxtreamiptv.util.DestructiveDialog.showProtected(
+            com.tvonnet.debridxtreamiptv.util.DeliberateDialog.showProtected(
                 androidx.appcompat.app.AlertDialog.Builder(requireContext())
                     .setTitle(R.string.c_clear_all_favorites)
                     .setMessage(R.string.c_are_you_sure_you_want)

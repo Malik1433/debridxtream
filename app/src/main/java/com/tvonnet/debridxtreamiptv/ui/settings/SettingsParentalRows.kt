@@ -127,7 +127,7 @@ class SettingsParentalRows(
             val pad = (20 * resources.displayMetrics.density).toInt()
             setPadding(pad, pad / 2, pad, pad / 2)
         }
-        com.tvonnet.debridxtreamiptv.util.DestructiveDialog.showProtected(
+        com.tvonnet.debridxtreamiptv.util.DeliberateDialog.showProtected(
             AlertDialog.Builder(context)
                 .setTitle(R.string.s_pin_reset_title)
                 .setMessage(R.string.s_pin_reset_message)

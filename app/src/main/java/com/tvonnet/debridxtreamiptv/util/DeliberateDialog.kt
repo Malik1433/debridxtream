@@ -26,10 +26,16 @@ import androidx.appcompat.app.AlertDialog
  *     into it does nothing. It enables itself a moment later, which is far below the time anyone
  *     needs to read a sentence about what they are about to lose.
  *
- * Deliberately NOT applied to every dialog — only to the ones that destroy something. A guard on
- * a harmless "OK" is friction with nothing on the other side of the scale.
+ * Deliberately NOT applied to every dialog — only where the answer MATTERS: the ones that destroy
+ * something (Sign Out, Clear cache, Remove add-on, Reset parental controls) and the one-time
+ * diagnostics consent, where an accidental "Allow" is consent nobody gave. A guard on a harmless
+ * "OK" is friction with nothing on the other side of the scale.
+ *
+ * The name is the requirement, not one instance of it: **an answer that matters must be
+ * deliberate.** It was called `DestructiveDialog` for its first day; consent made it clear that
+ * destruction is only the commonest case, not the rule.
  */
-object DestructiveDialog {
+object DeliberateDialog {
 
     /** Comfortably longer than the gap between a key's DOWN and UP, far shorter than reading time. */
     const val GUARD_MS = 700L
@@ -44,7 +50,7 @@ object DestructiveDialog {
     /**
      * Apply both guards. Call AFTER `show()`, because the buttons do not exist until then.
      *
-     * @param dialog a shown [AlertDialog] whose POSITIVE button is the destructive one.
+     * @param dialog a shown [AlertDialog] whose POSITIVE button is the consequential one.
      */
     fun protect(dialog: AlertDialog, focusSafeButton: Boolean = true) {
         val destructive = dialog.getButton(AlertDialog.BUTTON_POSITIVE) ?: return

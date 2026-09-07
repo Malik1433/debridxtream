@@ -34,14 +34,29 @@ class SettingsPreferences(private val context: Context) {
     }
 
     /**
-     * G3 (2026-09-03): may the app send crash reports and anonymous playback summaries?
-     * Default ON - the crash-free target depends on it - but it is one switch away, and the
-     * Settings row says exactly what is and is not collected. Read by DiagnosticsConsent.
+     * May the app send crash reports and anonymous playback summaries?
+     *
+     * G3 (2026-09-03) shipped this as a Settings switch defaulted ON. That was a setting, not
+     * consent: nobody had been asked. **2026-09-07 it became tri-state** - until the question has
+     * actually been ANSWERED this returns false, so nothing is collected from anyone who has not
+     * said yes, including every device that updated into this build.
+     *
+     * The two halves live behind one function on purpose. The Settings row, the QoE tracker and
+     * the Crashlytics/Analytics switches all read this, and a version where the row said ON while
+     * collection was off would be worse than either answer.
      */
-    fun isDiagnosticsEnabled(): Boolean = prefs.getBoolean(KEY_DIAGNOSTICS, true)
+    fun isDiagnosticsEnabled(): Boolean =
+        hasAnsweredDiagnostics() && prefs.getBoolean(KEY_DIAGNOSTICS, true)
 
+    /** False until the first-launch prompt has been answered either way. */
+    fun hasAnsweredDiagnostics(): Boolean = prefs.getBoolean(KEY_DIAGNOSTICS_ANSWERED, false)
+
+    /** Saving a choice IS answering - whether it comes from the prompt or the Settings row. */
     fun saveDiagnosticsEnabled(enabled: Boolean) {
-        prefs.edit().putBoolean(KEY_DIAGNOSTICS, enabled).apply()
+        prefs.edit()
+            .putBoolean(KEY_DIAGNOSTICS, enabled)
+            .putBoolean(KEY_DIAGNOSTICS_ANSWERED, true)
+            .apply()
     }
     
     fun isAutoReconnectEnabled(): Boolean {
@@ -273,6 +288,7 @@ class SettingsPreferences(private val context: Context) {
         private const val KEY_NETWORK_QUALITY = "network_quality"
         private const val KEY_AUTO_RECONNECT = "auto_reconnect_enabled"
         private const val KEY_DIAGNOSTICS = "diagnostics_enabled"
+        private const val KEY_DIAGNOSTICS_ANSWERED = "diagnostics_answered"
         private const val KEY_SUPPORT_URL = "support_url"
         private const val KEY_PREFERRED_AUDIO = "pref_audio_lang"
         private const val KEY_PREFERRED_SUBTITLE = "pref_subtitle_lang"

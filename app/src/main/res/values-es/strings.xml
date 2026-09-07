@@ -921,4 +921,8 @@
     <string name="s_pin_reset_done">Control parental restablecido</string>
     <string name="s_pin_reset_wrong">Esa no es la contraseña de la cuenta</string>
     <string name="s_pin_reset_unavailable">No hay contraseña de la cuenta en este dispositivo</string>
+    <string name="s_consent_title">¿Enviar diagnósticos?</string>
+    <string name="s_consent_message">Informes de fallos y un resumen de reproducción por sesión: tiempo de inicio, rebuffers y errores. Nunca lo que has visto, tu cuenta ni tu proveedor.\n\nPuedes cambiarlo cuando quieras en Ajustes › Datos y almacenamiento.</string>
+    <string name="s_consent_allow">Permitir</string>
+    <string name="s_consent_deny">No, gracias</string>
 </resources>
