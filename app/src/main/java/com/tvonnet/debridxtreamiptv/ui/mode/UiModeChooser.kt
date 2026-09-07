@@ -16,12 +16,21 @@ import com.tvonnet.debridxtreamiptv.data.prefs.SettingsPreferences
  */
 object UiModeChooser {
 
-    /** Shows the one-time chooser if this device needs it. Safe to call on every start. */
-    fun showIfNeeded(activity: Activity) {
-        if (activity.isFinishing || activity.isDestroyed) return
+    /**
+     * Shows the one-time chooser if this device needs it. Safe to call on every start.
+     *
+     * @return true only when a dialog was actually put on screen, so the caller can hold back a
+     *   second modal question. It must be the RETURN VALUE and not `isUiModeChooserPending()`:
+     *   on a device that is not ambiguous - a Fire TV, an ordinary phone, so nearly all of them -
+     *   this returns below without ever marking the flag, and that flag therefore stays true
+     *   forever. The diagnostics consent prompt gated on it and was silently never shown
+     *   (2026-09-07, caught on the device).
+     */
+    fun showIfNeeded(activity: Activity): Boolean {
+        if (activity.isFinishing || activity.isDestroyed) return false
         val prefs = SettingsPreferences(activity)
-        if (!prefs.isUiModeChooserPending()) return
-        if (!UiModeResolver.isAmbiguous(activity)) return
+        if (!prefs.isUiModeChooserPending()) return false
+        if (!UiModeResolver.isAmbiguous(activity)) return false
 
         // Mark first: a dismissed dialog must not come back on every launch.
         prefs.markUiModeChooserShown()
@@ -38,5 +47,6 @@ object UiModeChooser {
             }
             .setCancelable(true)
             .show()
+        return true
     }
 }

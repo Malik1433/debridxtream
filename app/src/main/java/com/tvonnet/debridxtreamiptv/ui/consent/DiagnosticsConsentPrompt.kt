@@ -27,9 +27,11 @@ import com.tvonnet.debridxtreamiptv.util.DiagnosticsConsent
  * - **It is [DeliberateDialog]-guarded**, so the keypress that opened the screen behind it cannot
  *   answer it. An accidental "Allow" is consent nobody gave — the same failure the guard was
  *   written for, with nothing destroyed and the principle unchanged.
- * - **One question per launch.** If the TV-or-phone chooser is still pending it owns this launch;
- *   this one asks on the next. Two modal dialogs stacked on a television is nobody's idea of a
- *   first run.
+ * - **One question per launch**, decided by the CALLER. `MainActivity` skips this when the
+ *   TV-or-phone chooser actually put a dialog up; two modal dialogs stacked on a television is
+ *   nobody's idea of a first run. The first cut asked the chooser's `isUiModeChooserPending()`
+ *   flag instead, which is true forever on any device the chooser does not apply to — so this
+ *   prompt was silently never shown. Caught on the Fire TV, not in review.
  */
 object DiagnosticsConsentPrompt {
 
@@ -38,7 +40,6 @@ object DiagnosticsConsentPrompt {
         if (activity.isFinishing || activity.isDestroyed) return
         val prefs = SettingsPreferences(activity)
         if (prefs.hasAnsweredDiagnostics()) return
-        if (prefs.isUiModeChooserPending()) return
 
         val dialog = AlertDialog.Builder(activity)
             .setTitle(R.string.s_consent_title)
