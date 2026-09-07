@@ -27,6 +27,25 @@
             "value": "no-cache, no-store, must-revalidate"
           }
         ]
+      },
+      {
+        "comment": "The APK is what the in-app updater downloads, and Hosting's default for a static asset is max-age=3600. So for an HOUR after a deploy the CDN can hand out the PREVIOUS build while the panel already advertises the new versionCode - the user installs what they already have, the app still sees an update, and that is an update LOOP with no bad version number anywhere. Caught 2026-09-07 by the download-back check: the panel URL returned vC 130 minutes after vC 132 was deployed, and only a cache-busting query string produced the real file. `no-cache` and NOT `no-store`: revalidation is what is needed, and a 304 on an unchanged 16MB binary is worth keeping. Both forms are listed for the reason recorded above - Hosting matches on the REQUEST PATH.",
+        "source": "/DebridXtream-latest.apk",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "no-cache"
+          }
+        ]
+      },
+      {
+        "source": "**/*.apk",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "no-cache"
+          }
+        ]
       }
     ]
   },

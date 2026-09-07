@@ -1101,6 +1101,26 @@ button.
 
 ---
 
+### Tier N.1 — the published APK was cacheable, which is an update loop *(2026-09-07)*
+
+Caught by the download-back check that every release runs: minutes after vC 132 was deployed, the
+public URL still returned **vC 130**, and only a cache-busting query string produced the real file.
+The deploy was fine; Hosting serves a static asset with its default **`Cache-Control: max-age=3600`**.
+
+Why that is worse than it sounds. The panel advertises the new versionCode the moment it is
+announced, and the in-app updater downloads from that same URL — so for up to an hour a customer
+can be told there is an update, download **the build they already have**, install it, and be told
+again. That is the update LOOP the release rules warn about, arriving with no wrong version number
+anywhere to point at.
+
+`admin-panel/firebase.json` now sends **`no-cache`** for the APK — not `no-store`: revalidation is
+what is wanted, and a 304 on an unchanged 16 MB binary is worth keeping. Both `/DebridXtream-latest.apk`
+and `**/*.apk` are listed, for the reason already recorded next to the panel rule: Hosting matches
+headers on the REQUEST PATH. Verified after redeploy — header is `no-cache`, and the plain URL with
+no cache-buster returns vC 132, byte-identical to the local file.
+
+---
+
 ### Tier N — diagnostics: asked, not assumed *(2026-09-07)*
 
 G3 shipped the diagnostics switch (Settings › Data & Storage) **defaulted ON**. That was the honest
