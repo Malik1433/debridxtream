@@ -127,21 +127,26 @@ class SettingsParentalRows(
             val pad = (20 * resources.displayMetrics.density).toInt()
             setPadding(pad, pad / 2, pad, pad / 2)
         }
-        AlertDialog.Builder(context)
-            .setTitle(R.string.s_pin_reset_title)
-            .setMessage(R.string.s_pin_reset_message)
-            .setView(input)
-            .setPositiveButton(R.string.s_pin_reset_confirm) { _, _ ->
-                if (input.text?.toString() == stored) {
-                    parental.clear()
-                    toast(R.string.s_pin_reset_done)
-                } else {
-                    toast(R.string.s_pin_reset_wrong)
+        com.tvonnet.debridxtreamiptv.util.DestructiveDialog.showProtected(
+            AlertDialog.Builder(context)
+                .setTitle(R.string.s_pin_reset_title)
+                .setMessage(R.string.s_pin_reset_message)
+                .setView(input)
+                .setPositiveButton(R.string.s_pin_reset_confirm) { _, _ ->
+                    if (input.text?.toString() == stored) {
+                        parental.clear()
+                        toast(R.string.s_pin_reset_done)
+                    } else {
+                        toast(R.string.s_pin_reset_wrong)
+                    }
+                    rerender()
                 }
-                rerender()
-            }
-            .setNegativeButton(android.R.string.cancel, null)
-            .show()
+                .setNegativeButton(android.R.string.cancel, null)
+                .create(),
+            // The password field keeps focus: typing is the whole point here, and the disabled
+            // Reset button is the guard that matters.
+            focusSafeButton = false
+        )
     }
 
     private fun toast(res: Int) = Toast.makeText(context, res, Toast.LENGTH_SHORT).show()

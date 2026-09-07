@@ -145,16 +145,18 @@ class SettingsSelectorDialogs(
             .setItems(buildItems()) { _, which ->
                 if (urls.isNotEmpty() && which < urls.size) {
                     val urlToRemove = urls[which]
-                    AlertDialog.Builder(context)
-                        .setTitle(R.string.c_remove_stremio_addon)
-                        .setMessage(android.net.Uri.parse(urlToRemove).host ?: context.getString(R.string.c_configured_addon))
-                        .setPositiveButton(R.string.c_remove) { d, _ ->
-                            viewModel.removeStremioAddonUrl(urlToRemove)
-                            Toast.makeText(context, context.getString(R.string.c_stremio_addon_removed), Toast.LENGTH_SHORT).show()
-                            d.dismiss()
-                        }
-                        .setNegativeButton(android.R.string.cancel) { d, _ -> d.dismiss() }
-                        .show()
+                    com.tvonnet.debridxtreamiptv.util.DestructiveDialog.showProtected(
+                        AlertDialog.Builder(context)
+                            .setTitle(R.string.c_remove_stremio_addon)
+                            .setMessage(android.net.Uri.parse(urlToRemove).host ?: context.getString(R.string.c_configured_addon))
+                            .setPositiveButton(R.string.c_remove) { d, _ ->
+                                viewModel.removeStremioAddonUrl(urlToRemove)
+                                Toast.makeText(context, context.getString(R.string.c_stremio_addon_removed), Toast.LENGTH_SHORT).show()
+                                d.dismiss()
+                            }
+                            .setNegativeButton(android.R.string.cancel) { d, _ -> d.dismiss() }
+                            .create()
+                    )
                 }
             }
             .setPositiveButton(R.string.c_add_addon) { dialog, _ ->

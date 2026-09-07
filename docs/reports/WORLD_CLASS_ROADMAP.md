@@ -1067,6 +1067,40 @@ choose can never be created", and that is what the suite asserts now.
 
 ---
 
+### Tier M — a confirmation must not be answerable by the press that opened it *(2026-09-06)*
+
+Found the honest way: while driving the Fire TV during the parental-PIN work, a press meant to
+move focus **opened "Sign out of this device?"**. Sign Out clears the library, Continue Watching,
+favourites and watch history on that box for *every server it has used* — and it was one stray
+press from happening.
+
+**The mechanism, and why it is invisible until it bites.** The remote's ACTION_DOWN activates the
+settings row; the dialog opens; the matching **ACTION_UP is delivered to the new dialog's focused
+button** and clicks it. On a television the focused button is usually the affirmative one, so a
+single OK press can both raise a destructive question and answer it. This is the same family as
+the parental-PIN defect fixed the day before: a remote press doing more than the person holding it
+asked for.
+
+**`DestructiveDialog`, two guards:**
+
+1. **Focus starts on the safe button** — the destructive action is never one accidental press away,
+   and the default answer to a question nobody meant to ask is "no".
+2. **The destructive button is disabled for 700 ms** — comfortably longer than a key's DOWN→UP gap,
+   far shorter than the time to read a sentence about what you are about to lose. Even a press
+   delivered straight into the button does nothing.
+
+Applied to the four dialogs that actually destroy something — **Sign Out** and **Clear cache**
+(both via `SettingsConfirmSheet`'s television path), **Remove add-on**, and **Reset parental
+controls**. Deliberately NOT applied anywhere else: a guard on a harmless "OK" is friction with
+nothing on the other side of the scale. The reset dialog keeps focus in its password field and
+relies on the disabled button alone — taking focus away would also close the keyboard.
+
+`DestructiveDialogTest` pins the rule rather than the plumbing, including that the window stays
+inside 500–1000 ms: shorter and a carried-over press gets through, longer and it reads as a broken
+button.
+
+---
+
 ## 4. Known landmines — never regress these
 
 Carried from hard-won incidents; every phase must respect them.
