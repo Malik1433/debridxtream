@@ -132,19 +132,43 @@ internal class PlayerExitController(
         }
     }
 
+    /**
+     * The title to put on the detail screen we bounce back to.
+     *
+     * [originalTitle] starts out as the film's name and is REWRITTEN to the chosen source's
+     * filename the moment a debrid stream is picked (`PlayerDebridCoordinator`, `stream.name`).
+     * Handing that straight to the detail page titled it
+     * "the.runner.2026.german.dl.1080p.web.h264.proper-sauerkraut" — a release string where the
+     * customer expects the film, on the one screen they were sent to because playback had already
+     * failed them once. [cleanLoaderTitle] is the same helper the player's own loading title uses;
+     * it cuts the release tail at the year/quality marker, and the words are re-capitalised because
+     * scene names are lower-case and a heading is not.
+     *
+     * The player's on-screen title still shows the source name on purpose - that is how you tell
+     * which of 177 sources is playing. This changes only the hand-back.
+     */
+    private fun failureDetailTitle(): String? {
+        val raw = originalTitle?.takeIf { it.isNotBlank() } ?: return null
+        val cleaned = cleanLoaderTitle(raw).takeIf { it.isNotBlank() && it != "Loading" } ?: return raw
+        if (cleaned == raw) return raw
+        return cleaned.split(' ').joinToString(" ") { word ->
+            word.replaceFirstChar { if (it.isLowerCase()) it.titlecase(java.util.Locale.getDefault()) else it.toString() }
+        }
+    }
+
     private fun redirectToFailureDetail(reason: String): Boolean {
         if (playbackSource != PlaybackSource.DEBRID || contentType == ContentType.LIVE_TV || activity.isFinishing) return false
         val detailIntent = when (contentType) {
             ContentType.MOVIE -> Intent(activity.requireContext(), MovieDetailActivity::class.java).apply {
                 putExtra(MovieDetailActivity.EXTRA_MOVIE_ID, tmdbIdExtra ?: contentId ?: debridStreamIdExtra ?: debridInfoHashExtra)
-                putExtra(MovieDetailActivity.EXTRA_MOVIE_NAME, originalTitle)
+                putExtra(MovieDetailActivity.EXTRA_MOVIE_NAME, failureDetailTitle())
                 putExtra(MovieDetailActivity.EXTRA_MOVIE_ICON, posterUrlExtra)
                 putExtra(MovieDetailActivity.EXTRA_MOVIE_BACKDROP, backdropUrlExtra)
                 putExtra(MovieDetailActivity.EXTRA_MOVIE_CATEGORY_ID, "debrid")
             }
             ContentType.SERIES, ContentType.EPISODE -> Intent(activity.requireContext(), SeriesDetailActivity::class.java).apply {
                 putExtra(SeriesDetailActivity.EXTRA_SERIES_ID, activity.debridSeriesLookupId())
-                putExtra(SeriesDetailActivity.EXTRA_SERIES_NAME, seriesTitleExtra ?: originalTitle)
+                putExtra(SeriesDetailActivity.EXTRA_SERIES_NAME, seriesTitleExtra ?: failureDetailTitle())
                 putExtra(SeriesDetailActivity.EXTRA_SERIES_COVER, posterUrlExtra)
                 putExtra(SeriesDetailActivity.EXTRA_SERIES_BACKDROP, backdropUrlExtra)
                 // This redirect only runs for DEBRID playback (guarded at the top of the method),

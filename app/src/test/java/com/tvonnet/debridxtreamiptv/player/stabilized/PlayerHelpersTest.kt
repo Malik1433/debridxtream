@@ -33,6 +33,16 @@ class PlayerHelpersTest {
     }
 
     @Test
+    fun `cleanLoaderTitle survives a dotted scene filename`() {
+        // The exact string a debrid source pick put on the detail page after a failed play
+        // (2026-09-08, Fire TV). PlayerExitController.failureDetailTitle leans on this.
+        assertEquals(
+            "the runner",
+            cleanLoaderTitle("the.runner.2026.german.dl.1080p.web.h264.proper-sauerkraut")
+        )
+    }
+
+    @Test
     fun `cleanLoaderTitle falls back to Loading when there is nothing to show`() {
         assertEquals("Loading", cleanLoaderTitle(null))
         assertEquals("Loading", cleanLoaderTitle("   "))
