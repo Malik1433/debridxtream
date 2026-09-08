@@ -1159,6 +1159,60 @@ languages. `DiagnosticsConsentStateTest` pins the rule, including the updating-d
 
 ---
 
+### Tier O — the toolchain, and why the plan's ordering was wrong *(2026-09-08)*
+
+Tier J measured the dependency gap and wrote an ordering:
+`compileSdk 36` → Kotlin 2.x → `kapt`→KSP → AGP 9. Executing it produced two findings that
+inverted the first half of that plan.
+
+**1. compileSdk 36 cannot come first.** It *builds* on AGP 8.7.1, but AGP says it
+"was tested up to compileSdk = 35" and offers `android.suppressUnsupportedCompileSdk=36`. Taking
+that flag would be the same move this project refuses everywhere else — silencing a gate instead of
+satisfying it — so AGP had to move first, not last.
+
+**2. AGP and Kotlin are not separable steps.** AGP 8.13 ships artifacts compiled with **Kotlin
+2.2** (its own `databinding-ktx`, and the `stdlib` it pulls), and a Kotlin 1.9.25 compiler cannot
+read that metadata: *"binary version of its metadata is 2.2.0, expected version is 1.9.0"*. They
+move together or not at all.
+
+So step one became **one coordinated bump**, not four sequential ones:
+
+| | from | to |
+|---|---|---|
+| Gradle | 8.9 | 8.13 *(AGP 8.13 refuses to load below it)* |
+| AGP | 8.7.1 | 8.13.2 *(last of 8.x — AGP 9's breaking changes get their own phase)* |
+| Kotlin | 1.9.25 | 2.2.21 |
+| Hilt | 2.51.1 | 2.57.2 *(2.51.1 predates Kotlin 2.2)* |
+| annotation processing | kapt | **KSP** *(Room, Hilt, androidx.hilt, Glide)* |
+| compileSdk | 35 | **36** |
+
+⭐ **The headline: 92k lines of Kotlin compiled under 2.2.21 with ZERO source errors.** The
+migration's biggest unknown — how much of this codebase Kotlin 2 would reject — turned out to be
+none of it. Everything that fought back was toolchain, not code.
+
+**Two fights, settled rather than silenced:**
+
+- **kapt does not survive Kotlin 2.2 here** (`:app:kaptDebugKotlin` dies inside its worker). KSP was
+  already the destination, so it was brought forward rather than worked around.
+- **KSP2 then crashed** with `unexpected jvm signature V`. `ksp.useKSP2=false` selects KSP1, which
+  is still a shipped, supported implementation processing the same annotations — a choice between
+  two implementations, not a suppressed warning. `gradle.properties` records that, and says to
+  delete the line once KSP2 has the fix.
+
+**`targetSdk` deliberately stays at 35.** compileSdk changes what the code can SEE; targetSdk
+changes how the platform BEHAVES towards the app. That is a separate phase with its own device
+pass, not a free ride on a toolchain bump.
+
+Compose needed one structural change: Kotlin 2.x moved the Compose compiler into the Kotlin
+release, so `composeOptions.kotlinCompilerExtensionVersion` is gone and
+`org.jetbrains.kotlin.plugin.compose` is applied instead.
+
+**What is left of Tier J after this:** the AndroidX rows (now unblocked by compileSdk 36),
+OkHttp 5 / Retrofit 3 / Glide 5 / Firebase BoM 34 / Ktor 3, and AGP 9 — each on its own. **media3
+stays pinned at 1.5.0** by the §4 rule: every playback landmine lives in the layer it owns.
+
+---
+
 ## 4. Known landmines — never regress these
 
 Carried from hard-won incidents; every phase must respect them.
