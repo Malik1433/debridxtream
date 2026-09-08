@@ -33,8 +33,11 @@ internal class TopAlignRecyclerView @JvmOverloads constructor(
     // the default fights the top-align (partial/over-scroll = cut headers).
     override fun requestChildRectangleOnScreen(child: View, rect: Rect, immediate: Boolean): Boolean = false
 
-    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
-        if (event.action == KeyEvent.ACTION_DOWN) {
+    // RecyclerView 1.4 exposes this with a NULLABLE parameter, so the signature has to match or it
+    // silently stops overriding anything. A null event falls straight through to super, which is
+    // what the framework would have done with it anyway - the D-pad behaviour below is unchanged.
+    override fun dispatchKeyEvent(event: KeyEvent?): Boolean {
+        if (event != null && event.action == KeyEvent.ACTION_DOWN) {
             when (event.keyCode) {
                 KeyEvent.KEYCODE_DPAD_DOWN -> if (moveVertical(+1)) return true
                 KeyEvent.KEYCODE_DPAD_UP -> if (moveVertical(-1)) return true
