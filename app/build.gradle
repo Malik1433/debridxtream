@@ -213,11 +213,19 @@ dependencies {
     // Paging 3 (Week 5: Performance Optimization) - Updated to latest
     implementation 'androidx.paging:paging-runtime-ktx:3.5.1'
 
-    // Room Database (Week 6: Room Database Integration) - Updated to latest stable
-    implementation 'androidx.room:room-runtime:2.6.1'
-    implementation 'androidx.room:room-ktx:2.6.1'
-    ksp 'androidx.room:room-compiler:2.6.1'
-    implementation 'androidx.room:room-paging:2.6.1' // Required for PagingSource in DAOs
+    // Room Database. 2.7.2 is the newest that BUILDS here, not the newest published: Room 2.8's
+    // compiler serialises its schema bundles with kotlinx-serialization, and on this toolchain's KSP
+    // classpath that lands as
+    //   AbstractMethodError: FieldBundle$serializer ... does not implement typeParametersSerializers()
+    // - two incompatible kotlinx-serialization generations meeting inside the annotation processor,
+    // which then dies with "Compiler terminated with internal error". Nothing in this app's code is
+    // involved and there is no honest way to pin around it from here. Same shape as the lifecycle /
+    // core-ktx rows above: take the newest that actually passes the gate, and write down why.
+    // Revisit when the toolchain moves; the schemas and migrations are unaffected either way.
+    implementation 'androidx.room:room-runtime:2.7.2'
+    implementation 'androidx.room:room-ktx:2.7.2'
+    ksp 'androidx.room:room-compiler:2.7.2'
+    implementation 'androidx.room:room-paging:2.7.2' // Required for PagingSource in DAOs
     
     // Retrofit & Networking
     implementation 'com.squareup.retrofit2:retrofit:2.9.0'
@@ -298,7 +306,7 @@ dependencies {
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.1'
     androidTestImplementation 'androidx.test:runner:1.5.2'
     // Phase 8: Room MigrationTestHelper for on-device/emulator schema-migration tests.
-    androidTestImplementation 'androidx.room:room-testing:2.6.1'
+    androidTestImplementation 'androidx.room:room-testing:2.7.2'
 
     // Firebase (Magic Link System)
     implementation platform('com.google.firebase:firebase-bom:33.1.2')
