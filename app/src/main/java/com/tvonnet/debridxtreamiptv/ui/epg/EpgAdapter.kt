@@ -44,12 +44,15 @@ class EpgAdapter(
         private val timeFormatter = SimpleDateFormat("HH:mm", Locale.getDefault())
         
         fun bind(program: EpgEntity) {
-            titleText.text = program.title ?: "Unknown Program"
-            
+            val ctx = itemView.context
+            titleText.text = program.title ?: ctx.getString(R.string.f_epg_unknown_programme)
+
             val startTime = timeFormatter.format(Date(program.start))
             val endTime = timeFormatter.format(Date(program.stop))
             val duration = program.getDurationMinutes()
-            timeText.text = "$startTime - $endTime ($duration min)"
+            timeText.text = ctx.getString(
+                R.string.f_epg_time_range_duration, startTime, endTime, duration.toInt()
+            )
             
             descriptionText.text = program.description ?: ""
             descriptionText.visibility = if (program.description.isNullOrEmpty()) {

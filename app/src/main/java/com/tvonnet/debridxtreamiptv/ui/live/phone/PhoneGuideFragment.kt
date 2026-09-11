@@ -206,7 +206,10 @@ class PhoneGuideFragment : Fragment(), PortraitScreen {
                 val ctx = itemView.context
                 time.text = TIME.format(Date(programme.start))
                 title.text = programme.title.orEmpty()
-                duration.text = "${(programme.stop - programme.start) / 60_000} MIN"
+                duration.text = ctx.getString(
+                    R.string.f_minutes_upper,
+                    ((programme.stop - programme.start) / 60_000).toInt()
+                )
 
                 val playing = programme.isPlaying()
                 val isNext = !playing && previous?.isPlaying() == true

@@ -243,7 +243,7 @@ class SearchFragment :
         trendingWrap.isVisible = !has
         resultsHeader.isVisible = has
         if (!has) { countTv.text = ""; noResults.isVisible = false; adapter.submit(emptyList()) }
-        else resultsTitle.text = "Results · \"${query.trim()}\""
+        else resultsTitle.text = getString(R.string.f_search_results_for, query.trim())
     }
 
     // ── state rendering ──
@@ -278,7 +278,7 @@ class SearchFragment :
         lastRenderedQuery = query
         resultsRv.updatePreservingFocus { adapter.submit(items) }
         noResults.isVisible = items.isEmpty() && !state.isSearching
-        noResultsTitle.text = "No matches for \"${query.trim().uppercase()}\""
+        noResultsTitle.text = getString(R.string.f_search_no_matches, query.trim().uppercase())
         if (queryChanged && items.isNotEmpty() && !resultsRv.isFocusInsideThis()) {
             resultsRv.scrollToPosition(0)
         }

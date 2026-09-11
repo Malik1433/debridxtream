@@ -1,6 +1,5 @@
 package com.tvonnet.debridxtreamiptv.ui.series
 
-import android.view.View
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
@@ -72,9 +71,9 @@ class SeriesDebridSourceController(
     private val debridPlaybackRepository = deps.debridPlaybackRepository
     private val seriesRepositoryV2 = deps.seriesRepositoryV2
     private val credentialsPreferences = deps.credentialsPreferences
-    private val layoutRdSummary = views.layoutRdSummary
-    private val tvRdSummary = views.tvRdSummary
-    private val tvQualityBadge = views.tvQualityBadge
+    private val summaryStrip = SeriesSourceSummaryStrip(
+        views.layoutRdSummary, views.tvRdSummary, views.tvQualityBadge
+    )
     private val seriesId = host.seriesId
     private val seriesName = host.seriesName
     private val seriesBackdrop = host.seriesBackdrop
@@ -277,7 +276,7 @@ class SeriesDebridSourceController(
                 val sources = debridSources + mapIptvGroupsToSources(iptvGroups)
                 android.util.Log.e("SeriesDetailActivity", "Received ${debridSources.size} debrid + ${sources.size - debridSources.size} IPTV sources. Updating bottom sheet.")
                 cachedDebridSourcesByEpisode[episode.id] = sources
-                updateRdSummary(sources)
+                summaryStrip.render(sources)
                 if (isStaleSourceRequest(requestEpisodeId)) {
                     android.util.Log.d("SeriesDetailActivity", "Ignoring stale Debrid sources for episode=$requestEpisodeId")
                     return@launch
@@ -369,41 +368,6 @@ class SeriesDebridSourceController(
         } catch (e: Exception) {
             android.util.Log.w("SeriesDetailActivity", "verifyIptvGroups failed: ${e.message}")
             groups
-        }
-    }
-
-    private fun updateRdSummary(sources: List<MovieSource>) {
-        if (sources.isEmpty()) {
-            layoutRdSummary.visibility = View.GONE
-            return
-        }
-        layoutRdSummary.visibility = View.VISIBLE
-        val cachedCount = sources.count { it.isCached == true }
-        val bestQuality = when {
-            sources.any { it.quality?.contains("4K", true) == true || it.quality?.contains("2160", true) == true } -> "4K"
-            sources.any { it.quality?.contains("1080", true) == true } -> "1080P"
-            sources.any { it.quality?.contains("720", true) == true } -> "720P"
-            else -> ""
-        }
-        val bestSize = sources.filter { it.isCached == true }
-            .mapNotNull { it.sizeBytes }
-            .maxOrNull()
-        val sizeLabel = if (bestSize != null) " ${formatSizeLabel(bestSize)}" else ""
-        val qualityPart = if (bestQuality.isNotEmpty()) " · BEST $bestQuality$sizeLabel" else ""
-        tvRdSummary.text = "${sources.size} SOURCES / EPISODE · $cachedCount CACHED$qualityPart"
-
-        // Update quality badge
-        if (bestQuality.isNotEmpty()) {
-            tvQualityBadge.visibility = View.VISIBLE
-            tvQualityBadge.text = bestQuality
-        }
-    }
-
-    private fun formatSizeLabel(bytes: Long): String {
-        return when {
-            bytes >= 1_073_741_824L -> String.format(java.util.Locale.US, "%.1f GB", bytes / 1_073_741_824.0)
-            bytes >= 1_048_576L -> String.format(java.util.Locale.US, "%.0f MB", bytes / 1_048_576.0)
-            else -> "${bytes / 1024} KB"
         }
     }
 

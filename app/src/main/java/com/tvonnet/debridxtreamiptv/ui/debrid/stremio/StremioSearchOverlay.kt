@@ -191,14 +191,15 @@ internal class StremioSearchOverlay(
         }
         trendingWrap.isVisible = false
         resultsAccent.setBackgroundResource(R.drawable.stremio_search_accent_cyan)
-        resultsTitle.text = "Results · \"$query\""
+        resultsTitle.text = resultsTitle.context.getString(R.string.f_search_results_for, query)
         fragment.viewLifecycleOwner.lifecycleScope.launch {
             val results = if (scope == "live") searchLive(query) else searchCatalog(query)
             if (token != searchToken) return@launch
             countTv.text = countTv.context.getString(R.string.f_results_caps, results.size)
             adapter.submit(results)
             noResults.isVisible = results.isEmpty()
-            noResultsTitle.text = "No matches for \"${query.uppercase()}\""
+            noResultsTitle.text = noResultsTitle.context
+                .getString(R.string.f_search_no_matches, query.uppercase())
             resultsRv.scrollToPosition(0)
         }
     }

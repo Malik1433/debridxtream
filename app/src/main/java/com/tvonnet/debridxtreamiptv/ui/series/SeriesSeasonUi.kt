@@ -289,8 +289,15 @@ class SeriesSeasonUi(
     }
 
     private fun updateSeasonButton() {
+        // Same control as SeriesDetailActions.updateSeasonButton on the IPTV page — the two
+        // series screens share the wording, so they share the resource (audit F3).
         val seasonNum = selectedSeasonKey?.toIntOrNull()
-        btnSeasonSelector.text = if (seasonNum != null) "SEASON $seasonNum ▾" else "SEASON ▾"
+        val ctx = btnSeasonSelector.context
+        btnSeasonSelector.text = if (seasonNum != null) {
+            ctx.getString(R.string.f_season_selector, seasonNum)
+        } else {
+            ctx.getString(R.string.label_season_selector_none)
+        }
     }
 
     private fun dp(value: Int): Int = (value * activity.resources.displayMetrics.density).toInt()
@@ -526,8 +533,10 @@ class SeriesSeasonUi(
         layoutResume.visibility = View.VISIBLE
         val seasonNum = selectedSeasonKey?.toIntOrNull() ?: 1
         val epNum = episode.episodeNumber ?: 1
-        tvResumeLabel.text = "CONTINUE · S${String.format(java.util.Locale.US, "%02d", seasonNum)} · E${String.format(java.util.Locale.US, "%02d", epNum)}"
-        tvResumeRight.text = "$pct% · ${minsLeft}M LEFT"
+        tvResumeLabel.text = tvResumeLabel.context
+            .getString(R.string.f_continue_season_episode, seasonNum, epNum)
+        tvResumeRight.text = tvResumeRight.context
+            .getString(R.string.f_percent_minutes_left, pct, minsLeft.toInt())
         tvResumeEpTitle.text = episode.title
         vResumeProgress.post {
             val parent = vResumeProgress.parent as? View ?: return@post

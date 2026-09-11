@@ -184,7 +184,9 @@ class SeriesDetailActions(
 
     fun updateSeasonButton(selected: Int?) {
         // Caret matches the Debrid series page (SeriesDetailActivity: "SEASON n ▾").
-        binding.btnSeasonSelector.text = "SEASON ${selected ?: currentSeasons.firstOrNull()?.seasonNum ?: 1} ▾"
+        val season = selected ?: currentSeasons.firstOrNull()?.seasonNum ?: 1
+        binding.btnSeasonSelector.text =
+            binding.root.context.getString(R.string.f_season_selector, season)
     }
 
     private fun showSeasonPopup() {

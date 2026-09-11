@@ -29,4 +29,31 @@
     <string name="f_stremio_addons_count">Stremio Addons (%1$d)</string>
     <string name="f_update_version_available">Version %1$s is available.</string>
     <string name="f_update_download_failed">Could not download the update. Please try again later.\n(%1$s)</string>
+
+    <!-- F3 (audit 2026-09-08): built in Kotlin with an interpolated value, so the
+         layout extraction passes never saw them. Every one of these was English on a
+         German, Spanish, French, Italian or Portuguese screen. -->
+    <string name="f_season_selector">SEASON %1$d ▾</string>
+    <string name="f_search_results_for">Results · \"%1$s\"</string>
+    <string name="f_search_no_matches">No matches for \"%1$s\"</string>
+    <string name="f_epg_time_range_duration">%1$s - %2$s (%3$d min)</string>
+    <string name="f_epg_unknown_programme">Unknown Program</string>
+    <string name="label_resume">RESUME</string>
+    <string name="f_minutes_upper">%1$d MIN</string>
+    <string name="f_episode_short">E%1$02d</string>
+    <string name="f_minutes_compact">%1$dM</string>
+    <string name="f_continue_season_episode">CONTINUE · S%1$02d · E%2$02d</string>
+    <string name="f_percent_minutes_left">%1$d%% · %2$dM LEFT</string>
+    <string name="f_sources_per_episode">%1$d SOURCES / EPISODE · %2$d CACHED</string>
+    <string name="f_sources_per_episode_best">%1$d SOURCES / EPISODE · %2$d CACHED · BEST %3$s%4$s</string>
+    <string name="f_category_rows_selected">%1$s Rows · %2$d selected</string>
+    <plurals name="p_streams_across_categories">
+        <item quantity="one">%1$d stream across %2$d categories</item>
+        <item quantity="other">%1$d streams across %2$d categories</item>
+    </plurals>
+    <plurals name="p_streams_across_one_category">
+        <item quantity="one">%1$d stream across %2$d category</item>
+        <item quantity="other">%1$d streams across %2$d category</item>
+    </plurals>
+    <string name="label_season_selector_none">SEASON ▾</string>
 </resources>

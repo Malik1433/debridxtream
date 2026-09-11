@@ -62,13 +62,15 @@ class CategorySelectionDialog : DialogFragment() {
         )
 
         fun renderTitle() {
-            val what = when (type) {
-                "movie" -> "Movie"
-                "series" -> "Series"
-                "live" -> "Live TV"
-                else -> "Categories"
-            }
-            tvTitle.text = "$what Rows · ${selectedIds.size} selected"
+            val what = getString(
+                when (type) {
+                    "movie" -> R.string.label_movie
+                    "series" -> R.string.label_series
+                    "live" -> R.string.nav_live_tv
+                    else -> R.string.phone_categories
+                }
+            )
+            tvTitle.text = getString(R.string.f_category_rows_selected, what, selectedIds.size)
         }
         renderTitle()
 

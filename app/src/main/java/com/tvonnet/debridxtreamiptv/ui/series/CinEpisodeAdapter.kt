@@ -127,11 +127,13 @@ class CinEpisodeAdapter(
         }
 
         fun bind(item: EpisodeUiModel, isSelected: Boolean) {
-            tvEpNum.text = "E${String.format(java.util.Locale.US, "%02d", item.episodeNumber ?: 0)}"
+            val ctx = itemView.context
+            tvEpNum.text = ctx.getString(R.string.f_episode_short, item.episodeNumber ?: 0)
             tvTitle.text = item.title
 
             val durationMin = item.durationMinutes
-            tvDuration.text = if (durationMin != null) "${durationMin}M" else ""
+            tvDuration.text =
+                if (durationMin != null) ctx.getString(R.string.f_minutes_compact, durationMin) else ""
 
             loadThumbnail(item)
 

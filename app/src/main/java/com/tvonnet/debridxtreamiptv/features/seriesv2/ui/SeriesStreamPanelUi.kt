@@ -4,6 +4,7 @@ import android.graphics.drawable.GradientDrawable
 import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
+import com.tvonnet.debridxtreamiptv.R
 import com.tvonnet.debridxtreamiptv.databinding.FragmentSeriesDetailV2Binding
 import com.tvonnet.debridxtreamiptv.features.seriesv2.ui.model.IptvStreamGroup
 import com.tvonnet.debridxtreamiptv.features.seriesv2.ui.model.IptvStreamOption
@@ -86,8 +87,17 @@ class SeriesStreamPanelUi(
 
         val groups = state.filteredGroups
         val streamCount = state.filteredStreamCount
-        binding.tvScanLine.text = "$streamCount ${if (streamCount == 1) "stream" else "streams"} across " +
-            "${groups.size} ${if (groups.size == 1) "category" else "categories"}"
+        // Two plurals rather than four glued fragments: the stream count picks the quantity form,
+        // and the one-category case gets its own entry so no language has to say "in 1 categories".
+        val res = binding.root.context.resources
+        binding.tvScanLine.text = res.getQuantityString(
+            if (groups.size == 1) {
+                R.plurals.p_streams_across_one_category
+            } else {
+                R.plurals.p_streams_across_categories
+            },
+            streamCount, streamCount, groups.size
+        )
 
         renderStreamList(state, groups)
     }

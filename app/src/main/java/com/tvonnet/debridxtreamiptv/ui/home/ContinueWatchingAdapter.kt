@@ -148,7 +148,8 @@ class ContinueWatchingAdapter(
 
             qiInfo?.let {
                 itemView.findViewById<TextView>(R.id.qi_title)?.text = formatTitle(item)
-                itemView.findViewById<TextView>(R.id.qi_tag)?.text = "RESUME"
+                itemView.findViewById<TextView>(R.id.qi_tag)?.text =
+                    itemView.context.getString(R.string.label_resume)
                 itemView.findViewById<TextView>(R.id.qi_sub)?.text = item.formattedProgress
             }
         }

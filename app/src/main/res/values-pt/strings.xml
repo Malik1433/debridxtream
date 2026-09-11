@@ -925,4 +925,37 @@
     <string name="s_consent_message">Relatórios de falhas e um resumo de reprodução por sessão: tempo de início, rebuffers, erros. Nunca o que você assistiu, sua conta ou seu provedor.\n\nVocê pode alterar isso quando quiser em Configurações › Dados e armazenamento.</string>
     <string name="s_consent_allow">Permitir</string>
     <string name="s_consent_deny">Não, obrigado</string>
+
+    <!-- F3 (audit 2026-09-08) -->
+    <string name="f_season_selector">TEMPORADA %1$d ▾</string>
+    <string name="f_search_results_for">Resultados · \"%1$s\"</string>
+    <string name="f_search_no_matches">Sem resultados para \"%1$s\"</string>
+    <string name="f_epg_time_range_duration">%1$s - %2$s (%3$d min)</string>
+    <string name="f_epg_unknown_programme">Programa desconhecido</string>
+    <string name="label_resume">RETOMAR</string>
+    <string name="f_minutes_upper">%1$d MIN</string>
+    <string name="f_episode_short">E%1$02d</string>
+    <string name="f_minutes_compact">%1$dM</string>
+    <string name="f_continue_season_episode">CONTINUAR · T%1$02d · E%2$02d</string>
+    <string name="f_percent_minutes_left">%1$d%% · FALTAM %2$d MIN</string>
+    <string name="f_sources_per_episode">%1$d FONTES / EPISÓDIO · %2$d EM CACHE</string>
+    <string name="f_sources_per_episode_best">%1$d FONTES / EPISÓDIO · %2$d EM CACHE · MELHOR %3$s%4$s</string>
+    <string name="f_category_rows_selected">Linhas de %1$s · %2$d selecionadas</string>
+    <plurals name="p_streams_across_categories">
+        <item quantity="one">%1$d transmissão em %2$d categorias</item>
+        <item quantity="other">%1$d transmissões em %2$d categorias</item>
+    </plurals>
+    <plurals name="p_streams_across_one_category">
+        <item quantity="one">%1$d transmissão em %2$d categoria</item>
+        <item quantity="other">%1$d transmissões em %2$d categoria</item>
+    </plurals>
+    <plurals name="s_summary_addons">
+        <item quantity="one">%1$d extensão</item>
+        <item quantity="other">%1$d extensões</item>
+    </plurals>
+    <plurals name="s_summary_servers">
+        <item quantity="one">%1$d servidor</item>
+        <item quantity="other">%1$d servidores</item>
+    </plurals>
+    <string name="label_season_selector_none">TEMPORADA ▾</string>
 </resources>

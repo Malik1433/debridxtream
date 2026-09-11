@@ -925,4 +925,37 @@
     <string name="s_consent_message">Rapports de plantage et un résumé de lecture par session : temps de démarrage, remises en mémoire tampon, erreurs. Jamais ce que vous avez regardé, votre compte ni votre fournisseur.\n\nVous pouvez changer cela à tout moment dans Paramètres › Données et stockage.</string>
     <string name="s_consent_allow">Autoriser</string>
     <string name="s_consent_deny">Non merci</string>
+
+    <!-- F3 (audit 2026-09-08) -->
+    <string name="f_season_selector">SAISON %1$d ▾</string>
+    <string name="f_search_results_for">Résultats · \"%1$s\"</string>
+    <string name="f_search_no_matches">Aucun résultat pour \"%1$s\"</string>
+    <string name="f_epg_time_range_duration">%1$s - %2$s (%3$d min)</string>
+    <string name="f_epg_unknown_programme">Émission inconnue</string>
+    <string name="label_resume">REPRENDRE</string>
+    <string name="f_minutes_upper">%1$d MIN</string>
+    <string name="f_episode_short">É%1$02d</string>
+    <string name="f_minutes_compact">%1$dM</string>
+    <string name="f_continue_season_episode">REPRENDRE · S%1$02d · É%2$02d</string>
+    <string name="f_percent_minutes_left">%1$d%% · %2$d MIN RESTANTES</string>
+    <string name="f_sources_per_episode">%1$d SOURCES / ÉPISODE · %2$d EN CACHE</string>
+    <string name="f_sources_per_episode_best">%1$d SOURCES / ÉPISODE · %2$d EN CACHE · MEILLEURE %3$s%4$s</string>
+    <string name="f_category_rows_selected">Rangées %1$s · %2$d sélectionnées</string>
+    <plurals name="p_streams_across_categories">
+        <item quantity="one">%1$d flux dans %2$d catégories</item>
+        <item quantity="other">%1$d flux dans %2$d catégories</item>
+    </plurals>
+    <plurals name="p_streams_across_one_category">
+        <item quantity="one">%1$d flux dans %2$d catégorie</item>
+        <item quantity="other">%1$d flux dans %2$d catégorie</item>
+    </plurals>
+    <plurals name="s_summary_addons">
+        <item quantity="one">%1$d extension</item>
+        <item quantity="other">%1$d extensions</item>
+    </plurals>
+    <plurals name="s_summary_servers">
+        <item quantity="one">%1$d serveur</item>
+        <item quantity="other">%1$d serveurs</item>
+    </plurals>
+    <string name="label_season_selector_none">SAISON ▾</string>
 </resources>

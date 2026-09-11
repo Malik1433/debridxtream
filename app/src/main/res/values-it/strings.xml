@@ -925,4 +925,37 @@
     <string name="s_consent_message">Segnalazioni di arresto anomalo e un riepilogo di riproduzione per sessione: tempo di avvio, rebuffer, errori. Mai cosa hai guardato, il tuo account o il tuo provider.\n\nPuoi cambiarlo quando vuoi in Impostazioni › Dati e archiviazione.</string>
     <string name="s_consent_allow">Consenti</string>
     <string name="s_consent_deny">No, grazie</string>
+
+    <!-- F3 (audit 2026-09-08) -->
+    <string name="f_season_selector">STAGIONE %1$d ▾</string>
+    <string name="f_search_results_for">Risultati · \"%1$s\"</string>
+    <string name="f_search_no_matches">Nessun risultato per \"%1$s\"</string>
+    <string name="f_epg_time_range_duration">%1$s - %2$s (%3$d min)</string>
+    <string name="f_epg_unknown_programme">Programma sconosciuto</string>
+    <string name="label_resume">RIPRENDI</string>
+    <string name="f_minutes_upper">%1$d MIN</string>
+    <string name="f_episode_short">E%1$02d</string>
+    <string name="f_minutes_compact">%1$dM</string>
+    <string name="f_continue_season_episode">CONTINUA · S%1$02d · E%2$02d</string>
+    <string name="f_percent_minutes_left">%1$d%% · %2$d MIN RIMASTI</string>
+    <string name="f_sources_per_episode">%1$d FONTI / EPISODIO · %2$d IN CACHE</string>
+    <string name="f_sources_per_episode_best">%1$d FONTI / EPISODIO · %2$d IN CACHE · MIGLIORE %3$s%4$s</string>
+    <string name="f_category_rows_selected">Righe %1$s · %2$d selezionate</string>
+    <plurals name="p_streams_across_categories">
+        <item quantity="one">%1$d stream in %2$d categorie</item>
+        <item quantity="other">%1$d stream in %2$d categorie</item>
+    </plurals>
+    <plurals name="p_streams_across_one_category">
+        <item quantity="one">%1$d stream in %2$d categoria</item>
+        <item quantity="other">%1$d stream in %2$d categoria</item>
+    </plurals>
+    <plurals name="s_summary_addons">
+        <item quantity="one">%1$d add-on</item>
+        <item quantity="other">%1$d add-on</item>
+    </plurals>
+    <plurals name="s_summary_servers">
+        <item quantity="one">%1$d server</item>
+        <item quantity="other">%1$d server</item>
+    </plurals>
+    <string name="label_season_selector_none">STAGIONE ▾</string>
 </resources>
