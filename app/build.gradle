@@ -118,6 +118,16 @@ android {
             shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
 
+            // Crashlytics uploads the R8 mapping file as part of assembleRelease so that crash
+            // stack traces from the SHIPPED build can be de-obfuscated. That is only meaningful for
+            // the build that ships, and only the machine holding keystore.properties produces one.
+            // Everywhere else - CI, a clone without the keystore - the release build is unsigned,
+            // google-services.json is the ci-stub with a made-up app id, and the upload can only
+            // fail and take the whole build with it. Gate it on the same thing signing is gated on.
+            firebaseCrashlytics {
+                mappingFileUploadEnabled keystoreProps.containsKey('storeFile')
+            }
+
             // The FFmpeg audio decoder ships a native library per ABI, and with nothing declared
             // here every variant packaged all four: x86 and x86_64 alongside the two ARM ones.
             // 2.92MB of a 15.55MB APK — 18.8% — that no device this app ships to can execute:
