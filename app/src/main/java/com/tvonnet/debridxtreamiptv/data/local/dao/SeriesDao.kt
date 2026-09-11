@@ -11,6 +11,17 @@ import androidx.sqlite.db.SupportSQLiteQuery
 import com.tvonnet.debridxtreamiptv.data.local.entity.SeriesEntity
 
 /**
+ * The part of an `episodes` row this device owns: what the player wrote, not what the provider
+ * sent. Read before a series re-sync so [SeriesDao.saveSeriesDetails] can put it back.
+ */
+data class EpisodePlaybackState(
+    val episodeId: String,
+    val is_watched: Boolean,
+    val resume_position: Long,
+    val duration: Long
+)
+
+/**
  * Per-series season/episode counts aggregated from locally cached episode rows.
  * Only series whose details were fetched at least once have a row here.
  */
@@ -154,16 +165,55 @@ interface SeriesDao {
     @Query("SELECT * FROM series_v2 WHERE seriesId = :seriesId")
     fun getSeriesWithSeasonsAndEpisodesFlow(seriesId: String): kotlinx.coroutines.flow.Flow<com.tvonnet.debridxtreamiptv.data.local.relation.SeriesWithSeasonsAndEpisodes?>
 
+    /**
+     * The three columns on `episodes` that belong to THIS DEVICE rather than to the provider.
+     * Everything else in the row is re-fetchable; these are not.
+     */
+    @Query("SELECT episodeId, is_watched, resume_position, duration FROM episodes WHERE seriesId = :seriesId")
+    suspend fun getEpisodePlaybackState(seriesId: String): List<EpisodePlaybackState>
+
+    /**
+     * Replaces a series' seasons and episodes with what the provider just returned — **without
+     * throwing away what this device learned about them** (2026-09-10).
+     *
+     * The delete-then-insert is deliberate: a provider can renumber or drop episodes, so the
+     * remote listing has to win on structure. But `is_watched`, `resume_position` and `duration`
+     * are written HERE, by the player (see [updatePlaybackStatus]), and the provider's payload has
+     * no idea they exist. Re-inserting the fresh rows therefore reset every one of them to its
+     * default, and because this sync runs whenever a series detail is opened, the customer's
+     * watched ticks came back cleared after all but the current app session — the exact bug this
+     * carry-over fixes.
+     *
+     * Carried over by `episodeId`, which is the primary key: an episode the provider no longer
+     * lists simply has nothing to carry, and a genuinely new episode starts unwatched.
+     */
     @Transaction
     suspend fun saveSeriesDetails(
         seriesId: String,
         seasons: List<com.tvonnet.debridxtreamiptv.data.local.entity.SeasonEntity>,
         episodes: List<com.tvonnet.debridxtreamiptv.data.local.entity.EpisodeEntity>
     ) {
+        val previous = getEpisodePlaybackState(seriesId).associateBy { it.episodeId }
+
+        // "Never let a failed refresh destroy good data." A partial or failed detail fetch arrives
+        // here as an empty episode list, and without this the series' episodes — and everything
+        // this device recorded about them — were deleted and nothing put back. The V2 sync has
+        // guarded this since it was written (SeriesEpisodeSync.replaceEpisodes); this path never did.
+        if (episodes.isEmpty() && previous.isNotEmpty()) return
+
         deleteSeasonsBySeries(seriesId)
         deleteEpisodesBySeries(seriesId)
         insertSeasons(seasons)
-        insertEpisodes(episodes)
+        insertEpisodes(
+            episodes.map { episode ->
+                val kept = previous[episode.episodeId] ?: return@map episode
+                episode.copy(
+                    isWatched = kept.is_watched,
+                    resumePosition = kept.resume_position,
+                    duration = kept.duration
+                )
+            }
+        )
     }
 
     @Query("UPDATE episodes SET is_watched = :isWatched, resume_position = :resumePosition, duration = :duration WHERE episodeId = :episodeId")
