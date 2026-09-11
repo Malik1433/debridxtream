@@ -59,11 +59,21 @@ if [ -n "$stray" ]; then
     echo "    (If one genuinely belongs at the root, add it to allowed_root in this script.)" >&2
 fi
 
+# gradlew must be executable IN THE INDEX. Windows does not track the bit, so a commit made here
+# can silently drop it (05035587 did, 2026-09-05) - and from then on CI fails in under a second
+# with "Permission denied" before a single test runs, which hid a real failure underneath for a
+# week. The working tree cannot show this on Windows; only the index mode can.
+gradlew_mode="$(git ls-files -s gradlew 2>/dev/null | cut -d' ' -f1)"
+if [ -n "$gradlew_mode" ] && [ "$gradlew_mode" != "100755" ]; then
+    fail "gradlew is not executable in the git index (mode $gradlew_mode) — CI cannot run it:"
+    echo "    git update-index --chmod=+x gradlew" >&2
+fi
+
 if [ "$status" -ne 0 ]; then
     echo "" >&2
     echo "Repo hygiene failed. Keep scratch work in the session scratchpad, not the repo." >&2
     exit 1
 fi
 
-echo "hygiene: OK — root is clean, no zero-byte files, no committed scratch output"
+echo "hygiene: OK — root is clean, no zero-byte files, no committed scratch output, gradlew executable"
 exit 0
