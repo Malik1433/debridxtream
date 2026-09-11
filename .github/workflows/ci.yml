@@ -3,12 +3,24 @@
 # to main now runs the same four checks the pre-commit hook and `gradlew check` run here:
 #
 #   1. repo hygiene         scripts/check_repo_hygiene.sh   (no stray/zero-byte/scratch files)
-#   2. unit tests           :app:testDebugUnitTest          (846 at the time of writing)
+#   2. unit tests           :app:testDebugUnitTest          (867 at the time of writing)
 #   3. detekt + the ratchet :app:detekt debtRatchet          (config/detekt/debt-ledger.txt ceilings)
 #   4. the debug APK builds :app:assembleDebug
+#   5. the RELEASE APK builds :app:assembleRelease           (R8 full mode + resource shrinking)
 #
-# What CI deliberately does NOT do: sign a release (keystore.properties is local-only, so the
-# release build falls back to the debug key - useless), run instrumented tests (Fire TV only),
+# Why step 5 exists (audit 2026-09-08, finding F2). Steps 1-4 never compiled the variant that
+# actually ships. The release build is the only one that runs R8 in full mode with resource
+# shrinking, and R8 is where this project's worst failure class lives: an orphaned @HiltViewModel
+# compiles, unit-tests green, and then crash-loops on the television because the keep rules no
+# longer reach it. assembleRelease closes that gap with no secret of any kind - see below.
+#
+# Signing: keystore.properties is git-ignored, so on CI `signingConfigs.release` stays empty and
+# the release build type never sets one. AGP then packages the release APK UNSIGNED, which is
+# exactly right here: the point of step 5 is that R8, the keep rules and packaging all run, not
+# that CI produces an installable artifact. The signed APK is still built only on the owner's
+# machine, where keystore.properties exists.
+#
+# What CI still deliberately does NOT do: sign anything, run instrumented tests (Fire TV only),
 # or talk to Firebase (see the google-services stub below).
 name: ci
 
@@ -46,8 +58,8 @@ jobs:
       - name: Firebase config stub
         run: cp config/ci/google-services.json app/google-services.json
 
-      - name: Unit tests, detekt, debt ratchet, debug APK
-        run: ./gradlew :app:testDebugUnitTest :app:detekt debtRatchet :app:assembleDebug --no-daemon --stacktrace
+      - name: Unit tests, detekt, debt ratchet, debug APK, release APK
+        run: ./gradlew :app:testDebugUnitTest :app:detekt debtRatchet :app:assembleDebug :app:assembleRelease --no-daemon --stacktrace
 
       - name: Test report
         if: always()
