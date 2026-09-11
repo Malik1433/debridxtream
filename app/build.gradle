@@ -117,6 +117,20 @@ android {
             minifyEnabled true
             shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+
+            // The FFmpeg audio decoder ships a native library per ABI, and with nothing declared
+            // here every variant packaged all four: x86 and x86_64 alongside the two ARM ones.
+            // 2.92MB of a 15.55MB APK — 18.8% — that no device this app ships to can execute:
+            // every Fire TV is ARM and so is every Android phone the customer installs on.
+            //
+            // Declared on the RELEASE build type rather than in defaultConfig on purpose. The
+            // phone QA path is an x86_64 Pixel emulator image (see the emulator QA notes), so a
+            // global abiFilters would trade a smaller download for the loss of the only way phone
+            // behaviour gets checked. Debug declares nothing and therefore still packages all
+            // four; only what ships is filtered.
+            ndk {
+                abiFilters 'armeabi-v7a', 'arm64-v8a'
+            }
             // Use the release key only when configured; otherwise Gradle falls back to
             // the default (debug) signing so dev/CI builds keep working.
             if (keystoreProps.containsKey('storeFile')) {
