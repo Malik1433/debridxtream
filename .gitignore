@@ -27,6 +27,12 @@ build/
 **/build/
 */build/
 app/build/
+
+# Kotlin 2.x build state. New since the toolchain upgrade (vC 133) and missed by this list, so it
+# was arriving as untracked build output — and `.kotlin/sessions/*.salive` is a ZERO-BYTE daemon
+# marker, which made scripts/check_repo_hygiene.sh (and therefore the pre-commit hook) fail on any
+# clone that had run a build. Found 2026-09-09.
+.kotlin/
 .idea/caches/
 .idea/libraries/
 .idea/modules.xml
