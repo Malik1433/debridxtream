@@ -92,11 +92,27 @@ service cloud.firestore {
     // a property of the data: no future client, and no direct API call, can put credentials
     // back in. The doc itself stays writable so the TV can keep publishing its `waiting`
     // status, and readable because there is no longer anything in it worth reading.
+    //
+    // 2026-09-08 (audit finding F5): this was a DENYLIST of six field names, which does not
+    // deliver the sentence above. It stopped `password` and stopped `iptv`, and let the same
+    // credentials through under any other name - `config`, `xtream`, `creds`. A denylist can only
+    // ever ban what somebody already thought of.
+    //
+    // The allowlist below is the whole legitimate write surface, verified against every writer
+    // in the repository rather than guessed:
+    //   LoginQrOverlayController.startListening  set({status, createdAt})       - full set
+    //   CompanionConfigSync.start                set({status, createdAt}, merge) - only when absent
+    // The web dashboard's config push was deleted in U8b and writes nothing today; the Cloud
+    // Functions never touch this collection at all. So the resulting document, for both writers
+    // and for a merge onto an existing doc, is exactly these two keys.
+    //
+    // Adding a field to this channel now means adding it here first, on purpose, with a reason -
+    // which is the property the denylist never had.
     match /device_codes/{code} {
       allow get: if true;
       allow list: if false;
-      allow create, update: if !request.resource.data.keys()
-        .hasAny(['iptv', 'debridConfig', 'stremioAddonUrls', 'debrid', 'mediafusion', 'password']);
+      allow create, update: if request.resource.data.keys()
+        .hasOnly(['status', 'createdAt']);
       allow delete: if isAdmin();
     }
 
