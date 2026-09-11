@@ -13,7 +13,9 @@ import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.AppCompatButton
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
@@ -487,25 +489,32 @@ class SeriesDetailActivity : AppCompatActivity() {
     }
 
     private fun observeViewModel() {
+        // STARTED-scoped (audit 2026-09-08, finding F4). This activity stays alive underneath the
+        // player, so the unscoped collector kept rebuilding the season list while a stream was on
+        // screen. uiState is a StateFlow: coming back replays the current state and the page is
+        // rebuilt from it, which is also what already happens after a process-death restore.
         lifecycleScope.launch {
-            viewModel.uiState.collect { state ->
-                when (state) {
-                    is SeriesDetailUiState.Loading -> showLoading(true)
-                    is SeriesDetailUiState.Success -> {
-                        val detail = state.detail
-                        // If we have content, hide loading
-                        val hasContent = !detail.seasons.isNullOrEmpty() || !detail.episodes.isNullOrEmpty()
-                        if (hasContent) {
-                            showLoading(false)
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                viewModel.uiState.collect { state ->
+                    when (state) {
+                        is SeriesDetailUiState.Loading -> showLoading(true)
+                        is SeriesDetailUiState.Success -> {
+                            val detail = state.detail
+                            // If we have content, hide loading
+                            val hasContent =
+                                !detail.seasons.isNullOrEmpty() || !detail.episodes.isNullOrEmpty()
+                            if (hasContent) {
+                                showLoading(false)
+                            }
+                            applyDetailInfo(detail.info)
+                            seriesSeasonUi.buildSeasonList(detail)
                         }
-                        applyDetailInfo(detail.info)
-                        seriesSeasonUi.buildSeasonList(detail)
+                        is SeriesDetailUiState.Error -> {
+                            showLoading(false)
+                            // Handle error if needed, maybe fallback
+                        }
+                        else -> {}
                     }
-                    is SeriesDetailUiState.Error -> {
-                        showLoading(false)
-                         // Handle error if needed, maybe fallback
-                    }
-                     else -> {}
                 }
             }
         }

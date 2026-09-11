@@ -16,7 +16,9 @@ import androidx.activity.OnBackPressedCallback
 import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.flexbox.FlexboxLayout
@@ -248,12 +250,17 @@ class SearchFragment :
 
     // ── state rendering ──
     private fun observeState() {
+        // STARTED-scoped (audit 2026-09-08, finding F4). uiState is a StateFlow, so the last
+        // search result is replayed when the screen comes back and render() runs again — leaving
+        // the results, the count and the trending chips exactly as the customer left them.
         viewLifecycleOwner.lifecycleScope.launch {
-            viewModel.uiState.collect { state ->
-                lastState = state
-                // reflect recent searches into the trending chips while idle
-                if (query.isBlank()) buildTrending(state.recentSearches)
-                render(state)
+            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                viewModel.uiState.collect { state ->
+                    lastState = state
+                    // reflect recent searches into the trending chips while idle
+                    if (query.isBlank()) buildTrending(state.recentSearches)
+                    render(state)
+                }
             }
         }
     }

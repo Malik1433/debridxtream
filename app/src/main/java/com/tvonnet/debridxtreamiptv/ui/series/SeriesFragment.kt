@@ -13,7 +13,9 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.paging.CombinedLoadStates
 import androidx.paging.LoadState
 import androidx.recyclerview.widget.GridLayoutManager
@@ -412,13 +414,22 @@ class SeriesFragment : Fragment() {
     }
 
     private fun setupObservers() {
+        // Both collectors are STARTED-scoped (audit 2026-09-08, finding F4). They used to run for
+        // as long as the view existed, so a series list kept re-rendering behind the player.
+        // Nothing is lost by stopping: uiState is a StateFlow and pagedSeries is cachedIn the
+        // ViewModel, so each replays its current value the moment the screen comes back — the
+        // Pager is not restarted and the customer's scroll position is not reset.
         viewLifecycleOwner.lifecycleScope.launch {
-            viewModel.uiState.collectLatest { state -> renderSeriesState(state) }
+            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                viewModel.uiState.collectLatest { state -> renderSeriesState(state) }
+            }
         }
 
         viewLifecycleOwner.lifecycleScope.launch {
-            viewModel.pagedSeries.collectLatest { pagingData ->
-                seriesPagingAdapter.submitData(pagingData)
+            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                viewModel.pagedSeries.collectLatest { pagingData ->
+                    seriesPagingAdapter.submitData(pagingData)
+                }
             }
         }
     }

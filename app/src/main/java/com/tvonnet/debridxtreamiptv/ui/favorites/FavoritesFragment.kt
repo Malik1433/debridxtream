@@ -7,7 +7,9 @@ import android.view.ViewGroup
 import android.widget.*
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.tvonnet.debridxtreamiptv.R
@@ -140,9 +142,14 @@ class FavoritesFragment : Fragment() {
     }
     
     private fun observeViewModel() {
+        // STARTED-scoped (audit 2026-09-08, finding F4): favourites are backed by a Room flow, so
+        // an unscoped collector kept re-querying and re-binding the grid while the screen was not
+        // on top. uiState is a StateFlow, so returning to the screen replays the current value.
         viewLifecycleOwner.lifecycleScope.launch {
-            viewModel.uiState.collect { state ->
-                updateUI(state)
+            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                viewModel.uiState.collect { state ->
+                    updateUI(state)
+                }
             }
         }
     }

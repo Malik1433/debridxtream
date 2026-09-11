@@ -5,7 +5,9 @@ import android.os.Bundle
 import android.widget.Button
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import com.tvonnet.debridxtreamiptv.R
 import com.tvonnet.debridxtreamiptv.data.licensing.LicenseManager
 import com.tvonnet.debridxtreamiptv.data.licensing.LicenseState
@@ -63,41 +65,47 @@ class ActivationActivity : AppCompatActivity() {
 
         manager.start()
 
+        // STARTED-scoped (audit 2026-09-08, finding F4). This screen decides whether to send the
+        // customer into the app, so it must not act on a licence change while it is not on top:
+        // goToApp() used to be reachable from a stopped activity. `manager.state` is a StateFlow,
+        // so the current licence state is re-delivered the moment the screen starts again.
         lifecycleScope.launch {
-            manager.state.collectLatest { state ->
-                when (state) {
-                    is LicenseState.Active -> goToApp()
-                    is LicenseState.Loading -> statusTv.text = statusTv.context.getString(R.string.c_checking)
-                    is LicenseState.Locked -> when (state.reason) {
-                        // Until the licence doc reaches the server the provider's lookup by
-                        // code returns "no device found", so asking the customer to go and
-                        // activate would send them into exactly that wall. Say what is
-                        // actually happening instead; this clears itself in a second or two.
-                        LicenseState.Reason.PENDING -> if (!manager.isRegisteredOnServer) {
-                            titleTv.text = titleTv.context.getString(R.string.c_registering_this_device)
-                            statusTv.text = statusTv.context.getString(R.string.c_give_it_a_moment_then)
-                        } else {
-                            titleTv.text = titleTv.context.getString(R.string.ui_share_this_code_with_your)
-                            statusTv.text = statusTv.context.getString(R.string.ui_waiting_for_activation)
-                        }
-                        LicenseState.Reason.TRIAL_ENDED -> {
-                            titleTv.text = titleTv.context.getString(R.string.c_your_free_trial_has_ended)
-                            statusTv.text = statusTv.context.getString(R.string.c_share_this_code_with_your)
-                        }
-                        LicenseState.Reason.DEACTIVATED -> {
-                            titleTv.text = titleTv.context.getString(R.string.c_this_device_is_deactivated)
-                            statusTv.text = statusTv.context.getString(R.string.c_contact_your_provider_to_reactivate)
-                        }
-                        LicenseState.Reason.EXPIRED -> {
-                            titleTv.text = titleTv.context.getString(R.string.c_your_subscription_has_expired)
-                            statusTv.text = statusTv.context.getString(R.string.c_contact_your_provider_to_renew)
-                        }
-                        // Nothing is wrong with the licence — the device just has not been able to
-                        // reach us for a while. Say that, and say what fixes it. Telling someone
-                        // their subscription expired when it has not is how support tickets start.
-                        LicenseState.Reason.OFFLINE_TOO_LONG -> {
-                            titleTv.text = titleTv.context.getString(R.string.c_please_connect_to_the_internet)
-                            statusTv.text = statusTv.context.getString(R.string.c_this_device_needs_to_check)
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                manager.state.collectLatest { state ->
+                    when (state) {
+                        is LicenseState.Active -> goToApp()
+                        is LicenseState.Loading -> statusTv.text = statusTv.context.getString(R.string.c_checking)
+                        is LicenseState.Locked -> when (state.reason) {
+                            // Until the licence doc reaches the server the provider's lookup by
+                            // code returns "no device found", so asking the customer to go and
+                            // activate would send them into exactly that wall. Say what is
+                            // actually happening instead; this clears itself in a second or two.
+                            LicenseState.Reason.PENDING -> if (!manager.isRegisteredOnServer) {
+                                titleTv.text = titleTv.context.getString(R.string.c_registering_this_device)
+                                statusTv.text = statusTv.context.getString(R.string.c_give_it_a_moment_then)
+                            } else {
+                                titleTv.text = titleTv.context.getString(R.string.ui_share_this_code_with_your)
+                                statusTv.text = statusTv.context.getString(R.string.ui_waiting_for_activation)
+                            }
+                            LicenseState.Reason.TRIAL_ENDED -> {
+                                titleTv.text = titleTv.context.getString(R.string.c_your_free_trial_has_ended)
+                                statusTv.text = statusTv.context.getString(R.string.c_share_this_code_with_your)
+                            }
+                            LicenseState.Reason.DEACTIVATED -> {
+                                titleTv.text = titleTv.context.getString(R.string.c_this_device_is_deactivated)
+                                statusTv.text = statusTv.context.getString(R.string.c_contact_your_provider_to_reactivate)
+                            }
+                            LicenseState.Reason.EXPIRED -> {
+                                titleTv.text = titleTv.context.getString(R.string.c_your_subscription_has_expired)
+                                statusTv.text = statusTv.context.getString(R.string.c_contact_your_provider_to_renew)
+                            }
+                            // Nothing is wrong with the licence — the device just has not been able to
+                            // reach us for a while. Say that, and say what fixes it. Telling someone
+                            // their subscription expired when it has not is how support tickets start.
+                            LicenseState.Reason.OFFLINE_TOO_LONG -> {
+                                titleTv.text = titleTv.context.getString(R.string.c_please_connect_to_the_internet)
+                                statusTv.text = statusTv.context.getString(R.string.c_this_device_needs_to_check)
+                            }
                         }
                     }
                 }
