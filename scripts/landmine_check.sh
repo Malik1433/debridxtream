@@ -56,9 +56,20 @@ pass() { printf '  PASS  %s\n' "$*"; }
 fail() { printf '  FAIL  %s\n' "$*"; fails=$((fails + 1)); }
 top_activity() { adb shell dumpsys activity activities 2>/dev/null | grep -oE 'mResumedActivity: ActivityRecord\{[^}]*\}' | grep -oE '[A-Za-z]+Activity' | tail -1; }
 session_state() { adb shell dumpsys media_session 2>/dev/null | grep -A10 "PlayerMediaSession" | grep -oE "state=[0-9]+" | head -1; }
-codec_lines() { adb logcat -d 2>/dev/null | grep -c "MediaCodecLogger" ; }
+# Filter ON THE DEVICE (logcat -s tag filter + toybox grep). Pulling a flooded multi-MB buffer
+# over adb-TCP and grepping it here took minutes per read; a tag-filtered dump is a few KB.
+codec_lines() { adb shell "logcat -d -s MediaCodecLogger:* 2>/dev/null | grep -c MediaCodecLogger" | tr -d '' ; }
 
 echo "landmine_check: $DEVICE  build: $(adb shell dumpsys package $PKG 2>/dev/null | grep -m1 -oE 'versionName=[^ ]+')"
+
+# L2, L4 and L5 are all "read logcat after N seconds". Fire OS's main buffer is 256KB, and on
+# 2026-09-12 the AFTGAZL was writing ~2,400 lines/s of audioserver noise (pcm_read() errors, 63%
+# of everything) - the buffer wrapped in 2-3 s, so a 30 s window really held the last 2 s, and L2
+# reported "1 codec sample - frozen" on a stream SurfaceFlinger showed presenting at 30 fps. Size
+# the buffer for the longest window here (30 s) with room to spare; -G is per boot, harmless.
+adb logcat -G 16M >/dev/null 2>&1 || true
+buf="$(adb logcat -g 2>/dev/null | grep -m1 '^main:' | grep -oE 'ring buffer is [0-9]+[KM]b')"
+echo "logcat ${buf:-buffer size unknown}"
 
 # ── L1 ────────────────────────────────────────────────────────────────────────
 if [ "$run_perf" -eq 1 ]; then
@@ -76,14 +87,17 @@ fi
 # Detect the Live adopt hand-off BEFORE clearing the log - the adopt line was written when the
 # player opened, and a clear-then-grep would never see it (the first version of this script did
 # exactly that and skipped L7 every time).
-was_live=0; adb logcat -d 2>/dev/null | grep -q "adopt: handed over" && was_live=1
+was_live=0; [ "$(adb shell "logcat -d -s LiveSharedPlayer:* 2>/dev/null | grep -c 'adopt: handed over'" | tr -d '')" -gt 0 ] 2>/dev/null && was_live=1
 adb logcat -c
 sleep 3
 
 # ── L2 ────────────────────────────────────────────────────────────────────────
 echo "[L2] decode continuity over 30 s"
-before=$(codec_lines); sleep 30; after=$(codec_lines)
-if [ $((after - before)) -ge 3 ]; then pass "L2 $((after - before)) MediaCodecLogger samples in 30 s"; else fail "L2 only $((after - before)) codec samples in 30 s - frozen or black"; fi
+# The buffer was cleared just above, so a single read after the window IS the count. The old
+# before/after pair needed two reads, and on a flooded buffer the second read came back
+# SMALLER than the first (the buffer had wrapped in between) - "-12 samples", a nonsense FAIL.
+sleep 30; after=$(codec_lines)
+if [ "${after:-0}" -ge 3 ]; then pass "L2 $after MediaCodecLogger samples in 30 s"; else fail "L2 only ${after:-0} codec samples in 30 s - frozen or black"; fi
 
 # ── L3 ────────────────────────────────────────────────────────────────────────
 echo "[L3] MediaSession via the system path"
@@ -113,10 +127,15 @@ if [ "$st" = "state=3" ]; then pass "L3 play -> $st"; else fail "L3 play -> '$st
 
 # ── L4 / L5 ───────────────────────────────────────────────────────────────────
 echo "[L4] audio sink health   [L5] crash / ANR"
-log=$(adb logcat -d 2>/dev/null)
-sink=$(printf '%s' "$log" | grep -ciE "AudioSink.*(Exception|error)|AudioTrack.*(write failed|ERROR_DEAD_OBJECT|obtainBuffer timed out)")
-[ "$sink" -eq 0 ] && pass "L4 no AudioSink/AudioTrack failures" || fail "L4 $sink AudioSink/AudioTrack failure line(s)"
-fatal=$(printf '%s' "$log" | grep -c "FATAL EXCEPTION"); anr=$(printf '%s' "$log" | grep -c "ANR in $PKG")
+# One dump to a file, then grep the file: with the buffer sized above this is many MB, and
+# holding it in a shell variable and re-piping it through printf took minutes on Git Bash.
+# logcat's own -s tag filter is native and fast; toybox grep over a 16MB flooded buffer on the
+# television's CPU took over ten minutes per read. The regexes below are unchanged - they now run
+# over the few lines those tags produce instead of over everything.
+audio_tags="AudioSink:* DefaultAudioSink:* AudioTrack:* MediaCodecAudioRenderer:* ExoPlayerImplInternal:* AudioWedgeEscape:*"
+sink=$(adb shell "logcat -d -s $audio_tags 2>/dev/null" | grep -ciE 'AudioSink.*(Exception|error)|AudioTrack.*(write failed|ERROR_DEAD_OBJECT|obtainBuffer timed out)')
+[ "${sink:-0}" -eq 0 ] && pass "L4 no AudioSink/AudioTrack failures" || fail "L4 $sink AudioSink/AudioTrack failure line(s)"
+fatal=$(adb shell "logcat -d -s AndroidRuntime:E 2>/dev/null" | grep -c "FATAL EXCEPTION"); anr=$(adb shell "logcat -d -s ActivityManager:* 2>/dev/null" | grep -c "ANR in $PKG")
 [ "$fatal" -eq 0 ] && [ "$anr" -eq 0 ] && pass "L5 0 FATAL, 0 ANR" || fail "L5 FATAL=$fatal ANR=$anr"
 
 # ── L6 / L7 ───────────────────────────────────────────────────────────────────
@@ -133,7 +152,7 @@ if [ "$(top_activity)" != "PlayerActivity" ]; then
     else
         echo "  SKIP  L7 (not a Live session - run again from a channel to cover the hand-off)"
     fi
-    fatal=$(adb logcat -d 2>/dev/null | grep -c "FATAL EXCEPTION"); [ "$fatal" -eq 0 ] || fail "L6 FATAL on exit ($fatal)"
+    fatal=$(adb shell "logcat -d -s AndroidRuntime:E 2>/dev/null" | grep -c "FATAL EXCEPTION"); [ "${fatal:-0}" -eq 0 ] || fail "L6 FATAL on exit ($fatal)"
 else
     fail "L6 still in PlayerActivity after two BACK presses"
 fi
