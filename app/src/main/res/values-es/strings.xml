@@ -324,6 +324,7 @@
     <string name="ui_logout">Cerrar sesión</string>
     <string name="ui_manage_stremio_addons">Gestionar addons de Stremio</string>
     <string name="ui_mark_watched">Marcar como visto</string>
+    <string name="ui_mark_unwatched">Marcar como no visto</string>
     <string name="ui_more_info">Más información</string>
     <string name="ui_movie">PELÍCULA</string>
     <string name="ui_movie_poster">Póster de la película</string>

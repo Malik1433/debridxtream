@@ -324,6 +324,7 @@
     <string name="ui_logout">Esci</string>
     <string name="ui_manage_stremio_addons">Gestisci addon Stremio</string>
     <string name="ui_mark_watched">Segna come visto</string>
+    <string name="ui_mark_unwatched">Segna come non visto</string>
     <string name="ui_more_info">Altre info</string>
     <string name="ui_movie">FILM</string>
     <string name="ui_movie_poster">Locandina del film</string>

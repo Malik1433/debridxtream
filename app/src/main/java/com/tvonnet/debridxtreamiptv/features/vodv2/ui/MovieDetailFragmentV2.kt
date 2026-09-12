@@ -398,7 +398,16 @@ class MovieDetailFragmentV2 : Fragment() {
                 watchedStateRepository.observeState(identity).collect { state ->
                     currentWatchedState = state?.isWatched == true
                     binding.tvWatchedBadge.visibility = if (currentWatchedState) View.VISIBLE else View.GONE
-                    binding.btnMarkWatched.text = if (currentWatchedState) "Mark Unwatched" else "Mark Watched"
+                    binding.btnMarkWatched.text =
+                        getString(if (currentWatchedState) R.string.ui_mark_unwatched else R.string.ui_mark_watched)
+                    // The runtime above the fold comes from TMDB, which describes the FILM. What the
+                    // customer will actually sit through is the provider's FILE, and those disagree
+                    // often enough to matter: a title listed at 1H 20M played for 2:21:02. Once the
+                    // player has measured the file, that number is the honest one - show it.
+                    state?.durationMs?.takeIf { it > 0L }?.let { ms ->
+                        binding.tvDuration.text = formatRuntime((ms / 60_000L).toInt())
+                        binding.tvDuration.visibility = View.VISIBLE
+                    }
                 }
             }
         }
