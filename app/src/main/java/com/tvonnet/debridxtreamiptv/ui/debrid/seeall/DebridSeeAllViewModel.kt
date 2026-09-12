@@ -1,5 +1,7 @@
 package com.tvonnet.debridxtreamiptv.ui.debrid.seeall
 
+import com.tvonnet.debridxtreamiptv.ui.debrid.DebridCatalogRows
+
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.tvonnet.debridxtreamiptv.data.Result
@@ -96,26 +98,21 @@ class DebridSeeAllViewModel @Inject constructor(
         val releaseDateGte: String? = null,
     )
 
-    private val discoveryQueries = mapOf(
+    // The two trending rows are preloaded on the home from the trending endpoints, so they page
+    // here as plain popularity queries. Every other row is DebridCatalogRows, the one list the
+    // home builds from - a row cannot exist on the home and be missing here any more.
+    private val discoveryQueries: Map<String, DiscoveryQuery> = mapOf(
         "trending_movies" to DiscoveryQuery(type = "movie", sortBy = "popularity.desc"),
         "trending_series" to DiscoveryQuery(type = "series", sortBy = "popularity.desc"),
-        "bollywood_movies" to DiscoveryQuery(type = "movie", originalLanguage = "hi", watchRegion = "IN", releaseDateGte = "2024-01-01"),
-        "bollywood_series" to DiscoveryQuery(type = "series", originalLanguage = "hi", watchRegion = "IN", releaseDateGte = "2024-01-01"),
-        "punjabi_movies" to DiscoveryQuery(type = "movie", originalLanguage = "pa", watchRegion = "IN", releaseDateGte = "2024-01-01"),
-        "tamil_movies" to DiscoveryQuery(type = "movie", originalLanguage = "ta", watchRegion = "IN", releaseDateGte = "2024-01-01"),
-        "tamil_series" to DiscoveryQuery(type = "series", originalLanguage = "ta", watchRegion = "IN", releaseDateGte = "2024-01-01"),
-        "netflix_movies" to DiscoveryQuery(type = "movie", watchProviders = "8", releaseDateGte = "2024-01-01"),
-        "netflix_series" to DiscoveryQuery(type = "series", watchProviders = "8", releaseDateGte = "2024-01-01"),
-        "prime_movies" to DiscoveryQuery(type = "movie", watchProviders = "9|119", releaseDateGte = "2024-01-01"),
-        "prime_series" to DiscoveryQuery(type = "series", watchProviders = "9|119", releaseDateGte = "2024-01-01"),
-        "disney_movies" to DiscoveryQuery(type = "movie", watchProviders = "337", releaseDateGte = "2024-01-01"),
-        "disney_series" to DiscoveryQuery(type = "series", watchProviders = "337", releaseDateGte = "2024-01-01"),
-        "apple_movies" to DiscoveryQuery(type = "movie", watchProviders = "2", releaseDateGte = "2024-01-01"),
-        "apple_series" to DiscoveryQuery(type = "series", watchProviders = "2", releaseDateGte = "2024-01-01"),
-        "hbo_series" to DiscoveryQuery(type = "series", watchProviders = "384", releaseDateGte = "2024-01-01"),
-        "hollywood_movies" to DiscoveryQuery(type = "movie", originalLanguage = "en", releaseDateGte = "2024-01-01"),
-        "hollywood_series" to DiscoveryQuery(type = "series", originalLanguage = "en", releaseDateGte = "2024-01-01"),
-    )
+    ) + DebridCatalogRows.specs.associate { spec ->
+        spec.id to DiscoveryQuery(
+            type = spec.type,
+            originalLanguage = spec.originalLanguage,
+            watchProviders = spec.watchProviders,
+            watchRegion = spec.watchRegion,
+            releaseDateGte = spec.releaseDateGte,
+        )
+    }
 
     private suspend fun getDiscoveryContent(rowId: String, page: Int): Result<List<CatalogItem>> {
         val query = discoveryQueries[rowId] ?: return Result.Success(emptyList())

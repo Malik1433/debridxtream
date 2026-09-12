@@ -281,22 +281,20 @@ class DebridViewModel @Inject constructor(
         val libraryDeferred = async { runCatching { catalogRepo.getLibraryItems() }.getOrDefault(emptyList()) }
         val trendingMoviesDeferred = async { gate.withPermit { catalogRepo.getTrendingMovies() } }
         val trendingSeriesDeferred = async { gate.withPermit { catalogRepo.getTrendingSeries() } }
-        val customSpecs = listOf(
-            Triple("bollywood_movies", "Bollywood New Popular Movies", RowLoadParams("movie", originalLanguage = "hi", watchRegion = "IN", releaseDateGte = "2024-01-01")),
-            Triple("bollywood_series", "Bollywood New Popular Series", RowLoadParams("series", originalLanguage = "hi", watchRegion = "IN", releaseDateGte = "2024-01-01")),
-            Triple("punjabi_movies", "Punjabi New Popular Movies", RowLoadParams("movie", originalLanguage = "pa", watchRegion = "IN", releaseDateGte = "2024-01-01")),
-            Triple("tamil_movies", "Tamil New Popular Movies", RowLoadParams("movie", originalLanguage = "ta", watchRegion = "IN", releaseDateGte = "2024-01-01")),
-            Triple("tamil_series", "Tamil New Popular Series", RowLoadParams("series", originalLanguage = "ta", watchRegion = "IN", releaseDateGte = "2024-01-01")),
-            Triple("netflix_movies", "Netflix New Popular Movies", RowLoadParams("movie", watchProviders = "8", watchRegion = "US", releaseDateGte = "2024-01-01")),
-            Triple("netflix_series", "Netflix New Popular Series", RowLoadParams("series", watchProviders = "8", watchRegion = "US", releaseDateGte = "2024-01-01")),
-            Triple("prime_movies", "Prime Video New Popular Movies", RowLoadParams("movie", watchProviders = "9|119", watchRegion = "US", releaseDateGte = "2024-01-01")),
-            Triple("prime_series", "Prime Video New Popular Series", RowLoadParams("series", watchProviders = "9|119", watchRegion = "US", releaseDateGte = "2024-01-01")),
-            Triple("disney_movies", "Disney+ New Popular Movies", RowLoadParams("movie", watchProviders = "337", watchRegion = "US", releaseDateGte = "2024-01-01")),
-            Triple("disney_series", "Disney+ New Popular Series", RowLoadParams("series", watchProviders = "337", watchRegion = "US", releaseDateGte = "2024-01-01")),
-            Triple("hbo_series", "HBO / Max New Popular Series", RowLoadParams("series", watchProviders = "384", watchRegion = "US", releaseDateGte = "2024-01-01")),
-            Triple("hollywood_movies", "Hollywood New Popular Movies", RowLoadParams("movie", originalLanguage = "en", watchRegion = "US", releaseDateGte = "2024-01-01")),
-            Triple("hollywood_series", "Hollywood New Popular Series", RowLoadParams("series", originalLanguage = "en", watchRegion = "US", releaseDateGte = "2024-01-01"))
-        )
+        // One list for the home AND See All - see DebridCatalogRows.
+        val customSpecs = DebridCatalogRows.specs.map { spec ->
+            Triple(
+                spec.id,
+                spec.title,
+                RowLoadParams(
+                    type = spec.type,
+                    originalLanguage = spec.originalLanguage,
+                    watchProviders = spec.watchProviders,
+                    watchRegion = spec.watchRegion,
+                    releaseDateGte = spec.releaseDateGte
+                )
+            )
+        }
         val customDeferred = customSpecs.map { spec -> spec to async { gate.withPermit { loadRowContent(spec.third, 1) } } }
 
         suspend fun appendRow(id: String, title: String, params: RowLoadParams? = null, preloadedItems: Result<List<CatalogItem>>? = null) {
