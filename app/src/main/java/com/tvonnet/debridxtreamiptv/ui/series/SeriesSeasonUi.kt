@@ -480,7 +480,11 @@ class SeriesSeasonUi(
         return EpisodeProgress(pct, posMs, isW)
     }
 
-    private fun watchedKeyFor(ep: EpisodeUiModel, seasonNumber: Int): String =
+    /**
+     * The watched_state key THIS page reads an episode under. Also handed to the player at
+     * launch (PlayerActivity.EXTRA_WATCHED_IDENTITY_KEY) so what it records is what we read.
+     */
+    fun watchedKeyFor(ep: EpisodeUiModel, seasonNumber: Int): String =
         if (isDebrid()) {
             com.tvonnet.debridxtreamiptv.data.local.WatchedIdentityBuilder.debridEpisode(
                 seriesIdentity = seriesId(),

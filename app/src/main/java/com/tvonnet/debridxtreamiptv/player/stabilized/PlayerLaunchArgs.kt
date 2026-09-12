@@ -33,6 +33,8 @@ internal object PlayerLaunchArgs {
         posterUrlExtra = intent.getStringExtra(PlayerActivity.EXTRA_POSTER_URL)
         backdropUrlExtra = intent.getStringExtra(PlayerActivity.EXTRA_BACKDROP_URL)
         tmdbIdExtra = intent.getStringExtra(PlayerActivity.EXTRA_TMDB_ID)
+        watchedIdentityKeyExtra = intent.getStringExtra(PlayerActivity.EXTRA_WATCHED_IDENTITY_KEY)
+            ?.takeIf { it.isNotBlank() }
         imdbIdExtra = intent.getStringExtra(PlayerActivity.EXTRA_IMDB_ID)
         seriesTitleExtra = intent.getStringExtra(PlayerActivity.EXTRA_SERIES_TITLE)
         episodeTitleExtra = intent.getStringExtra(PlayerActivity.EXTRA_EPISODE_TITLE)

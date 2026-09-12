@@ -351,6 +351,10 @@ class PlayerHistoryManager(
     }
 
     private fun watchedIdentityKey(type: ContentType, contentId: String): String? {
+        // The launching screen may pin the key it will read this content back under. The Debrid
+        // series page does, because an episode there can arrive over an IPTV stream: derived from
+        // the stream alone this would become an xtream key the page never queries.
+        activity.watchedIdentityKeyExtra?.let { return it }
         val source = watchedSource()
         return when {
             type == ContentType.MOVIE && source == WatchedStateEntity.SOURCE_XTREAM ->

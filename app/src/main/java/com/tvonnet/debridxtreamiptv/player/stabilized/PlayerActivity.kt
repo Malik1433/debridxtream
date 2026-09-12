@@ -125,6 +125,14 @@ class PlayerActivity : AppCompatActivity() {
         const val EXTRA_LIVE_RETURN_STREAM_URL = "LIVE_RETURN_STREAM_URL"
         const val EXTRA_LIVE_RETURN_CATEGORY_ID = "LIVE_RETURN_CATEGORY_ID"
         const val EXTRA_SERIES_ID = "EXTRA_SERIES_ID"
+        /**
+         * The watched_state identity key the LAUNCHING screen will look this content up under.
+         * When present it wins over the key the player would derive itself. Set by the Debrid
+         * series page, whose episodes can be delivered by an IPTV stream: the player would key
+         * that play as `episode:xtream:episode:<provider id>` while the page reads
+         * `episode:debrid:series:...`, and the watched tick could never match (2026-09-12).
+         */
+        const val EXTRA_WATCHED_IDENTITY_KEY = "EXTRA_WATCHED_IDENTITY_KEY"
         const val EXTRA_SEASON_NUM = "EXTRA_SEASON_NUM"
         const val EXTRA_EPISODE_NUM = "EXTRA_EPISODE_NUM"
         const val EXTRA_TMDB_ID = "EXTRA_TMDB_ID"

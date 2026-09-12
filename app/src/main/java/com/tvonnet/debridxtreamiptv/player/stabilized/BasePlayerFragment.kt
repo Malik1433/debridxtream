@@ -511,6 +511,7 @@ open class BasePlayerFragment : Fragment(), PlayerRecoveryController.RecoveryHos
     internal var posterUrlExtra: String? by session::posterUrlExtra
     internal var backdropUrlExtra: String? by session::backdropUrlExtra
     internal var tmdbIdExtra: String? by session::tmdbIdExtra
+    internal var watchedIdentityKeyExtra: String? by session::watchedIdentityKeyExtra
     internal var imdbIdExtra: String? by session::imdbIdExtra
     internal var seriesTitleExtra: String? by session::seriesTitleExtra
     internal var episodeTitleExtra: String? by session::episodeTitleExtra

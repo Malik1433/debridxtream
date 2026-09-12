@@ -230,6 +230,9 @@ class SeriesDebridPlaybackController(
             episodeNumber = episode.episodeNumber,
             startPositionMs = resumeMs
         )
+        seasonUi.selectedSeasonKey?.toIntOrNull()?.let {
+            intent.putExtra(PlayerActivity.EXTRA_WATCHED_IDENTITY_KEY, seasonUi.watchedKeyFor(episode, it))
+        }
         seriesId()?.let { intent.putExtra(PlayerActivity.EXTRA_SERIES_ID, it) }
         activity.startActivity(intent)
     }
@@ -291,6 +294,9 @@ class SeriesDebridPlaybackController(
                 episodeNumber = episodeNumber,
                 startPositionMs = resumeMs
             )
+            // Pin the key this page reads the episode under: this is an IPTV stream, so left to
+            // itself the player would record an xtream key the Debrid page never looks up.
+            seasonNumber?.let { intent.putExtra(PlayerActivity.EXTRA_WATCHED_IDENTITY_KEY, seasonUi.watchedKeyFor(episode, it)) }
             iptvSeriesId?.let { intent.putExtra(PlayerActivity.EXTRA_SERIES_ID, it) }
             activity.startActivity(intent)
         }
@@ -376,6 +382,8 @@ class SeriesDebridPlaybackController(
             debridFileIdx = plan.source.fileIdx,
             startPositionMs = resumeMs
         )
+        // Same key the page reads under - see playIptvSourceFromDebrid for why it is pinned.
+        seasonNumber?.let { intent.putExtra(PlayerActivity.EXTRA_WATCHED_IDENTITY_KEY, seasonUi.watchedKeyFor(episode, it)) }
         intent.putExtra(PlayerActivity.EXTRA_RETURN_TO_SOURCES, true)
         launch(intent)
     }

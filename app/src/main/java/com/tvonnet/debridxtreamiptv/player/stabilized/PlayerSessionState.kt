@@ -25,6 +25,8 @@ internal class PlayerSessionState {
     var posterUrlExtra: String? = null
     var backdropUrlExtra: String? = null
     var tmdbIdExtra: String? = null
+    /** See PlayerActivity.EXTRA_WATCHED_IDENTITY_KEY - null unless the launcher pinned the key. */
+    var watchedIdentityKeyExtra: String? = null
     var imdbIdExtra: String? = null
     var seriesTitleExtra: String? = null
     var episodeTitleExtra: String? = null
