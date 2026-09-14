@@ -135,6 +135,7 @@ class NetworkQualityManager @Inject constructor(
                 else -> NetworkQuality.SLOW
             }
 
+        } catch (ce: kotlinx.coroutines.CancellationException) { throw ce
         } catch (e: Exception) {
             Log.e(TAG, "Speed test error: ${e.message}")
             return@withContext NetworkQuality.UNKNOWN

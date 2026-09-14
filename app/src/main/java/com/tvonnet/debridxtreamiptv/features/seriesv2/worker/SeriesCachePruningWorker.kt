@@ -54,6 +54,7 @@ class SeriesCachePruningWorker @AssistedInject constructor(
             }
 
             Result.success()
+        } catch (ce: kotlinx.coroutines.CancellationException) { throw ce
         } catch (e: Exception) {
             Log.e("SeriesJanitor", "Pruning failed", e)
             Result.failure()

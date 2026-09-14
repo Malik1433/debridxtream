@@ -75,6 +75,7 @@ internal class SeriesRepository(
         if (cacheSeriesCategories.isNotEmpty()) {
             try {
                 cacheManager?.putCategories(cacheSeriesCategories, "series")
+            } catch (ce: kotlinx.coroutines.CancellationException) { throw ce
             } catch (e: Exception) {
                 Log.w(TAG, "Failed to store cached Series categories into CacheManager", e)
             }
@@ -94,6 +95,7 @@ internal class SeriesRepository(
                 Log.e(TAG, "Failed to fetch Series categories: ${response.code()}")
                 emptyList()
             }
+        } catch (ce: kotlinx.coroutines.CancellationException) { throw ce
         } catch (e: Exception) {
             Log.e(TAG, "Error fetching Series categories", e)
             emptyList()
@@ -103,6 +105,7 @@ internal class SeriesRepository(
     private suspend fun cacheFetchedSeriesCategories(categories: List<XtreamCategory>) {
         try {
             cacheManager?.putCategories(categories, "series")
+        } catch (ce: kotlinx.coroutines.CancellationException) { throw ce
         } catch (e: Exception) {
             Log.w(TAG, "Failed to persist Series categories into CacheManager", e)
         }
@@ -133,6 +136,7 @@ internal class SeriesRepository(
             }
             memoryCache = updatedCache
             withContext(Dispatchers.IO) { cacheHelper.writeCache(updatedCache) }
+        } catch (ce: kotlinx.coroutines.CancellationException) { throw ce
         } catch (e: Exception) {
             Log.w(TAG, "Failed to persist Series categories to cache", e)
         }
@@ -153,6 +157,7 @@ internal class SeriesRepository(
             // Instead, fetch series per category when needed (lazy loading)
             // For now, return empty streams list
             Result.Success(SeriesCacheData(categories, emptyList()))
+        } catch (ce: kotlinx.coroutines.CancellationException) { throw ce
         } catch (e: Exception) {
             Log.e(TAG, "Failed to fetch series data", e)
             Result.Success(SeriesCacheData(emptyList(), emptyList())) // Return empty, don't fail
@@ -192,6 +197,7 @@ internal class SeriesRepository(
                 categoryId,
                 apiService!!.getSeries(username, password, categoryId = categoryId)
             )
+        } catch (ce: kotlinx.coroutines.CancellationException) { throw ce
         } catch (e: Exception) {
             Log.e(TAG, "Error fetching series for category $categoryId", e)
             health.update(
@@ -286,6 +292,7 @@ internal class SeriesRepository(
                 val entities = filtered.map { it.toSeriesEntity(categoryId) }
                 dao.replaceSeriesForCategory(categoryId, entities)
             }
+        } catch (ce: kotlinx.coroutines.CancellationException) { throw ce
         } catch (e: Exception) {
             Log.w(TAG, "Failed to pre-load from Level 2 cache", e)
         }
@@ -301,6 +308,7 @@ internal class SeriesRepository(
                 dao.replaceSeriesForCategory(categoryId, entities)
                 Log.d(TAG, "Saved ${entities.size} series to DB for category $categoryId (Atomic Replace)")
             }
+        } catch (ce: kotlinx.coroutines.CancellationException) { throw ce
         } catch (e: Exception) {
             Log.e(TAG, "Failed to save series to DB", e)
         }
@@ -346,6 +354,7 @@ internal class SeriesRepository(
                 }
                 dao.replaceSeriesForCategory(categoryId, entities)
             }
+        } catch (ce: kotlinx.coroutines.CancellationException) { throw ce
         } catch (e: Exception) {
             Log.e(TAG, "Failed to save fallback series to DB", e)
         }
@@ -378,6 +387,7 @@ internal class SeriesRepository(
                 Log.e(TAG, "Failed to refresh series categories: ${response.code()}")
                 Result.Error(HttpException(response))
             }
+        } catch (ce: kotlinx.coroutines.CancellationException) { throw ce
         } catch (e: Exception) {
             Log.e(TAG, "Error refreshing series categories", e)
             Result.Error(e)

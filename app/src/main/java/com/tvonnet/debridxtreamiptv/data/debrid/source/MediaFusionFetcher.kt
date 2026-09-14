@@ -73,6 +73,7 @@ class MediaFusionFetcher @Inject constructor(
                 // If successful (even if empty, meaning no streams found but network was OK), return it.
                 // We assume fetchInternal throws on network/host lookup failure.
                 return streams
+            } catch (ce: kotlinx.coroutines.CancellationException) { throw ce
             } catch (e: Exception) {
                 Log.w(TAG, "⚠️ Host lookup or fetch failed for node: $baseUrl. Cascading to next backup...", e)
                 // Continue to the next backup URL
@@ -96,6 +97,7 @@ class MediaFusionFetcher @Inject constructor(
         val streams = response.streams.flatMap { stream ->
             try {
                 AddonStreamMapper.fromMediaFusionExpanded(stream)
+            } catch (ce: kotlinx.coroutines.CancellationException) { throw ce
             } catch (e: Exception) {
                 Log.w(TAG, "Skipping malformed MediaFusion stream: infoHash=${SensitiveLogRedactor.describeHash(stream.infoHash)}", e)
                 emptyList()

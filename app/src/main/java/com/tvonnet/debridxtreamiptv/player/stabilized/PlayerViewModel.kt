@@ -275,6 +275,7 @@ class PlayerViewModel @Inject constructor(
                 val mappedEpisodes = enrichIptvEpisodeArtwork(localAfter, seriesTitle, seasonNum)
                 val error = if (mappedEpisodes.isEmpty()) "No episodes available" else null
                 emitSeriesPlaylist(mappedEpisodes, startEpisodeId, error, startEpisodeNumber)
+            } catch (ce: kotlinx.coroutines.CancellationException) { throw ce
             } catch (e: Exception) {
                 android.util.Log.d("IPTV_EP_LOAD_FIX", "NETWORK_FETCH_DONE result=error:${e.javaClass.simpleName}")
                 android.util.Log.d("IPTV_EP_LOAD_FIX", "LOCAL_AFTER count=0")

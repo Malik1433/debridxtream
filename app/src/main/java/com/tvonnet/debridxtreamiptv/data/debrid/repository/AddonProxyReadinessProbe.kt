@@ -120,6 +120,7 @@ internal class AddonProxyReadinessProbe(
                     mapOf("httpStatusCode" to statusCode, "isRedirect" to wasRedirect)
             )
             Success(readiness)
+        } catch (ce: kotlinx.coroutines.CancellationException) { throw ce
         } catch (e: Exception) {
             record(
                 diagnosticsContext, "readiness_check_finished", subject, effectiveHeaders(headers),

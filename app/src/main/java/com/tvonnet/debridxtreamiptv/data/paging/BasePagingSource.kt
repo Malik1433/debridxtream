@@ -57,6 +57,7 @@ abstract class BasePagingSource<T : Any>(
                 prevKey = if (safeStart <= 0) null else maxOf(0, safeStart - loadSize),
                 nextKey = if (endIndex < allItems.size) endIndex else null
             )
+        } catch (ce: kotlinx.coroutines.CancellationException) { throw ce
         } catch (e: Exception) {
             Log.e(getLogTag(), "Load error", e)
             LoadResult.Error(e)

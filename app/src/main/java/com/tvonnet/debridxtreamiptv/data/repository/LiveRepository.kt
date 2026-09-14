@@ -66,6 +66,7 @@ internal class LiveRepository(
             }
             
             Result.Success(LiveCacheData(categories, streams))
+        } catch (ce: kotlinx.coroutines.CancellationException) { throw ce
         } catch (e: Exception) {
             Log.e(TAG, "Failed to fetch live data", e)
             Result.Error(e)
@@ -85,6 +86,7 @@ internal class LiveRepository(
         if (cacheLiveCategories.isNotEmpty()) {
             try {
                 cacheManager?.putCategories(cacheLiveCategories, "live")
+            } catch (ce: kotlinx.coroutines.CancellationException) { throw ce
             } catch (e: Exception) {
                 Log.w(TAG, "Failed to store cached Live categories into CacheManager", e)
             }
@@ -104,6 +106,7 @@ internal class LiveRepository(
                 Log.e(TAG, "Failed to fetch Live categories: ${response.code()}")
                 emptyList()
             }
+        } catch (ce: kotlinx.coroutines.CancellationException) { throw ce
         } catch (e: Exception) {
             Log.e(TAG, "Error fetching Live categories", e)
             emptyList()
@@ -113,6 +116,7 @@ internal class LiveRepository(
     private suspend fun cacheFetchedLiveCategories(categories: List<XtreamCategory>) {
         try {
             cacheManager?.putCategories(categories, "live")
+        } catch (ce: kotlinx.coroutines.CancellationException) { throw ce
         } catch (e: Exception) {
             Log.w(TAG, "Failed to persist Live categories into CacheManager", e)
         }
@@ -169,6 +173,7 @@ internal class LiveRepository(
                 Log.e(TAG, "❌ Failed to fetch live streams: ${response.code()}")
                 Result.Success(emptyList())
             }
+        } catch (ce: kotlinx.coroutines.CancellationException) { throw ce
         } catch (e: Exception) {
             Log.e(TAG, "❌ Error fetching live streams for category $categoryId", e)
             Result.Success(emptyList())
@@ -196,6 +201,7 @@ internal class LiveRepository(
             } else {
                 Result.Error(HttpException(response))
             }
+        } catch (ce: kotlinx.coroutines.CancellationException) { throw ce
         } catch (e: Exception) {
             Result.Error(e)
         }
@@ -234,6 +240,7 @@ internal class LiveRepository(
                 }
                 stream
             }
+        } catch (ce: kotlinx.coroutines.CancellationException) { throw ce
         } catch (e: Exception) {
             Log.e(TAG, "Failed to enrich channels with EPG", e)
             return channels
@@ -251,6 +258,7 @@ internal class LiveRepository(
         return try {
             dao.getCurrentProgramsForChannels(ids, System.currentTimeMillis())
                 .associateBy { it.channelId }
+        } catch (ce: kotlinx.coroutines.CancellationException) { throw ce
         } catch (e: Exception) {
             Log.e(TAG, "Failed to batch-load current EPG", e)
             emptyMap()
@@ -272,6 +280,7 @@ internal class LiveRepository(
         return try {
             dao.getProgramsForChannelsInRange(ids, startTime, endTime)
                 .groupBy { it.channelId }
+        } catch (ce: kotlinx.coroutines.CancellationException) { throw ce
         } catch (e: Exception) {
             Log.e(TAG, "Failed to batch-load windowed EPG", e)
             emptyMap()

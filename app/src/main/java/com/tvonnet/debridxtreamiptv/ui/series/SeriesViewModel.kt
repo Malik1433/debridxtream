@@ -369,6 +369,7 @@ class SeriesViewModel @Inject constructor(
     suspend fun getEpisodeCounts(): Map<String, Pair<Int, Int>> = withContext(ioDispatcher) {
         try {
             seriesDao.getSeriesEpisodeCounts().associate { it.seriesId to (it.seasonCount to it.episodeCount) }
+        } catch (ce: kotlinx.coroutines.CancellationException) { throw ce
         } catch (_: Exception) {
             emptyMap()
         }

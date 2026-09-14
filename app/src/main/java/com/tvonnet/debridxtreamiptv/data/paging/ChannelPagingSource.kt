@@ -59,6 +59,7 @@ class ChannelPagingSource(
     private suspend fun globalSearchMatches(): List<XtreamStream> {
         return try {
             repository.searchLive(searchQuery)
+        } catch (ce: kotlinx.coroutines.CancellationException) { throw ce
         } catch (e: Exception) {
             android.util.Log.w("ChannelPagingSource", "Global channel search failed for '$searchQuery'", e)
             emptyList()

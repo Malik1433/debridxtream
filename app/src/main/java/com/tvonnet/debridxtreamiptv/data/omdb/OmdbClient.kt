@@ -59,6 +59,7 @@ object OmdbClient {
                     rated = field("Rated")
                 )
             }
+        } catch (ce: kotlinx.coroutines.CancellationException) { throw ce
         } catch (e: Exception) {
             android.util.Log.w("OmdbClient", "OMDb lookup failed", e)
             null

@@ -65,6 +65,7 @@ internal class VodRepository(
             // Instead, fetch streams per category when needed (lazy loading)
             // For now, return empty streams list
             Result.Success(VodCacheData(categories, emptyList()))
+        } catch (ce: kotlinx.coroutines.CancellationException) { throw ce
         } catch (e: Exception) {
             Log.e(TAG, "Failed to fetch VOD data", e)
             Result.Success(VodCacheData(emptyList(), emptyList())) // Return empty, don't fail
@@ -192,6 +193,7 @@ internal class VodRepository(
         if (cacheVodCategories.isNotEmpty()) {
             try {
                 cacheManager?.putCategories(cacheVodCategories, "vod")
+            } catch (ce: kotlinx.coroutines.CancellationException) { throw ce
             } catch (e: Exception) {
                 Log.w(TAG, "Failed to store cached VOD categories into CacheManager", e)
             }
@@ -211,6 +213,7 @@ internal class VodRepository(
                 Log.e(TAG, "Failed to fetch VOD categories: ${response.code()}")
                 emptyList()
             }
+        } catch (ce: kotlinx.coroutines.CancellationException) { throw ce
         } catch (e: Exception) {
             Log.e(TAG, "Error fetching VOD categories", e)
             emptyList()
@@ -220,6 +223,7 @@ internal class VodRepository(
     private suspend fun cacheFetchedVodCategories(categories: List<XtreamCategory>) {
         try {
             cacheManager?.putCategories(categories, "vod")
+        } catch (ce: kotlinx.coroutines.CancellationException) { throw ce
         } catch (e: Exception) {
             Log.w(TAG, "Failed to persist VOD categories into CacheManager", e)
         }
@@ -250,6 +254,7 @@ internal class VodRepository(
             }
             memoryCache = updatedCache
             withContext(Dispatchers.IO) { cacheHelper.writeCache(updatedCache) }
+        } catch (ce: kotlinx.coroutines.CancellationException) { throw ce
         } catch (e: Exception) {
             Log.w(TAG, "Failed to persist VOD categories to cache", e)
         }

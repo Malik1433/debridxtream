@@ -417,6 +417,7 @@ class MovieDebridSourceController(
         // listings alongside the debrid sources, badged "IPTV".
         val iptv = try {
             fetchIptvMovieSources(movieName())
+        } catch (ce: kotlinx.coroutines.CancellationException) { throw ce
         } catch (e: Exception) {
             android.util.Log.w("MovieDetailActivity", "IPTV source lookup failed: ${e.message}")
             emptyList()

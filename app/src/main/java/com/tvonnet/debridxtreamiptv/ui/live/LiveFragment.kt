@@ -418,6 +418,7 @@ class LiveFragment : Fragment() {
                         rvCategories.recycledViewPool.clear()
                         Glide.get(requireContext()).clearMemory()
                     }
+                } catch (ce: kotlinx.coroutines.CancellationException) { throw ce
                 } catch (e: Exception) {
                     android.util.Log.e("LiveFragment", "Emergency cleanup failed", e)
                 }

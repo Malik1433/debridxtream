@@ -55,6 +55,7 @@ internal class EpgSyncManager(
 
                 val response = try {
                     apiService!!.getEpg(username, password)
+                } catch (ce: kotlinx.coroutines.CancellationException) { throw ce
                 } catch (e: Exception) {
                     Log.e(TAG, "Network error during EPG fetch", e)
                     return@withContext Result.Error(e)
@@ -256,6 +257,7 @@ internal class EpgSyncManager(
             val mapped = listings.mapNotNull { listing -> listing.toEpgEntityOrNull(channelKey) }
                 .sortedBy { it.start }
             Result.Success(mapped)
+        } catch (ce: kotlinx.coroutines.CancellationException) { throw ce
         } catch (e: Exception) {
             Result.Error(e)
         }

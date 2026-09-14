@@ -116,6 +116,7 @@ class CacheManager @Inject constructor(
             } else {
                 Log.d(TAG, "⚠️ Room cache EXPIRED or empty: $categoryId")
             }
+        } catch (ce: kotlinx.coroutines.CancellationException) { throw ce
         } catch (e: Exception) {
             Log.e(TAG, "Failed to read from Room database", e)
         }
@@ -135,6 +136,7 @@ class CacheManager @Inject constructor(
         // Level 2: Room database
         return try {
             channelDao.getChannelById(channelId)?.toXtreamStream()
+        } catch (ce: kotlinx.coroutines.CancellationException) { throw ce
         } catch (e: Exception) {
             Log.e(TAG, "Failed to get channel by ID: $channelId", e)
             null
@@ -175,6 +177,7 @@ class CacheManager @Inject constructor(
             }
 
             null
+        } catch (ce: kotlinx.coroutines.CancellationException) { throw ce
         } catch (e: Exception) {
             Log.e(TAG, "Failed to get channel count for $categoryId", e)
             null
@@ -211,6 +214,7 @@ class CacheManager @Inject constructor(
             channelDao.insertChannels(entities)
             Log.d(TAG, "Room database updated: $categoryId - ${entities.size} channels")
             
+        } catch (ce: kotlinx.coroutines.CancellationException) { throw ce
         } catch (e: Exception) {
             Log.e(TAG, "Failed to cache channels", e)
         }
@@ -236,6 +240,7 @@ class CacheManager @Inject constructor(
             // For now, we'll return null and let caller handle it differently
             Log.d(TAG, "Cache MISS: All channels (use Flow-based query instead)")
             return null
+        } catch (ce: kotlinx.coroutines.CancellationException) { throw ce
         } catch (e: Exception) {
             Log.e(TAG, "Failed to get all channels", e)
             return null
@@ -292,6 +297,7 @@ class CacheManager @Inject constructor(
             } else {
                 Log.d(TAG, "⚠️ Room cache EXPIRED or empty: Categories $type")
             }
+        } catch (ce: kotlinx.coroutines.CancellationException) { throw ce
         } catch (e: Exception) {
             Log.e(TAG, "Failed to read categories from Room", e)
         }
@@ -331,6 +337,7 @@ class CacheManager @Inject constructor(
             categoryDao.insertCategories(entities)
             Log.d(TAG, "Room database updated: Categories $type - ${entities.size}")
             
+        } catch (ce: kotlinx.coroutines.CancellationException) { throw ce
         } catch (e: Exception) {
             Log.e(TAG, "Failed to cache categories", e)
         }
@@ -360,6 +367,7 @@ class CacheManager @Inject constructor(
             categoryDao.deleteAllCategories()
             Log.d(TAG, "Room database cleared")
             
+        } catch (ce: kotlinx.coroutines.CancellationException) { throw ce
         } catch (e: Exception) {
             Log.e(TAG, "Failed to clear all caches", e)
         }
@@ -383,6 +391,7 @@ class CacheManager @Inject constructor(
     suspend fun searchChannels(query: String): List<XtreamStream> {
         return try {
             channelDao.searchChannels(query).map { it.toXtreamStream() }
+        } catch (ce: kotlinx.coroutines.CancellationException) { throw ce
         } catch (e: Exception) {
             Log.e(TAG, "Failed to search channels", e)
             emptyList()
@@ -400,6 +409,7 @@ class CacheManager @Inject constructor(
                 // Dedupe by real stream id only; never merge blank-id rows (they are
                 // distinct channels — a "${num}_${name}" fallback would collide "null_X").
                 .distinctBy { it.stream_id?.takeIf { s -> s.isNotBlank() } ?: it }
+        } catch (ce: kotlinx.coroutines.CancellationException) { throw ce
         } catch (e: Exception) {
             Log.e(TAG, "Failed to load all live channels", e)
             emptyList()
@@ -410,6 +420,7 @@ class CacheManager @Inject constructor(
     suspend fun countAllLiveChannels(): Int {
         return try {
             channelDao.countAllLiveChannels()
+        } catch (ce: kotlinx.coroutines.CancellationException) { throw ce
         } catch (e: Exception) {
             Log.e(TAG, "Failed to count all live channels", e)
             0
@@ -438,6 +449,7 @@ class CacheManager @Inject constructor(
             }
             // Log.i so it is visible on devices that suppress Log.d
             Log.i(TAG, "Search index: added ${newEntities.size} channels (of ${channels.size} fetched)")
+        } catch (ce: kotlinx.coroutines.CancellationException) { throw ce
         } catch (e: Exception) {
             Log.e(TAG, "Failed to index channels for search", e)
         }

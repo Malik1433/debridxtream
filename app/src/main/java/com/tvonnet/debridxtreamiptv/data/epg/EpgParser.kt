@@ -147,6 +147,7 @@ object EpgParser {
                 currentProgram = handleEvent(parser, eventType, currentProgram, onProgram, counts)
                 eventType = parser.next()
 
+            } catch (ce: kotlinx.coroutines.CancellationException) { throw ce
             } catch (tagException: Exception) {
                 Log.w(TAG, "Error parsing tag, continuing...", tagException)
                 eventType = recoverOrEnd(parser) ?: break

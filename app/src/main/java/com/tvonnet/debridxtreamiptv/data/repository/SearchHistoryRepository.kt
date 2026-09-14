@@ -33,6 +33,7 @@ internal class SearchHistoryRepository(
         // Clean old searches periodically
         try {
             searchHistoryDao?.cleanOldSearches()
+        } catch (ce: kotlinx.coroutines.CancellationException) { throw ce
         } catch (e: Exception) {
             Log.w(tag, "Failed to clean old searches", e)
         }

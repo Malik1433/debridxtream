@@ -63,6 +63,7 @@ internal class SeriesDetailFetcher(
                     seriesDetailCache[seriesId] = diskCached
                     return Result.Success(diskCached)
                 }
+            } catch (ce: kotlinx.coroutines.CancellationException) { throw ce
             } catch (e: Exception) {
                 Log.w(TAG, "Failed to read series detail from disk cache", e)
             }
@@ -112,6 +113,7 @@ internal class SeriesDetailFetcher(
 
             seriesDao.saveSeriesDetails(seriesId, seasonEntities, episodeEntities)
             Log.d("XtreamDebug", "✅ Series $seriesId details synced to database in ${System.currentTimeMillis() - start}ms")
+        } catch (ce: kotlinx.coroutines.CancellationException) { throw ce
         } catch (e: Exception) {
             Log.e("XtreamDebug", "❌ Failed to save series details to database. Data will still show in UI.", e)
         }
@@ -146,6 +148,7 @@ internal class SeriesDetailFetcher(
                 // Fallback Strategy
                 return fetchFallbackSeriesDetail(seriesId)
             }
+        } catch (ce: kotlinx.coroutines.CancellationException) { throw ce
         } catch (e: Exception) {
             Log.e("XtreamDebug", "❌ Error fetching series detail $seriesId: ${e.message}", e)
             Result.Error(e)
@@ -200,6 +203,7 @@ internal class SeriesDetailFetcher(
             Log.d("XtreamDebug", "✅ Fallback Successful. Info: ${info?.name ?: "Unknown"}, Episodes: ${episodesMap?.size}")
             Result.Success(combined)
             
+        } catch (ce: kotlinx.coroutines.CancellationException) { throw ce
         } catch (e: Exception) {
             Log.e("XtreamDebug", "Fallback failed critically", e)
              Result.Error(e)

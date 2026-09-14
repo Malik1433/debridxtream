@@ -1,6 +1,5 @@
 package com.tvonnet.debridxtreamiptv.data.repository
 
-
 import android.content.Context
 import android.util.Log
 import com.tvonnet.debridxtreamiptv.data.Result
@@ -173,6 +172,7 @@ class XtreamRepository @Inject constructor(
             } else {
                 Result.Error(Exception("Login failed: ${response.code()}"))
             }
+        } catch (ce: kotlinx.coroutines.CancellationException) { throw ce
         } catch (e: Exception) {
             Log.e(TAG, "Login error", e)
             Result.Error(e)

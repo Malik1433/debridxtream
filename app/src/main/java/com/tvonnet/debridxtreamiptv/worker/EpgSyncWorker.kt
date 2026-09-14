@@ -157,6 +157,7 @@ class EpgSyncWorker @AssistedInject constructor(
             epgDao.clearOldPrograms(cutoffTime)
             val remainingCount = epgDao.getTotalProgramCount()
             Log.d(TAG, "EPG Cleanup: Remaining $remainingCount programs")
+        } catch (ce: kotlinx.coroutines.CancellationException) { throw ce
         } catch (e: Exception) {
             Log.e(TAG, "EPG Cleanup failed", e)
         }

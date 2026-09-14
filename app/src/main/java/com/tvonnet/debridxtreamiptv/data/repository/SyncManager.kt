@@ -157,6 +157,7 @@ internal class SyncManager(
 
                     Result.Success(cache)
                 }
+            } catch (ce: kotlinx.coroutines.CancellationException) { throw ce
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to fetch data", e)
                 val cached = cacheHelper.readCache()

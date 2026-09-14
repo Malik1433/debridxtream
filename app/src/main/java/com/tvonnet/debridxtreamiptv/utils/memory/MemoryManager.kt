@@ -319,6 +319,7 @@ class MemoryManager private constructor(private val context: Context) {
         emergencyCallbacks.forEach { callback ->
             try {
                 callback.onEmergencyCleanup()
+            } catch (ce: kotlinx.coroutines.CancellationException) { throw ce
             } catch (e: Exception) {
                 Log.e(TAG, "Emergency cleanup callback failed", e)
             }
@@ -338,6 +339,7 @@ class MemoryManager private constructor(private val context: Context) {
         cleanupCallbacks.forEach { callback ->
             try {
                 callback.onMemoryPressure(pressure)
+            } catch (ce: kotlinx.coroutines.CancellationException) { throw ce
             } catch (e: Exception) {
                 Log.e(TAG, "Memory pressure callback failed", e)
             }

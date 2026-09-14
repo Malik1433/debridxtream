@@ -49,6 +49,7 @@ suspend fun <T> safeApiCall(
         } catch (e: IOException) {
             // Network failures (no internet, timeout)
             NetworkResult.Exception(e)
+        } catch (ce: kotlinx.coroutines.CancellationException) { throw ce
         } catch (e: Exception) {
             // Parsing errors or other unexpected exceptions
             NetworkResult.Exception(e)

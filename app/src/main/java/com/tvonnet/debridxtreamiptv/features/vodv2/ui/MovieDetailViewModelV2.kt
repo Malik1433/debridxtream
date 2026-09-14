@@ -217,6 +217,7 @@ class MovieDetailViewModelV2 @Inject constructor(
         return try {
             tmdbRemoteDataSource.getMovieRecommendations(tmdbMovieId)
                 .getOrNull()?.results?.take(6) ?: emptyList()
+        } catch (ce: kotlinx.coroutines.CancellationException) { throw ce
         } catch (e: Exception) {
             android.util.Log.w("MovieDetailViewModelV2", "TMDB recommendations failed", e)
             emptyList()

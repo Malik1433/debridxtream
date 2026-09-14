@@ -60,6 +60,7 @@ internal class AddonSourceFetcher(
                 scrapeSemaphore.withPermit {
                     try {
                         dynamicAddonFetcher.fetchMovieSources(def, imdbId)
+                    } catch (ce: kotlinx.coroutines.CancellationException) { throw ce
                     } catch (e: Exception) {
                         Log.w(TAG, "Dynamic [${def.name}] movie failed: error=${SensitiveLogRedactor.describeException(e)}")
                         emptyList()
@@ -98,6 +99,7 @@ internal class AddonSourceFetcher(
                 scrapeSemaphore.withPermit {
                     try {
                         dynamicAddonFetcher.fetchEpisodeSources(def, imdbId, season, episode)
+                    } catch (ce: kotlinx.coroutines.CancellationException) { throw ce
                     } catch (e: Exception) {
                         Log.w(TAG, "Dynamic [${def.name}] episode failed: error=${SensitiveLogRedactor.describeException(e)}")
                         emptyList()
@@ -127,6 +129,7 @@ internal class AddonSourceFetcher(
                 scrapeSemaphore.withPermit {
                     try {
                         stremioAddonFetcher.fetchMovieSources(manifestUrl, imdbId)
+                    } catch (ce: kotlinx.coroutines.CancellationException) { throw ce
                     } catch (e: Exception) {
                         Log.w(TAG, "Stremio movie addon failed: url=${SensitiveLogRedactor.describeUrl(manifestUrl)}, error=${SensitiveLogRedactor.describeException(e)}")
                         emptyList()
@@ -150,6 +153,7 @@ internal class AddonSourceFetcher(
                 scrapeSemaphore.withPermit {
                     try {
                         stremioAddonFetcher.fetchEpisodeSources(manifestUrl, imdbId, season, episode)
+                    } catch (ce: kotlinx.coroutines.CancellationException) { throw ce
                     } catch (e: Exception) {
                         Log.w(TAG, "Stremio episode addon failed: url=${SensitiveLogRedactor.describeUrl(manifestUrl)}, error=${SensitiveLogRedactor.describeException(e)}")
                         emptyList()
@@ -176,6 +180,7 @@ internal class AddonSourceFetcher(
                 } else {
                     Log.w(TAG, "Registry fetch failed for: ${SensitiveLogRedactor.describeUrl(url)}")
                 }
+            } catch (ce: kotlinx.coroutines.CancellationException) { throw ce
             } catch (e: Exception) {
                 Log.w(TAG, "Registry error: url=${SensitiveLogRedactor.describeUrl(url)}, error=${SensitiveLogRedactor.describeException(e)}")
             }

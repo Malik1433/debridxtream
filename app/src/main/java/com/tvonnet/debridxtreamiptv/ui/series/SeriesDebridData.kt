@@ -51,6 +51,7 @@ internal suspend fun fetchDebridSeriesDetail(
             // 3. Map to Xtream format
             val xtreamResponse = com.tvonnet.debridxtreamiptv.data.mapper.TmdbToXtreamMapper.mapToXtreamSeriesDetail(showDetails, seasonsDetails)
             Result.Success(xtreamResponse)
+        } catch (ce: kotlinx.coroutines.CancellationException) { throw ce
         } catch (e: Exception) {
             Result.Error(e)
         }

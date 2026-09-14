@@ -319,6 +319,7 @@ class UnifiedSourceProvider @Inject constructor(
 
         return try {
             xtreamRepository.getMovieSources(streamId, title, primaryCategoryId, yearHint)
+        } catch (ce: kotlinx.coroutines.CancellationException) { throw ce
         } catch (e: Exception) {
             coroutineContext.ensureActive()
             Log.w(TAG, "⚠️ [GRACEFUL] IPTV source fetch interrupted for '$title'")
@@ -341,6 +342,7 @@ class UnifiedSourceProvider @Inject constructor(
             results["IPTV"] = try {
                 Log.d(TAG, "   📺 Checking IPTV repository...")
                 true // Simplified - assumes repository is injected correctly
+            } catch (ce: kotlinx.coroutines.CancellationException) { throw ce
             } catch (e: Exception) {
                 Log.w(TAG, "   ❌ IPTV repository check failed: ${e.message}")
                 false
@@ -353,6 +355,7 @@ class UnifiedSourceProvider @Inject constructor(
                 val tmdbHealth = testResult.isSuccess && testResult.getOrNull()?.results?.isNotEmpty() == true
                 Log.d(TAG, "   ${if (tmdbHealth) "✅" else "❌"} TMDB API health: $tmdbHealth")
                 tmdbHealth
+            } catch (ce: kotlinx.coroutines.CancellationException) { throw ce
             } catch (e: Exception) {
                 Log.w(TAG, "   ❌ TMDB API check failed: ${e.message}")
                 false
@@ -372,6 +375,7 @@ class UnifiedSourceProvider @Inject constructor(
             }
 
             results
+        } catch (ce: kotlinx.coroutines.CancellationException) { throw ce
         } catch (e: Exception) {
             coroutineContext.ensureActive()
             Log.e(TAG, "❌ [HEALTH-CRITICAL] Overall health check failed", e)

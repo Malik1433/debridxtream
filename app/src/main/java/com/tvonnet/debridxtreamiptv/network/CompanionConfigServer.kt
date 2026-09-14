@@ -191,6 +191,7 @@ class CompanionConfigServer @Inject constructor(
                 "success" to true,
                 "message" to "Configuration synced successfully! TV app will reload now."
             ))
+        } catch (ce: kotlinx.coroutines.CancellationException) { throw ce
         } catch (e: Exception) {
             Log.e("CompanionServer", "Failed to parse or validate config payload", e)
             call.respond(HttpStatusCode.BadRequest, mapOf(
@@ -267,6 +268,7 @@ class CompanionConfigServer @Inject constructor(
                 }
                 ValidationResult(false, errorMsg)
             }
+        } catch (ce: kotlinx.coroutines.CancellationException) { throw ce
         } catch (e: Exception) {
             Log.e("CompanionServer", "Validation exception", e)
             ValidationResult(false, "Connection Failed: ${e.message}")

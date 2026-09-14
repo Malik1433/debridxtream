@@ -380,6 +380,7 @@ class AddonCatalogRepository @Inject constructor(
                         rating = null
                     )
                 }
+        } catch (ce: kotlinx.coroutines.CancellationException) { throw ce
         } catch (e: Exception) {
             android.util.Log.w("AddonCatalogRepository", "Addon catalog fetch/parse failed", e)
             emptyList()
