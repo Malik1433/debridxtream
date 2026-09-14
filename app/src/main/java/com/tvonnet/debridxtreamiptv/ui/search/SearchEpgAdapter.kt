@@ -65,7 +65,7 @@ class SearchEpgAdapter(
         }
         
         fun bind(program: EpgEntity) {
-            tvName.text = program.title ?: "Unknown Program"
+            tvName.text = program.title ?: tvName.context.getString(R.string.f_epg_unknown_programme)
             
             // Format time range: 14:00 - 15:30
             val start = timeFormatter.format(Date(program.start))

@@ -160,7 +160,7 @@ class InitialSyncFragment :
 
     private fun showError(message: String?) {
         syncStatus.text = syncStatus.context.getString(R.string.c_sync_failed)
-        syncError.text = message ?: "Sync failed. Check your connection."
+        syncError.text = message ?: getString(R.string.c_sync_failed_check_connection)
         syncError.visibility = View.VISIBLE
         retryButton.visibility = View.VISIBLE
         retryButton.isEnabled = true

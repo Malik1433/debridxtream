@@ -30,7 +30,7 @@ class ChannelViewHolder(itemView: android.view.View) : RecyclerView.ViewHolder(i
     private val tvName = itemView.findViewById<android.widget.TextView>(R.id.tv_channel_name)
     
     fun bind(channel: XtreamStream, onClick: (XtreamStream) -> Unit) {
-        tvName.text = channel.name ?: "Unknown"
+        tvName.text = channel.name ?: tvName.context.getString(R.string.c_unknown)
         
         // Load image with Glide, handle null/empty URLs gracefully
         // Load image with GlideUtils (Phase 2.4)

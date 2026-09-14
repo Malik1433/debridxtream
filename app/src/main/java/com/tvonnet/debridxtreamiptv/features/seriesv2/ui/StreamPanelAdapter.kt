@@ -9,6 +9,7 @@ import android.view.ViewGroup
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
+import com.tvonnet.debridxtreamiptv.R
 import com.tvonnet.debridxtreamiptv.databinding.ItemIptvStreamGroupBinding
 import com.tvonnet.debridxtreamiptv.databinding.ItemIptvStreamRowBinding
 import com.tvonnet.debridxtreamiptv.features.seriesv2.ui.model.IptvStreamGroup
@@ -86,7 +87,7 @@ class StreamPanelAdapter(
             b.tvCatTag.background = roundedStroke(style.bg, style.border, dp(3f))
             b.tvCatName.text = g.categoryName
             val n = g.streams.size
-            b.tvCatCount.text = "$n ${if (n == 1) "STREAM" else "STREAMS"}"
+            b.tvCatCount.text = b.root.context.resources.getQuantityString(R.plurals.p_stream_count_caps, n, n)
         }
     }
 

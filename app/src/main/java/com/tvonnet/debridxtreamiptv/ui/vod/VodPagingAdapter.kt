@@ -69,7 +69,7 @@ class VodPagingViewHolder(itemView: android.view.View) : RecyclerView.ViewHolder
         onLongClick: ((XtreamVodInfo) -> Unit)? = null
     ) {
         itemView.setTag(R.id.tag_vod_id, movie.stream_id?.toString())
-        tvName.text = movie.name ?: "Unknown Movie"
+        tvName.text = movie.name ?: tvName.context.getString(R.string.movie_detail_unknown_movie)
         
         // Week 13: Show/hide favorite heart icon
         ivFavoriteIndicator?.visibility = if (isFavorite) {

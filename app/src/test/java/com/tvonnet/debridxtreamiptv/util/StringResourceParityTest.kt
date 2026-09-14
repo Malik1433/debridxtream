@@ -165,35 +165,37 @@ class StringResourceParityTest {
     }
 
     /**
-     * The F3 guard (audit 2026-09-08). Every user-facing string was extracted out of the LAYOUTS,
-     * and nothing was watching Kotlin: fourteen labels were still being BUILT in code with an
-     * interpolated value, so a German, Spanish, French, Italian or Portuguese customer read
-     * "SEASON 2", "RESUME", "No matches for …" in English on a screen that was otherwise translated.
+     * The F3 guard (audit 2026-09-08, widened 2026-09-14). Every user-facing string was extracted
+     * out of the LAYOUTS, and nothing was watching Kotlin: fourteen labels were still BUILT in code
+     * with an interpolated value, and once those were gone another fifty-eight turned up behind
+     * `?:` fallbacks, `if/else` arms, toast helpers, dialog titles and error setters - "Unknown
+     * Channel", "Loading...", "Mark as Watched", "PiP not available" - English on every translated
+     * screen.
      *
-     * This fails on a string literal handed straight to a TextView. It is deliberately narrow —
-     * a direct `.text = "…"` or `setText("…")` — because that is the shape the fourteen had and
-     * the shape a new one will have. Text assembled through `?:` fallbacks and `if/else` arms is
-     * NOT covered and is still a real l10n tail; see the audit report.
+     * This fails on a string literal that reaches ANY screen sink on the same statement: a text,
+     * hint or title assignment, setText/setTitle/setMessage/setError, a dialog button, or one of the
+     * toast/message helpers. A literal counts when it reads as prose - it contains a space or starts
+     * with a capital - so an identifier compared on the same line ("see_all", "movie") does not trip
+     * it. The debug overlay is excluded by name; it is never a customer-facing label.
      */
     @Test
-    fun `no user-facing string literal is assigned straight to a TextView`() {
+    fun `no user-facing string literal reaches a screen sink`() {
         val root = res
         assumeTrue("res/ not found", root != null)
         val sources = File(root!!.parentFile, "java")
         assumeTrue("src/main/java not found", sources.isDirectory)
 
         val offenders = sources.walkTopDown()
-            .filter { it.isFile && it.extension == "kt" }
+            .filter { it.isFile && it.extension == "kt" && it.name !in EXCLUDED_FILES }
             .flatMap { file ->
                 file.readLines().asSequence().mapIndexedNotNull { i, raw ->
                     val code = raw.substringBefore("//")
-                    val literal = TEXT_LITERAL.find(code)?.groupValues?.get(1) ?: return@mapIndexedNotNull null
-                    // Interpolated values are not translatable text; only what is written around
-                    // them is. Strip the placeholders and see if any WORDS are left.
-                    val around = literal
-                        .replace(INTERPOLATION_BRACED, "")
-                        .replace(INTERPOLATION_PLAIN, "")
-                    if (WORD.containsMatchIn(around)) "${file.name}:${i + 1}  \"$literal\"" else null
+                    val sink = SINK.find(code) ?: return@mapIndexedNotNull null
+                    val literal = LITERAL.findAll(code.substring(sink.range.last + 1))
+                        .map { it.groupValues[1] }
+                        .firstOrNull { readsAsProse(it) }
+                        ?: return@mapIndexedNotNull null
+                    "${file.name}:${i + 1}  \"$literal\""
                 }
             }
             .toList()
@@ -206,11 +208,23 @@ class StringResourceParityTest {
         )
     }
 
+    /** Interpolated values are not translatable; what is written AROUND them is. */
+    private fun readsAsProse(literal: String): Boolean {
+        val around = literal.replace(INTERPOLATION_BRACED, "").replace(INTERPOLATION_PLAIN, "")
+        if (!WORD.containsMatchIn(around)) return false
+        return around.any { it.isWhitespace() } || around.firstOrNull { it.isLetter() }?.isUpperCase() == true
+    }
+
     private companion object {
         val STRING_TAG = Regex("""<string\s+name="([^"]+)"[^>]*>(.*?)</string>""", RegexOption.DOT_MATCHES_ALL)
         val PLURALS_TAG = Regex("""<plurals\s+name="([^"]+)"[^>]*>(.*?)</plurals>""", RegexOption.DOT_MATCHES_ALL)
         val SPECIFIER = Regex("""%\d+\$[a-zA-Z]""")
-        val TEXT_LITERAL = Regex("""(?:\.text\s*=|setText\()\s*"((?:[^"\\]|\\.)*)"""")
+        val SINK = Regex(
+            """(?:\.text\s*=|\.hint\s*=|\.title\s*=|setText\(|setHint\(|setTitle\(|setMessage\(|setError\(""" +
+                """|setPositiveButton\(|setNegativeButton\(|setNeutralButton\(|showToast\(|showMessage\(|Toast\.makeText\([^,]+,\s*)"""
+        )
+        val LITERAL = Regex(""""((?:[^"\\]|\\.)*)"""")
+        val EXCLUDED_FILES = setOf("PlayerDebugOverlay.kt")
         val INTERPOLATION_BRACED = Regex("""\$\{[^}]*}""")
         val INTERPOLATION_PLAIN = Regex("""\$[A-Za-z_][A-Za-z0-9_]*""")
         val WORD = Regex("""[A-Za-z]{3,}""")

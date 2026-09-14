@@ -190,8 +190,8 @@ class BrowserChannelAdapter(
         private val badge4k: TextView? = itemView.findViewById(R.id.badge_4k_modern)
 
         fun bind(channel: XtreamStream) {
-            tvName.text = channel.name ?: "Unknown Channel"
-            tvPlaying.text = channel.currentProgramTitle ?: "No Information"
+            tvName.text = channel.name ?: tvName.context.getString(R.string.c_unknown_channel)
+            tvPlaying.text = channel.currentProgramTitle ?: tvPlaying.context.getString(R.string.c_no_information)
 
             loadLogo(com.tvonnet.debridxtreamiptv.util.GlobalConfig.resolveIconUrl(channel.stream_icon))
 

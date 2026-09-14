@@ -136,10 +136,10 @@ class MovieDetailFragmentV2 : Fragment() {
     // enrichment is in flight; applyEnrichment only overwrites what it actually has.
     private fun bindArgFields(plot: String?, year: String?, genre: String?, rating: String?) {
         binding.tvContentType.text = binding.tvContentType.context.getString(R.string.ui_feature_film)
-        binding.tvTitle.text = movieTitle ?: "Loading..."
-        binding.tvPlot.text = plot?.takeIf { it.isNotBlank() } ?: "No plot available."
+        binding.tvTitle.text = movieTitle ?: getString(R.string.c_loading_ellipsis)
+        binding.tvPlot.text = plot?.takeIf { it.isNotBlank() } ?: getString(R.string.c_no_plot_available)
         binding.tvYear.text = year?.takeIf { it.isNotBlank() } ?: "N/A"
-        binding.tvGenre.text = genre?.takeIf { it.isNotBlank() } ?: "Genre"
+        binding.tvGenre.text = genre?.takeIf { it.isNotBlank() } ?: getString(R.string.ui_genre)
         binding.tvRating.text = rating?.takeIf { it.isNotBlank() } ?: ""
 
         // Back-to-rail context hint
@@ -457,7 +457,7 @@ class MovieDetailFragmentV2 : Fragment() {
         } else {
             binding.layoutResumeBar.visibility = View.GONE
         }
-        binding.btnPlay.text = if (hasResumePosition) "Resume" else "Watch Now"
+        binding.btnPlay.text = getString(if (hasResumePosition) R.string.resume_choice_resume else R.string.movie_detail_watch_now)
     }
 
     private fun setupFocusAnimations() {

@@ -258,7 +258,7 @@ class LoginFragment :
         loginInProgress = loading
         progressBar.visibility = if (loading) View.VISIBLE else View.GONE
         ivLoginPlay.visibility = if (loading) View.GONE else View.VISIBLE
-        tvLoginText.text = if (loading) "Connecting…" else "Sign In"
+        tvLoginText.text = getString(if (loading) R.string.c_connecting else R.string.ui_sign_in)
         etServerUrl.isEnabled = !loading
         etUsername.isEnabled = !loading
         etPassword.isEnabled = !loading

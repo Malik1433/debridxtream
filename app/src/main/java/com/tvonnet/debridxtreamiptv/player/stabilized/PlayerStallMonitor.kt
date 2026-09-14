@@ -7,6 +7,7 @@ import android.util.Log
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
+import com.tvonnet.debridxtreamiptv.R
 import com.tvonnet.debridxtreamiptv.data.model.ContentType
 import com.tvonnet.debridxtreamiptv.debug.PlaybackDiagnosticsRecorder
 import com.tvonnet.debridxtreamiptv.util.DeviceProfile
@@ -235,7 +236,7 @@ internal class PlayerStallMonitor(
         if (!disableTunnelingForSession) {
             disableTunnelingForSession = true
             Log.w("PlayerActivity", "Video frozen while audio playing — reinitializing without tunneling")
-            showToast("Recovering video...")
+            showToast(activity.getString(R.string.c_recovering_video))
             if (contentType != ContentType.LIVE_TV && p.currentPosition > 1000L) startPositionMs = p.currentPosition
             player?.release(); player = null
             retryHandler.postDelayed({ currentUrl?.let { initializePlayer(it) } }, 250L)

@@ -427,7 +427,7 @@ class SeriesDetailActivity : AppCompatActivity() {
         tvGenreYear.text = seriesGenre?.takeIf { it.isNotBlank() } ?: ""
 
         // Content type label
-        tvContentType.text = if (isDebridContent) "LIMITED SERIES" else "TV SERIES"
+        tvContentType.text = getString(if (isDebridContent) R.string.ui_limited_series else R.string.ui_tv_series)
 
         tvDescription.text = seriesPlot?.takeIf { it.isNotBlank() }
             ?: getString(R.string.series_detail_description_placeholder)

@@ -164,7 +164,7 @@ class SeriesDetailFragmentV2 : Fragment() {
             binding = b,
             viewModel = viewModel,
             onStreamSelected = { option ->
-                showToast("CONNECTING…")
+                showToast(getString(R.string.c_connecting))
                 // Panel closes from the ViewModel once the stream resolves; on failure it
                 // stays open so the user can pick another category.
                 viewModel.onStreamSelected(option)
@@ -174,7 +174,7 @@ class SeriesDetailFragmentV2 : Fragment() {
 
     private fun setupOptimisticUI() {
         val args = arguments ?: return
-        binding.tvTitle.text = args.getString(ARG_TITLE) ?: "Loading..."
+        binding.tvTitle.text = args.getString(ARG_TITLE) ?: getString(R.string.c_loading_ellipsis)
         page?.trailer = args.getString(ARG_TRAILER)
         args.getString(ARG_BACKDROP_URL)?.takeIf { it.isNotEmpty() }?.let {
             Glide.with(this).load(it).dontAnimate().into(binding.ivBackdrop)

@@ -81,7 +81,7 @@ internal class GuideDetailPanel(
         binding.tvDesc.text = program.description ?: ""
 
         bindProgress(program, now, isNow)
-        binding.btnPrimary.text = if (ended || isNow) "Add to Favorites" else "Set Reminder"
+        binding.btnPrimary.text = binding.root.context.getString(if (ended || isNow) R.string.movie_detail_add_to_favorites else R.string.c_set_reminder)
     }
 
     private fun bindProgress(program: GuideProgram, now: Long, isNow: Boolean) {

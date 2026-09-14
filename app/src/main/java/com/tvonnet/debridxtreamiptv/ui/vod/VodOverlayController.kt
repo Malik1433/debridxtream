@@ -5,6 +5,7 @@ import androidx.fragment.app.Fragment
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
+import com.tvonnet.debridxtreamiptv.R
 import com.tvonnet.debridxtreamiptv.data.local.WatchedIdentityBuilder
 import com.tvonnet.debridxtreamiptv.data.model.XtreamVodInfo
 import com.tvonnet.debridxtreamiptv.data.repository.WatchedStateRepository
@@ -121,7 +122,7 @@ class VodOverlayController(
         val isWatched = watchedMovieKeysCache.contains(identityKey)
 
         val favoriteText = if (isFavorite) "Remove from Favorites" else "Add to Favorites"
-        val watchedText = if (isWatched) "Mark as Unwatched" else "Mark as Watched"
+        val watchedText = fragment.getString(if (isWatched) R.string.c_mark_as_unwatched else R.string.c_mark_as_watched)
 
         androidx.appcompat.app.AlertDialog.Builder(fragment.requireContext())
             .setTitle(movie.name)

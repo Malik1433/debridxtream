@@ -61,7 +61,7 @@ class SearchLiveAdapter(
         }
         
         fun bind(stream: XtreamStream) {
-            tvName.text = stream.name ?: "Unknown Channel"
+            tvName.text = stream.name ?: tvName.context.getString(R.string.c_unknown_channel)
             tvType.text = tvType.context.getString(R.string.nav_live_tv)
             
             // Load icon with Glide

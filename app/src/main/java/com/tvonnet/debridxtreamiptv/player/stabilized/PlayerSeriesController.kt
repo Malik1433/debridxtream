@@ -189,14 +189,14 @@ internal class PlayerSeriesController(
                          seriesId, seasonNum, episodeId, seriesTitleExtra, episodeNumberExtra
                      )
                  } else {
-                     episodeBrowserController.showMessage("Episodes unavailable", seasonTitle)
+                     episodeBrowserController.showMessage(activity.getString(R.string.c_episodes_unavailable), seasonTitle)
                  }
              } else {
-                 episodeBrowserController.showMessage("Episodes unavailable", seasonTitle)
+                 episodeBrowserController.showMessage(activity.getString(R.string.c_episodes_unavailable), seasonTitle)
              }
         } else {
              Log.e("PlayerActivity", "showEpisodeBrowser: CANNOT load playlist, missing IDs! seriesId=$seriesId, seasonNum=$seasonNum")
-             episodeBrowserController.showMessage("Episodes unavailable", seasonTitle)
+             episodeBrowserController.showMessage(activity.getString(R.string.c_episodes_unavailable), seasonTitle)
         }
     }
 

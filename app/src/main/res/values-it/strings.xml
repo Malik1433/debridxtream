@@ -959,4 +959,42 @@
         <item quantity="other">%1$d server</item>
     </plurals>
     <string name="label_season_selector_none">STAGIONE ▾</string>
+
+    <!-- l10n tail (2026-09-14): labels reached through ?: fallbacks and if/else arms -->
+    <string name="c_specials">Speciali</string>
+    <string name="c_loading_ellipsis">Caricamento...</string>
+    <string name="c_no_plot_available">Nessuna trama disponibile.</string>
+    <string name="c_no_streams_match_filters">NESSUNO STREAM CORRISPONDE AI FILTRI</string>
+    <string name="c_unknown_channel">Canale sconosciuto</string>
+    <string name="c_no_information">Nessuna informazione</string>
+    <string name="c_now_playing_marker">▶ ORA</string>
+    <string name="c_watched_marker">✓ VISTO</string>
+    <string name="c_sync_failed_check_connection">Sincronizzazione non riuscita. Controlla la connessione.</string>
+    <string name="c_connecting">Connessione…</string>
+    <string name="c_signing_in">Accesso…</string>
+    <string name="c_unknown">Sconosciuto</string>
+    <string name="c_set_reminder">Imposta promemoria</string>
+    <string name="c_unknown_series">Serie sconosciuta</string>
+    <plurals name="p_channel_count">
+        <item quantity="one">%1$d canale</item>
+        <item quantity="other">%1$d canali</item>
+    </plurals>
+    <string name="c_playing">In riproduzione</string>
+    <string name="c_pip_not_available">PiP non disponibile</string>
+    <string name="c_pip_failed">PiP non riuscito</string>
+    <string name="f_toast_subtitles">SOTTOTITOLI · %1$s</string>
+    <string name="f_toast_audio">AUDIO · %1$s</string>
+    <string name="f_toast_aspect">FORMATO · %1$s</string>
+    <string name="c_invalid_source">Fonte non valida</string>
+    <string name="f_toast_tuning">▶ SINTONIA · %1$s</string>
+    <string name="c_episodes_unavailable">Episodi non disponibili</string>
+    <string name="c_recovering_video">Ripristino del video...</string>
+    <string name="c_no_sources_next_episode">Nessuna fonte trovata per il prossimo episodio.</string>
+    <string name="f_failed_to_fetch_sources">Impossibile recuperare le fonti: %1$s</string>
+    <string name="c_voice_search_unsupported">La ricerca vocale non è supportata su questo dispositivo</string>
+    <string name="c_voice_search_mic_permission">Per la ricerca vocale serve il permesso del microfono</string>
+    <plurals name="p_stream_count_caps">
+        <item quantity="one">%1$d STREAM</item>
+        <item quantity="other">%1$d STREAM</item>
+    </plurals>
 </resources>

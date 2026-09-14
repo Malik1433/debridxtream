@@ -465,11 +465,11 @@ class EpisodeBrowserController(
         ) {
             tvNumber.text = "E${episode.episodeNumber}"
             tvPlaceholderNumber.text = "E${episode.episodeNumber}"
-            tvTitle.text = episode.title ?: "Episode ${episode.episodeNumber}"
+            tvTitle.text = episode.title ?: tvTitle.context.getString(R.string.series_detail_episode_meta_no_duration, episode.episodeNumber)
             tvMeta.text = tvMeta.context.getString(R.string.series_detail_season_name, episode.seasonNumber)
             tvDuration.text = formatEpisodeDuration(episode.durationSecs, episode.duration)
             tvDuration.isVisible = tvDuration.text.isNotBlank()
-            tvPlayingBadge.text = if (isActive) "▶ NOW" else "✓ WATCHED"
+            tvPlayingBadge.text = tvPlayingBadge.context.getString(if (isActive) R.string.c_now_playing_marker else R.string.c_watched_marker)
             tvPlayingBadge.isVisible = isActive || isWatched
             itemView.isSelected = isActive
 

@@ -74,7 +74,7 @@ class LiveSurfCategoryAdapter(
             val c = category.category_id?.let { counts[it] }
             if (c != null) {
                 count.isVisible = true
-                count.text = if (c == 1) "1 channel" else "$c channels"
+                count.text = count.context.resources.getQuantityString(R.plurals.p_channel_count, c, c)
             } else {
                 count.isVisible = false
             }

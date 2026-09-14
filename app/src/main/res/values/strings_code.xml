@@ -145,4 +145,42 @@
     <string name="c_update_retry">Retry</string>
     <string name="c_update_required_to_continue">This update is required to continue.</string>
     <string name="c_unknown_error">Unknown error</string>
+
+    <!-- l10n tail (2026-09-14): labels reached through ?: fallbacks and if/else arms -->
+    <string name="c_specials">Specials</string>
+    <string name="c_loading_ellipsis">Loading...</string>
+    <string name="c_no_plot_available">No plot available.</string>
+    <string name="c_no_streams_match_filters">NO STREAMS MATCH CURRENT FILTERS</string>
+    <string name="c_unknown_channel">Unknown Channel</string>
+    <string name="c_no_information">No Information</string>
+    <string name="c_now_playing_marker">▶ NOW</string>
+    <string name="c_watched_marker">✓ WATCHED</string>
+    <string name="c_sync_failed_check_connection">Sync failed. Check your connection.</string>
+    <string name="c_connecting">Connecting…</string>
+    <string name="c_signing_in">Signing in…</string>
+    <string name="c_unknown">Unknown</string>
+    <string name="c_set_reminder">Set Reminder</string>
+    <string name="c_unknown_series">Unknown Series</string>
+    <plurals name="p_channel_count">
+        <item quantity="one">%1$d channel</item>
+        <item quantity="other">%1$d channels</item>
+    </plurals>
+    <string name="c_playing">Playing</string>
+    <string name="c_pip_not_available">PiP not available</string>
+    <string name="c_pip_failed">PiP failed</string>
+    <string name="f_toast_subtitles">SUBTITLES · %1$s</string>
+    <string name="f_toast_audio">AUDIO · %1$s</string>
+    <string name="f_toast_aspect">ASPECT · %1$s</string>
+    <string name="c_invalid_source">Invalid source</string>
+    <string name="f_toast_tuning">▶ TUNING · %1$s</string>
+    <string name="c_episodes_unavailable">Episodes unavailable</string>
+    <string name="c_recovering_video">Recovering video...</string>
+    <string name="c_no_sources_next_episode">No sources found for the next episode.</string>
+    <string name="f_failed_to_fetch_sources">Failed to fetch sources: %1$s</string>
+    <string name="c_voice_search_unsupported">Voice search not supported on this device</string>
+    <string name="c_voice_search_mic_permission">Microphone permission required for voice search</string>
+    <plurals name="p_stream_count_caps">
+        <item quantity="one">%1$d STREAM</item>
+        <item quantity="other">%1$d STREAMS</item>
+    </plurals>
 </resources>

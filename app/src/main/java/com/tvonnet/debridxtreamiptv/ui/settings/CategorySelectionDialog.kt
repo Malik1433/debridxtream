@@ -163,7 +163,7 @@ class CategorySelectionDialog : DialogFragment() {
             // Detach the listener before rebinding a recycled row, or setting isChecked below
             // fires a "toggle" for whichever category used to live in this view.
             holder.checkBox.setOnCheckedChangeListener(null)
-            holder.checkBox.text = item.category_name ?: "Unknown"
+            holder.checkBox.text = item.category_name ?: holder.checkBox.context.getString(R.string.c_unknown)
             holder.checkBox.isChecked = selectedIds.contains(item.category_id)
             holder.checkBox.setOnCheckedChangeListener { _, isChecked ->
                 val id = item.category_id ?: return@setOnCheckedChangeListener

@@ -203,7 +203,7 @@ class LiveTvGuideFragment : Fragment() {
                 viewModel.uiState.collect { state ->
                     binding.loading.visibility = if (state.isLoading) View.VISIBLE else View.GONE
                     binding.empty.visibility = if (!state.isLoading && state.channels.isEmpty()) View.VISIBLE else View.GONE
-                    binding.empty.text = state.error ?: "No channels found."
+                    binding.empty.text = state.error ?: getString(R.string.ui_no_channels_found)
 
                     chips?.bind(state)
 

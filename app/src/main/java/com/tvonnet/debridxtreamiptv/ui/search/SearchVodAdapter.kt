@@ -61,7 +61,7 @@ class SearchVodAdapter(
         }
         
         fun bind(vod: XtreamVodInfo) {
-            tvName.text = vod.name ?: "Unknown Movie"
+            tvName.text = vod.name ?: tvName.context.getString(R.string.movie_detail_unknown_movie)
             
             // Show additional info if available
             val typeText = buildString {

@@ -113,7 +113,7 @@ class SeriesStreamPanelUi(
             }
             groups.isEmpty() -> {
                 binding.tvNoStreams.visibility = View.VISIBLE
-                binding.tvNoStreams.text = state.error ?: "NO STREAMS MATCH CURRENT FILTERS"
+                binding.tvNoStreams.text = state.error ?: binding.root.context.getString(R.string.c_no_streams_match_filters)
                 streamAdapter?.submit(emptyList(), null)
             }
             else -> {

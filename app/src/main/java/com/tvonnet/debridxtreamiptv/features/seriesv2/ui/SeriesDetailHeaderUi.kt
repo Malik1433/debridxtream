@@ -24,7 +24,7 @@ class SeriesDetailHeaderUi(
         val s = state.series
 
         binding.tvTitle.text = s.title ?: s.name ?: binding.tvTitle.text
-        binding.tvPlot.text = s.plot?.takeIf { it.isNotBlank() } ?: "No plot available."
+        binding.tvPlot.text = s.plot?.takeIf { it.isNotBlank() } ?: binding.root.context.getString(R.string.c_no_plot_available)
 
         val year = s.year?.takeIf { it.isNotBlank() } ?: s.releaseDate?.take(4)?.takeIf { it.isNotBlank() }
         binding.tvYear.apply {

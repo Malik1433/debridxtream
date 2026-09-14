@@ -959,4 +959,42 @@
         <item quantity="other">%1$d servidores</item>
     </plurals>
     <string name="label_season_selector_none">TEMPORADA ▾</string>
+
+    <!-- l10n tail (2026-09-14): labels reached through ?: fallbacks and if/else arms -->
+    <string name="c_specials">Especiales</string>
+    <string name="c_loading_ellipsis">Cargando...</string>
+    <string name="c_no_plot_available">Sin sinopsis disponible.</string>
+    <string name="c_no_streams_match_filters">NINGÚN STREAM COINCIDE CON LOS FILTROS</string>
+    <string name="c_unknown_channel">Canal desconocido</string>
+    <string name="c_no_information">Sin información</string>
+    <string name="c_now_playing_marker">▶ AHORA</string>
+    <string name="c_watched_marker">✓ VISTO</string>
+    <string name="c_sync_failed_check_connection">La sincronización falló. Comprueba tu conexión.</string>
+    <string name="c_connecting">Conectando…</string>
+    <string name="c_signing_in">Iniciando sesión…</string>
+    <string name="c_unknown">Desconocido</string>
+    <string name="c_set_reminder">Crear recordatorio</string>
+    <string name="c_unknown_series">Serie desconocida</string>
+    <plurals name="p_channel_count">
+        <item quantity="one">%1$d canal</item>
+        <item quantity="other">%1$d canales</item>
+    </plurals>
+    <string name="c_playing">Reproduciendo</string>
+    <string name="c_pip_not_available">PiP no disponible</string>
+    <string name="c_pip_failed">PiP falló</string>
+    <string name="f_toast_subtitles">SUBTÍTULOS · %1$s</string>
+    <string name="f_toast_audio">AUDIO · %1$s</string>
+    <string name="f_toast_aspect">ASPECTO · %1$s</string>
+    <string name="c_invalid_source">Fuente no válida</string>
+    <string name="f_toast_tuning">▶ SINTONIZANDO · %1$s</string>
+    <string name="c_episodes_unavailable">Episodios no disponibles</string>
+    <string name="c_recovering_video">Recuperando el vídeo...</string>
+    <string name="c_no_sources_next_episode">No se encontraron fuentes para el siguiente episodio.</string>
+    <string name="f_failed_to_fetch_sources">No se pudieron obtener las fuentes: %1$s</string>
+    <string name="c_voice_search_unsupported">La búsqueda por voz no es compatible con este dispositivo</string>
+    <string name="c_voice_search_mic_permission">Se necesita permiso del micrófono para la búsqueda por voz</string>
+    <plurals name="p_stream_count_caps">
+        <item quantity="one">%1$d STREAM</item>
+        <item quantity="other">%1$d STREAMS</item>
+    </plurals>
 </resources>

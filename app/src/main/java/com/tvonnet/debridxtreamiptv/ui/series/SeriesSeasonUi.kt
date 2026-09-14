@@ -558,6 +558,6 @@ class SeriesSeasonUi(
         val epLabel = "S${String.format(java.util.Locale.US, "%02d", seasonNum)} · E${String.format(java.util.Locale.US, "%02d", epNum)}"
         val hasResume = ep != null && !episodeWatched.contains(ep.id) &&
             (episodeProgress.containsKey(ep.id) || (ep.resumePosition > 0 && !ep.isWatched))
-        btnWatchNow.text = if (hasResume) "Resume $epLabel" else "Play $epLabel"
+        btnWatchNow.text = btnWatchNow.context.getString(if (hasResume) R.string.resume_choice_resume_at else R.string.f_play_label, epLabel)
     }
 }

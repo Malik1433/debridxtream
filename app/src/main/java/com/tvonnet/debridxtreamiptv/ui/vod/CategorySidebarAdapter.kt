@@ -132,7 +132,7 @@ class CategorySidebarAdapter(
             // Show the category name AS-IS (default) — do NOT strip provider/country
             // tags like "|AR|", "|PH|", "|MULTI|". The user needs the country code to
             // tell which country a category belongs to.
-            tvCategoryName.text = category.category_name?.takeIf { it.isNotBlank() } ?: "Unknown"
+            tvCategoryName.text = category.category_name?.takeIf { it.isNotBlank() } ?: tvCategoryName.context.getString(R.string.c_unknown)
 
             // Count badge — show when a count is available, hide gracefully otherwise.
             if (count != null && count >= 0) {

@@ -31,7 +31,7 @@ class SeasonsAdapterV2(
 
         fun bind(model: SeasonUiModel, isSelected: Boolean) {
             val seasonNum = model.seasonNum
-            tvName.text = if (seasonNum == 0) "Specials" else "Season $seasonNum"
+            tvName.text = if (seasonNum == 0) tvName.context.getString(R.string.c_specials) else tvName.context.getString(R.string.series_detail_season_name, seasonNum)
             tvName.isSelected = isSelected
 
             val drawableEnd = when (model.state) {

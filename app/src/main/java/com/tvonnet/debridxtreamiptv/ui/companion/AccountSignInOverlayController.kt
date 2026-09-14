@@ -109,7 +109,7 @@ class AccountSignInOverlayController(
     private fun setBusy(value: Boolean) {
         busy = value
         submit.isEnabled = !value
-        submitLabel.text = if (value) "Signing in…" else "Sign in"
+        submitLabel.text = submitLabel.context.getString(if (value) R.string.c_signing_in else R.string.ui_sign_in_2)
     }
 
     private fun showError(message: String) {

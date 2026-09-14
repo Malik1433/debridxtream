@@ -92,7 +92,7 @@ internal class LiveTrackControls(
         }
         player.trackSelectionParameters = builder.build()
         labels.cc.text = label
-        host.showToast("SUBTITLES · " + label.uppercase(Locale.getDefault()))
+        host.showToast(context.getString(R.string.f_toast_subtitles, label.uppercase(Locale.getDefault())))
         host.resetOsdTimer()
     }
 
@@ -102,7 +102,7 @@ internal class LiveTrackControls(
             it.type == C.TRACK_TYPE_AUDIO && it.isSupported
         }
         if (groups.isEmpty()) {
-            host.showToast("AUDIO · " + context.getString(R.string.live_osd_original).uppercase(Locale.getDefault()))
+            host.showToast(context.getString(R.string.f_toast_audio, context.getString(R.string.live_osd_original).uppercase(Locale.getDefault())))
             return
         }
         val params = player.trackSelectionParameters
@@ -121,7 +121,7 @@ internal class LiveTrackControls(
             else -> trackLabel(format.language, format.label, nextIdx)
         }
         labels.audio.text = label
-        host.showToast("AUDIO · " + label.uppercase(Locale.getDefault()))
+        host.showToast(context.getString(R.string.f_toast_audio, label.uppercase(Locale.getDefault())))
         host.resetOsdTimer()
     }
 
@@ -129,7 +129,7 @@ internal class LiveTrackControls(
         aspectIndex = (aspectIndex + 1) % ASPECT_LABELS.size
         playerView.resizeMode = ASPECT_MODES[aspectIndex]
         labels.aspect.text = ASPECT_LABELS[aspectIndex]
-        host.showToast("ASPECT · " + ASPECT_LABELS[aspectIndex].uppercase(Locale.getDefault()))
+        host.showToast(context.getString(R.string.f_toast_aspect, ASPECT_LABELS[aspectIndex].uppercase(Locale.getDefault())))
         host.resetOsdTimer()
     }
 

@@ -228,7 +228,7 @@ class PlayerNextEpisodeManager(
         nextPromptShownForThisEpisode = true 
         
         nextEpisodeOverlay?.isVisible = true
-        tvNextEpTitle?.text = nextEp.title ?: "Episode ${nextEp.episodeNumber}"
+        tvNextEpTitle?.text = nextEp.title ?: activity.getString(R.string.series_detail_episode_meta_no_duration, nextEp.episodeNumber)
         ivNextEpThumb?.let { iv ->
             val imageUrl = nextEp.thumbnail
                 ?.takeIf { it.isNotBlank() && !it.equals("null", ignoreCase = true) }

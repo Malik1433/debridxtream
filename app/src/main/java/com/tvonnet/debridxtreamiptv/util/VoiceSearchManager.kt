@@ -16,6 +16,7 @@ import androidx.core.content.ContextCompat
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import java.util.*
+import com.tvonnet.debridxtreamiptv.R
 
 /**
  * Phase 3.2: Advanced TV Features - Voice Search Manager
@@ -142,13 +143,13 @@ class VoiceSearchManager private constructor(private val context: Context) {
 
     fun startVoiceSearch(): Boolean {
         if (!hasSpeechRecognitionCapability()) {
-            showToast("Voice search not supported on this device")
+            showToast(context.getString(R.string.c_voice_search_unsupported))
             return false
         }
 
         if (ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO)
             != PackageManager.PERMISSION_GRANTED) {
-            showToast("Microphone permission required for voice search")
+            showToast(context.getString(R.string.c_voice_search_mic_permission))
             return false
         }
 

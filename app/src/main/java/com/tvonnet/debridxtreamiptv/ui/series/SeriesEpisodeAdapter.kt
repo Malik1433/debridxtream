@@ -110,7 +110,7 @@ class SeriesEpisodeAdapter(
                 val context = binding.root.context
                 val identityKey = watchedIdentityKey(context, item) ?: return@setOnLongClickListener false
                 val isWatched = watchedKeys.contains(identityKey)
-                val actionTitle = if (isWatched) "Mark as Unwatched" else "Mark as Watched"
+                val actionTitle = context.getString(if (isWatched) R.string.c_mark_as_unwatched else R.string.c_mark_as_watched)
                 AlertDialog.Builder(context)
                     .setTitle(item.title)
                     .setItems(arrayOf(actionTitle)) { _, _ ->

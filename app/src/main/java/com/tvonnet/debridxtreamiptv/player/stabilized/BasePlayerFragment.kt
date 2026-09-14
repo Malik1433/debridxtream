@@ -824,7 +824,7 @@ open class BasePlayerFragment : Fragment(), PlayerRecoveryController.RecoveryHos
         }
 
         routeInitialPlayback(facts, streamUrl)
-        supportActionBar?.title = streamTitle ?: "Playing"
+        supportActionBar?.title = streamTitle ?: getString(R.string.c_playing)
 
         if (contentType == ContentType.LIVE_TV) {
             startLiveZappingAndBrowser()
@@ -1640,10 +1640,10 @@ open class BasePlayerFragment : Fragment(), PlayerRecoveryController.RecoveryHos
         if (!supportsPictureInPicture() || isInPictureInPictureMode) return
         try {
             player?.let { wasPlayingBeforePiP = it.playWhenReady }
-            if (pipController.enter(playerView.width, playerView.height)) hideUiForPiP() else showToast("PiP not available")
+            if (pipController.enter(playerView.width, playerView.height)) hideUiForPiP() else showToast(getString(R.string.c_pip_not_available))
         } catch (e: Exception) {
             Log.w("PlayerActivity", "Enter PiP failed", e)
-            showToast("PiP failed")
+            showToast(getString(R.string.c_pip_failed))
         }
     }
 

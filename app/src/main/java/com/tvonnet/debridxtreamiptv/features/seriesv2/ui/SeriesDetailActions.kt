@@ -116,7 +116,7 @@ class SeriesDetailActions(
                 try {
                     if (isFav) {
                         repository.removeFavorite(id)
-                        host.showToast("REMOVED FROM FAVORITES")
+                        host.showToast(fragment.getString(R.string.favorite_removed))
                     } else {
                         repository.addFavorite(
                             streamId = id,
@@ -126,10 +126,10 @@ class SeriesDetailActions(
                                 page.favoriteIconUrl
                             )
                         )
-                        host.showToast("ADDED TO FAVORITES")
+                        host.showToast(fragment.getString(R.string.favorite_added))
                     }
                 } catch (e: Exception) {
-                    host.showToast("ERROR: ${e.message}")
+                    host.showToast(fragment.getString(R.string.f_error_detail, e.message.orEmpty()))
                 }
             }
         }
@@ -172,7 +172,7 @@ class SeriesDetailActions(
             if (!page.isViewAlive()) return@launch
             // Ignore stale results if focus moved to another episode meanwhile.
             if (labelledEpisodeId != episode.episodeId) return@launch
-            binding.btnPlay.text = if (resumed) "Resume $label" else "Play $label"
+            binding.btnPlay.text = binding.root.context.getString(if (resumed) R.string.resume_choice_resume_at else R.string.f_play_label, label)
         }
     }
 

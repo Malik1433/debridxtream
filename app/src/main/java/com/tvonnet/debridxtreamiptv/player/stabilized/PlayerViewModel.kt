@@ -510,7 +510,7 @@ class PlayerViewModel @Inject constructor(
                 }
 
                 if (sources.isEmpty()) {
-                    debrid.setError("No sources found for the next episode.")
+                    debrid.setError(context.getString(R.string.c_no_sources_next_episode))
                     return@launch
                 }
 
@@ -527,7 +527,7 @@ class PlayerViewModel @Inject constructor(
                     forceFresh = excludeSourceIds.isNotEmpty()
                 )
             } catch (e: Exception) {
-                debrid.setError("Failed to fetch sources: ${e.message}")
+                debrid.setError(context.getString(R.string.f_failed_to_fetch_sources, e.message.orEmpty()))
             }
         }
     }

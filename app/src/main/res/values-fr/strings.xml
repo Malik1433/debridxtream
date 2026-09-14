@@ -959,4 +959,42 @@
         <item quantity="other">%1$d serveurs</item>
     </plurals>
     <string name="label_season_selector_none">SAISON ▾</string>
+
+    <!-- l10n tail (2026-09-14): labels reached through ?: fallbacks and if/else arms -->
+    <string name="c_specials">Épisodes spéciaux</string>
+    <string name="c_loading_ellipsis">Chargement...</string>
+    <string name="c_no_plot_available">Aucun résumé disponible.</string>
+    <string name="c_no_streams_match_filters">AUCUN FLUX NE CORRESPOND AUX FILTRES</string>
+    <string name="c_unknown_channel">Chaîne inconnue</string>
+    <string name="c_no_information">Aucune information</string>
+    <string name="c_now_playing_marker">▶ EN COURS</string>
+    <string name="c_watched_marker">✓ VU</string>
+    <string name="c_sync_failed_check_connection">La synchronisation a échoué. Vérifiez votre connexion.</string>
+    <string name="c_connecting">Connexion…</string>
+    <string name="c_signing_in">Connexion…</string>
+    <string name="c_unknown">Inconnu</string>
+    <string name="c_set_reminder">Définir un rappel</string>
+    <string name="c_unknown_series">Série inconnue</string>
+    <plurals name="p_channel_count">
+        <item quantity="one">%1$d chaîne</item>
+        <item quantity="other">%1$d chaînes</item>
+    </plurals>
+    <string name="c_playing">Lecture</string>
+    <string name="c_pip_not_available">PiP non disponible</string>
+    <string name="c_pip_failed">Échec du PiP</string>
+    <string name="f_toast_subtitles">SOUS-TITRES · %1$s</string>
+    <string name="f_toast_audio">AUDIO · %1$s</string>
+    <string name="f_toast_aspect">FORMAT · %1$s</string>
+    <string name="c_invalid_source">Source invalide</string>
+    <string name="f_toast_tuning">▶ RÉGLAGE · %1$s</string>
+    <string name="c_episodes_unavailable">Épisodes indisponibles</string>
+    <string name="c_recovering_video">Récupération de la vidéo...</string>
+    <string name="c_no_sources_next_episode">Aucune source trouvée pour l’épisode suivant.</string>
+    <string name="f_failed_to_fetch_sources">Impossible de récupérer les sources : %1$s</string>
+    <string name="c_voice_search_unsupported">La recherche vocale n’est pas prise en charge sur cet appareil</string>
+    <string name="c_voice_search_mic_permission">L’autorisation du micro est requise pour la recherche vocale</string>
+    <plurals name="p_stream_count_caps">
+        <item quantity="one">%1$d FLUX</item>
+        <item quantity="other">%1$d FLUX</item>
+    </plurals>
 </resources>

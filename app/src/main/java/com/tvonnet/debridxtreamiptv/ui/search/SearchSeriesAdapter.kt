@@ -61,7 +61,7 @@ class SearchSeriesAdapter(
         }
         
         fun bind(series: XtreamSeriesInfo) {
-            tvName.text = series.name ?: "Unknown Series"
+            tvName.text = series.name ?: tvName.context.getString(R.string.c_unknown_series)
             
             // Show additional info if available
             val typeText = buildString {

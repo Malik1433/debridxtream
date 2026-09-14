@@ -331,7 +331,7 @@ class ChannelPagingViewHolder(
     }
 
     private fun bindOldCard(channel: XtreamStream, onClick: (XtreamStream) -> Unit, onLongClick: ((XtreamStream) -> Unit)? = null) {
-        tvName?.text = channel.name ?: "Unknown"
+        tvName?.text = channel.name ?: itemView.context.getString(R.string.c_unknown)
 
         // Load channel logo with Glide
         loadChannelImage(channel.stream_icon)

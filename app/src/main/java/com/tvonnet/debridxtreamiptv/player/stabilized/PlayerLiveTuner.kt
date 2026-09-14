@@ -115,7 +115,7 @@ internal class PlayerLiveTuner(
     /** OK-tune from the surf drawer (Live Player OSD spec §7). */
     private fun tuneToZapIndex(index: Int) {
         val target = viewModel.zapTo(index) ?: return
-        liveOsd?.showToast("▶ TUNING · ${target.name}")
+        liveOsd?.showToast(activity.getString(R.string.f_toast_tuning, target.name))
         tuneToZapChannel(target)
     }
 

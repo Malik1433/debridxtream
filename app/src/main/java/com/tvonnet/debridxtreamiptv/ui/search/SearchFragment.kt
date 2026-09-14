@@ -573,7 +573,7 @@ class SearchFragment :
 
     private fun buildTrending(recent: List<String> = emptyList()) {
         val terms = recent.take(8).ifEmpty { TRENDING }
-        trendingLabel.text = if (recent.isNotEmpty()) "Recent Searches" else "Trending Searches"
+        trendingLabel.text = getString(if (recent.isNotEmpty()) R.string.recent_searches else R.string.ui_trending_searches)
         trendingBox.removeAllViews()
         terms.forEach { term ->
             val chip = TextView(requireContext()).apply {

@@ -2,6 +2,7 @@ package com.tvonnet.debridxtreamiptv.player.stabilized
 
 import androidx.lifecycle.lifecycleScope
 import androidx.media3.exoplayer.ExoPlayer
+import com.tvonnet.debridxtreamiptv.R
 import com.tvonnet.debridxtreamiptv.data.model.ContentType
 import com.tvonnet.debridxtreamiptv.data.prefs.CredentialsPreferences
 import kotlinx.coroutines.launch
@@ -105,7 +106,7 @@ internal class PlayerDebridCoordinator(
         val infoHash = stream.stream_id
         val route = sourceSwitchRoute(source, magnet)
         if (route.resolverBacked && magnet.isNullOrBlank() && infoHash.isNullOrBlank()) {
-            showToast("Invalid source"); return
+            showToast(activity.getString(R.string.c_invalid_source)); return
         }
 
         applySwitchedSourceIdentity(stream, route.isIptv)
@@ -155,7 +156,7 @@ internal class PlayerDebridCoordinator(
         val credentialsIncomplete =
             server.isNullOrBlank() || user.isNullOrBlank() || pass.isNullOrBlank()
         if (credentialsIncomplete || stream.stream_id.isNullOrBlank()) {
-            showToast("Missing credentials"); return
+            showToast(activity.getString(R.string.c_missing_credentials)); return
         }
         directDebridPlayback = false
         debridInfoHashExtra = null; debridMagnetExtra = null
