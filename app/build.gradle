@@ -252,9 +252,12 @@ dependencies {
     implementation 'androidx.room:room-paging:2.7.2' // Required for PagingSource in DAOs
     
     // Retrofit & Networking
-    implementation 'com.squareup.retrofit2:retrofit:2.9.0'
-    implementation 'com.squareup.retrofit2:converter-gson:2.9.0'
-    implementation 'com.squareup.retrofit2:converter-scalars:2.9.0' // Week 14: For XML/String responses
+    // Retrofit 3.0.0 (2026-09-14): newest on Central. 2.9.0 was five years old; 3.0 drops nothing this
+    // app uses (suspend + Response<T> + gson/scalars converters, no Call/enqueue) and rides the same
+    // OkHttp 4.12 already pinned below. Verified on the Fire TV: debrid source list + live channel.
+    implementation 'com.squareup.retrofit2:retrofit:3.0.0'
+    implementation 'com.squareup.retrofit2:converter-gson:3.0.0'
+    implementation 'com.squareup.retrofit2:converter-scalars:3.0.0' // Week 14: For XML/String responses
     implementation 'com.squareup.okhttp3:logging-interceptor:4.12.0'
     implementation 'com.google.code.gson:gson:2.14.0'
     
