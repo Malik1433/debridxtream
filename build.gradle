@@ -10,9 +10,6 @@ buildscript {
     dependencies {
         classpath "com.android.tools.build:gradle:8.13.2"
         classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
-        // Kotlin 2.x moved the Compose compiler into the Kotlin release, so it is a plugin now
-        // and composeOptions.kotlinCompilerExtensionVersion no longer exists.
-        classpath "org.jetbrains.kotlin:compose-compiler-gradle-plugin:$kotlin_version"
         // KSP replaces kapt (Kotlin 2.x killed the kapt path this project used). Its version is
         // Kotlin-version + KSP-version and the two halves MUST agree with kotlin_version above.
         classpath "com.google.devtools.ksp:symbol-processing-gradle-plugin:$ksp_version"
