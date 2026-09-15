@@ -989,6 +989,7 @@
     <string name="f_toast_tuning">▶ A SINTONIZAR · %1$s</string>
     <string name="c_episodes_unavailable">Episódios indisponíveis</string>
     <string name="c_recovering_video">A recuperar o vídeo...</string>
+    <string name="c_audio_route_wedged">Áudio indisponível — desligue e volte a ligar a TV (a ligação de áudio da TV deixou de responder)</string>
     <string name="c_no_sources_next_episode">Nenhuma fonte encontrada para o próximo episódio.</string>
     <string name="f_failed_to_fetch_sources">Não foi possível obter as fontes: %1$s</string>
     <string name="c_voice_search_unsupported">A pesquisa por voz não é suportada neste dispositivo</string>

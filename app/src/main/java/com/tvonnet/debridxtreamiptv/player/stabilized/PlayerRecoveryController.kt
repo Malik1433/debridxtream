@@ -10,6 +10,7 @@ import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.datasource.HttpDataSource
 import androidx.media3.exoplayer.ExoPlayer
+import com.tvonnet.debridxtreamiptv.R
 import com.tvonnet.debridxtreamiptv.data.model.ContentType
 import com.tvonnet.debridxtreamiptv.debug.PlaybackDiagnosticsRecorder
 
@@ -308,7 +309,7 @@ internal class PlayerRecoveryController(
         // TV off/on renegotiates HDMI audio and rebuilds the HAL outputs — that is the
         // reset that actually clears a wedged/saturated primary (device-verified); a
         // Fire TV restart is NOT needed.
-        handleTerminalPlaybackFailure("Audio unavailable — turn your TV off and on (the TV's audio connection stopped responding)")
+        handleTerminalPlaybackFailure(activity.getString(R.string.c_audio_route_wedged))
     }
 
     // The three fail-fast HTTP branches, in their original order. True = handled.

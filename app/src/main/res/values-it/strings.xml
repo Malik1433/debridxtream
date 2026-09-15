@@ -989,6 +989,7 @@
     <string name="f_toast_tuning">▶ SINTONIA · %1$s</string>
     <string name="c_episodes_unavailable">Episodi non disponibili</string>
     <string name="c_recovering_video">Ripristino del video...</string>
+    <string name="c_audio_route_wedged">Audio non disponibile: spegni e riaccendi il televisore (la connessione audio del televisore non risponde più)</string>
     <string name="c_no_sources_next_episode">Nessuna fonte trovata per il prossimo episodio.</string>
     <string name="f_failed_to_fetch_sources">Impossibile recuperare le fonti: %1$s</string>
     <string name="c_voice_search_unsupported">La ricerca vocale non è supportata su questo dispositivo</string>

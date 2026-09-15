@@ -68,15 +68,14 @@ internal class PlayerStallMonitor(
         stallDetector.reset(player?.currentPosition ?: 0L, SystemClock.elapsedRealtime())
         freezeDetector.reset()
         stallHandler.removeCallbacks(stallRunnable); stallHandler.postDelayed(stallRunnable, 5000)
-        // Fast path for the wedged-primary freeze: a READY player whose position has
-        // not moved AT ALL a few seconds after READY is already pathological (network
-        // pauses go through BUFFERING, not READY), so the escape doesn't have to wait
-        // for the generic 12s+strikes stall verdict. One-shot; only while unengaged.
+        // Fast path for the wedged-HDMI freeze: a READY player whose position has not
+        // moved AT ALL a few seconds after READY is already pathological (network pauses
+        // go through BUFFERING, not READY), so the route change doesn't have to wait for
+        // the generic 12s+strikes stall verdict. Armed on every start, engaged or not —
+        // the escape route can wedge too (2026-09-15), and then the way out is BACK.
         stallHandler.removeCallbacks(fastWedgeRunnable)
-        if (!AudioWedgeEscape.engaged) {
-            readyBaselinePositionMs = player?.currentPosition ?: 0L
-            stallHandler.postDelayed(fastWedgeRunnable, FAST_WEDGE_CHECK_MS)
-        }
+        readyBaselinePositionMs = player?.currentPosition ?: 0L
+        stallHandler.postDelayed(fastWedgeRunnable, FAST_WEDGE_CHECK_MS)
     }
 
     fun stopStallMonitor() {
@@ -86,7 +85,6 @@ internal class PlayerStallMonitor(
 
     private fun checkFastWedge() {
         val p = player ?: return
-        if (AudioWedgeEscape.engaged) return
         if (!p.playWhenReady || p.playbackState != Player.STATE_READY) return
         val pos = p.currentPosition
         if (pos - readyBaselinePositionMs >= FAST_WEDGE_MIN_PROGRESS_MS) return
@@ -139,37 +137,75 @@ internal class PlayerStallMonitor(
     }
 
     /**
-     * READY + position frozen + mono/stereo PCM audio = the wedged-HDMI-primary-mixer
-     * freeze (device-verified 2026-08-27: the primary thread blocks in write() and the
-     * playback clock stops on frame 1 with NO exception — see [AudioWedgeEscape]).
-     * One-shot per process: engage the 5.1 upmix escape and rebuild the player so the
-     * audio reopens on a fresh DIRECT HAL output. If the rebuild stalls again the flag
-     * is already set, so the normal stall recovery path takes over.
+     * READY + position frozen + mono/stereo PCM audio = a wedged HDMI output thread
+     * (device-verified 2026-08-27: the thread blocks in write() and the playback clock
+     * stops on frame 1 with NO exception — see [AudioWedgeEscape]).
+     *
+     * Not engaged: engage the 5.1 upmix escape and rebuild, so audio reopens on the
+     * DIRECT HAL output. Engaged and STILL frozen: that single DIRECT output is the one
+     * that has wedged now (2026-09-15 capture), so ask the primary mixer whether it is
+     * consuming again — if so release the escape and rebuild back onto stereo; if not,
+     * both HDMI routes are dead and only the TV off/on the message asks for will help.
      */
     private fun tryAudioWedgeEscape(p: ExoPlayer, currentPos: Long): Boolean {
-        if (AudioWedgeEscape.engaged) return false
         val channels = p.audioFormat?.channelCount ?: return false
         if (channels > 2) return false
-        AudioWedgeEscape.engage()
-        Log.w(
-            "PlayerActivity",
-            "READY-stall with ${channels}ch audio — engaging 5.1 upmix escape (wedged primary HDMI mixer suspected)"
-        )
-        PlaybackDiagnosticsRecorder.record(
-            activity.requireContext(),
-            "audio_wedge_escape",
-            diagnosticsPlaybackFields() + mapOf(
-                "positionMs" to currentPos,
-                "audioChannels" to channels
+        if (!AudioWedgeEscape.engaged) {
+            AudioWedgeEscape.engage()
+            Log.w(
+                "PlayerActivity",
+                "READY-stall with ${channels}ch audio — engaging 5.1 upmix escape (wedged primary HDMI mixer suspected)"
             )
-        )
-        // Deliberately SILENT (owner decision 2026-08-30): the escape repairs audio in
-        // ~1-2s, so a toast only advertises a problem the viewer barely experiences.
-        // The log line + audio_wedge_escape diagnostic remain the audit trail.
+            recordWedge("audio_wedge_escape", currentPos, channels)
+            // Deliberately SILENT (owner decision 2026-08-30): the escape repairs audio in
+            // ~1-2s, so a toast only advertises a problem the viewer barely experiences.
+            // The log line + audio_wedge_escape diagnostic remain the audit trail.
+            rebuildForAudioRoute(currentPos)
+            return true
+        }
+        if (wedgeRouteProbePending) return true
+        wedgeRouteProbePending = true
+        AudioWedgeEscape.probePrimaryAsync(activity.requireContext()) { primaryConsumes ->
+            wedgeRouteProbePending = false
+            if (player !== p) return@probePrimaryAsync // a newer player took over meanwhile
+            when {
+                primaryConsumes && AudioWedgeEscape.release() -> {
+                    Log.w(
+                        "PlayerActivity",
+                        "READY-stall ON the 5.1 escape route — primary mixer consuming again, releasing the escape and rebuilding"
+                    )
+                    recordWedge("audio_wedge_escape_released", currentPos, channels)
+                    rebuildForAudioRoute(currentPos)
+                }
+                primaryConsumes -> {
+                    // Released less than five minutes ago and frozen again: the probe and
+                    // the playback disagree, so stop flipping and use the ordinary path.
+                    recordWedge("audio_wedge_flip_refused", currentPos, channels)
+                    recovery.handlePlaybackError(PlaybackException(null, null, PlaybackException.ERROR_CODE_REMOTE_ERROR))
+                }
+                else -> {
+                    Log.w("PlayerActivity", "READY-stall ON the 5.1 escape route and the primary mixer is not consuming either — both HDMI routes wedged")
+                    recordWedge("audio_wedge_both_routes", currentPos, channels)
+                    player?.release(); player = null
+                    activity.handleTerminalPlaybackFailure(activity.getString(R.string.c_audio_route_wedged))
+                }
+            }
+        }
+        return true
+    }
+
+    private var wedgeRouteProbePending = false
+
+    private fun recordWedge(event: String, currentPos: Long, channels: Int) = PlaybackDiagnosticsRecorder.record(
+        activity.requireContext(),
+        event,
+        diagnosticsPlaybackFields() + mapOf("positionMs" to currentPos, "audioChannels" to channels)
+    )
+
+    private fun rebuildForAudioRoute(currentPos: Long) {
         if (contentType != ContentType.LIVE_TV && currentPos > 1000L) startPositionMs = currentPos
         player?.release(); player = null
         retryHandler.postDelayed({ currentUrl?.let { initializePlayer(it) } }, 250L)
-        return true
     }
 
     /**

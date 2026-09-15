@@ -175,6 +175,7 @@
     <string name="f_toast_tuning">▶ TUNING · %1$s</string>
     <string name="c_episodes_unavailable">Episodes unavailable</string>
     <string name="c_recovering_video">Recovering video...</string>
+    <string name="c_audio_route_wedged">Audio unavailable — turn your TV off and on (the TV\'s audio connection stopped responding)</string>
     <string name="c_no_sources_next_episode">No sources found for the next episode.</string>
     <string name="f_failed_to_fetch_sources">Failed to fetch sources: %1$s</string>
     <string name="c_voice_search_unsupported">Voice search not supported on this device</string>

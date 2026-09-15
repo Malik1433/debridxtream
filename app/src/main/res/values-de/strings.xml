@@ -990,6 +990,7 @@
     <string name="f_toast_tuning">▶ SENDER · %1$s</string>
     <string name="c_episodes_unavailable">Folgen nicht verfügbar</string>
     <string name="c_recovering_video">Video wird wiederhergestellt...</string>
+    <string name="c_audio_route_wedged">Kein Ton — schalten Sie den Fernseher aus und wieder ein (die Audioverbindung des Fernsehers reagiert nicht mehr)</string>
     <string name="c_no_sources_next_episode">Keine Quellen für die nächste Folge gefunden.</string>
     <string name="f_failed_to_fetch_sources">Quellen konnten nicht geladen werden: %1$s</string>
     <string name="c_voice_search_unsupported">Sprachsuche wird auf diesem Gerät nicht unterstützt</string>
