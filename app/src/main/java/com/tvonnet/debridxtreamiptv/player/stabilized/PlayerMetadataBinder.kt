@@ -36,15 +36,43 @@ internal class PlayerMetadataBinder(
         val titleView = playerView.findViewById<TextView>(R.id.tv_player_title)
         val subtitleView = playerView.findViewById<TextView>(R.id.tv_player_subtitle)
         val qualityView = playerView.findViewById<TextView>(R.id.tv_player_quality)
+        val pillView = playerView.findViewById<TextView>(R.id.tv_player_episode_pill)
 
         posterView?.let { GlideUtils.loadMoviePoster(it, posterUrlExtra) }
 
-        titleView?.text = resolveDisplayTitle(title)
+        // VOD Player.dc.html: "Nexus Prime  [S02 E04]" — the episode number is a pill next to
+        // the title, not part of it, so a "Show - S1E4" launcher title loses that suffix.
+        val pill = episodePillLabel()
+        val displayTitle = resolveDisplayTitle(title).let { if (pill != null) stripEpisodeSuffix(it) else it }
+        titleView?.text = displayTitle
+        pillView?.apply { text = pill; isVisible = pill != null }
         subtitleView?.text = buildSubtitle()
         qualityView?.apply {
             text = debridQualityExtra
             isVisible = !debridQualityExtra.isNullOrBlank()
         }
+        // The poster carries its own caption in the design (title + episode / quality line).
+        playerView.findViewById<TextView>(R.id.tv_poster_title)?.text = displayTitle
+        playerView.findViewById<TextView>(R.id.tv_poster_sub)?.apply {
+            val line = pill ?: debridQualityExtra.orEmpty()
+            text = line
+            isVisible = line.isNotBlank()
+        }
+    }
+
+    private fun episodePillLabel(): String? {
+        if (contentType != ContentType.EPISODE && contentType != ContentType.SERIES) return null
+        val season = seasonNumberExtra ?: return null
+        val episode = episodeNumberExtra ?: return null
+        return "S%02d E%02d".format(java.util.Locale.US, season, episode)
+    }
+
+    private fun stripEpisodeSuffix(title: String): String =
+        title.replace(EPISODE_SUFFIX, "").trim().ifBlank { title }
+
+    private companion object {
+        /** " - S1E4", " – S01E04", " S1 E4" at the end of a launcher-built title. */
+        val EPISODE_SUFFIX = Regex("\\s*[-\\u2013\\u2014]?\\s*S\\d{1,2}\\s*E\\d{1,3}\\s*$", RegexOption.IGNORE_CASE)
     }
 
     private fun resolveDisplayTitle(title: String?): String {

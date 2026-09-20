@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- "S02 E04" pill next to the title: cyan .10 fill, cyan .25 stroke, radius 5px÷2 -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <solid android:color="@color/vodp_episode_pill_bg" />
+    <corners android:radius="2.5dp" />
+    <stroke android:width="1dp" android:color="@color/vodp_episode_pill_stroke" />
+</shape>

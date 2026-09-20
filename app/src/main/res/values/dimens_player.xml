@@ -21,4 +21,17 @@
     <!-- Two lines at the autosize maximum, plus room for descenders. Definite, because
          autosize and wrap_content together clip the last line. -->
     <dimen name="loader_title_height">112dp</dimen>
+    <!-- VOD controller type (phone: handset-readable; the TV halves the design px). -->
+    <dimen name="player_back_label_size">13sp</dimen>
+    <dimen name="player_title_size">18sp</dimen>
+    <dimen name="player_pill_text_size">11sp</dimen>
+    <dimen name="player_subtitle_size">13sp</dimen>
+    <dimen name="player_clock_size">13sp</dimen>
+    <dimen name="player_poster_title_size">9sp</dimen>
+    <dimen name="player_poster_sub_size">9sp</dimen>
+    <dimen name="player_status_size">11sp</dimen>
+    <dimen name="player_timestamp_size">12sp</dimen>
+    <dimen name="player_btn_label_size">9sp</dimen>
+    <dimen name="player_btn_label_max_width">64dp</dimen>
+    <dimen name="player_hint_size">10sp</dimen>
 </resources>

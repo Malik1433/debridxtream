@@ -1,9 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  VOD Player redesign (VOD Player.dc.html). Clean cinematic glass controller.
-  Device is 320dpi (2x) -> design px HALVED to dp. Icon-only buttons for a clean, uncluttered row.
-  All existing R.id.* preserved; adds btn_prev_episode + btn_episodes.
-  NOTE: exo_rew/exo_ffwd must stay ImageButton (media3 casts them to ImageView).
+  VOD Player (VOD Player.dc.html, polish pass 2026-09-20). Cinematic glass controller.
+  Device is 320dpi (2x) -> every design px is HALVED to dp. Type is the 10-foot px÷2 scale
+  (5-9sp), the phone reads the same ids with its own dimens (player_ctrl_* in values/).
+  All existing R.id.* preserved. New: the episode pill, the status row ("NOW PLAYING" +
+  time remaining), the poster caption, the mono label under every control, the D-pad hint
+  row (TV only, see player_show_dpad_hints). Labelled buttons sit in a tag="labelled"
+  wrapper so their visibility toggles hide the label with them (PlayerTransportButtons).
+  NOTE: exo_rew/exo_ffwd/exo_play/exo_pause must stay ImageButton (media3 casts them).
 -->
 <androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
@@ -21,67 +25,111 @@
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:gravity="center_vertical"
-        android:paddingStart="30dp"
-        android:paddingEnd="30dp"
-        android:paddingTop="20dp"
+        android:paddingStart="28dp"
+        android:paddingEnd="28dp"
+        android:paddingTop="18dp"
         android:paddingBottom="10dp"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
 
-        <ImageView
-            android:layout_width="10dp"
-            android:layout_height="10dp"
-            android:layout_marginEnd="10dp"
-            android:src="@drawable/ic_stremio_chevron_left"
-            android:tint="@color/stremio_text_muted"
-            android:contentDescription="@null" />
+        <!-- back pill (visual: BACK is a key on the remote) -->
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="24dp"
+            android:layout_marginEnd="12dp"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:paddingStart="10dp"
+            android:paddingEnd="10dp"
+            android:background="@drawable/bg_vodp_back_pill">
+            <ImageView
+                android:layout_width="9dp"
+                android:layout_height="9dp"
+                android:layout_marginEnd="5dp"
+                android:src="@drawable/ic_stremio_chevron_left"
+                app:tint="@color/stremio_text_secondary"
+                android:contentDescription="@null" />
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFamily="sans-serif-medium"
+                android:text="@string/live_nav_back"
+                android:textColor="@color/stremio_text_secondary"
+                android:textSize="@dimen/player_back_label_size" />
+        </LinearLayout>
 
+        <!-- title block -->
         <LinearLayout
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:orientation="vertical">
-            <TextView
-                android:id="@+id/tv_player_title"
-                android:layout_width="wrap_content"
+            <LinearLayout
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:ellipsize="end"
-                android:maxLines="1"
-                android:fontFamily="sans-serif-medium"
-                android:textStyle="bold"
-                android:textColor="@color/stremio_text_primary"
-                android:textSize="13sp"
-                tools:text="Kara" />
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
+                <TextView
+                    android:id="@+id/tv_player_title"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="0"
+                    android:ellipsize="end"
+                    android:maxLines="1"
+                    android:fontFamily="sans-serif-medium"
+                    android:textStyle="bold"
+                    android:textColor="@color/stremio_text_primary"
+                    android:textSize="@dimen/player_title_size"
+                    android:letterSpacing="-0.01"
+                    tools:text="Nexus Prime" />
+                <TextView
+                    android:id="@+id/tv_player_episode_pill"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="7dp"
+                    android:background="@drawable/bg_vodp_episode_pill"
+                    android:fontFamily="monospace"
+                    android:paddingStart="5dp"
+                    android:paddingEnd="5dp"
+                    android:paddingTop="1.5dp"
+                    android:paddingBottom="1.5dp"
+                    android:textColor="@color/neon_cyan"
+                    android:textSize="@dimen/player_pill_text_size"
+                    android:visibility="gone"
+                    tools:text="S02 E04"
+                    tools:visibility="visible" />
+            </LinearLayout>
             <TextView
                 android:id="@+id/tv_player_subtitle"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="1dp"
+                android:layout_marginTop="2dp"
                 android:ellipsize="end"
                 android:maxLines="1"
                 android:fontFamily="sans-serif"
                 android:textColor="@color/stremio_text_muted"
-                android:textSize="9sp"
-                tools:text="Movie" />
+                android:textSize="@dimen/player_subtitle_size"
+                tools:text="Breaking Point" />
         </LinearLayout>
 
         <TextView
             android:id="@+id/tv_player_quality"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginEnd="10dp"
+            android:layout_marginEnd="8dp"
             android:background="@drawable/bg_vodp_quality_pill"
             android:fontFamily="monospace"
             android:textStyle="bold"
-            android:paddingStart="7dp"
-            android:paddingEnd="7dp"
+            android:paddingStart="6dp"
+            android:paddingEnd="6dp"
             android:paddingTop="2dp"
             android:paddingBottom="2dp"
+            android:letterSpacing="0.04"
             android:textColor="#041014"
-            android:textSize="8sp"
+            android:textSize="@dimen/player_pill_text_size"
             android:visibility="gone"
-            tools:text="1080p"
+            tools:text="4K UHD HDR"
             tools:visibility="visible" />
 
         <TextClock
@@ -91,9 +139,9 @@
             android:format12Hour="h:mm a"
             android:format24Hour="HH:mm"
             android:fontFamily="monospace"
-            android:textColor="@color/stremio_text_muted"
-            android:textSize="9sp"
-            android:letterSpacing="0.04"
+            android:textColor="@color/stremio_text_secondary"
+            android:textSize="@dimen/player_clock_size"
+            android:letterSpacing="0.06"
             tools:text="11:34 PM" />
 
     </LinearLayout>
@@ -106,18 +154,19 @@
         android:background="@drawable/bg_player_bottom_gradient"
         android:clipChildren="false"
         android:clipToPadding="false"
-        android:paddingStart="30dp"
+        android:paddingStart="28dp"
         android:paddingTop="12dp"
-        android:paddingEnd="30dp"
-        android:paddingBottom="22dp"
+        android:paddingEnd="28dp"
+        android:paddingBottom="20dp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
 
+        <!-- poster with caption -->
         <androidx.cardview.widget.CardView
             android:id="@+id/cv_player_poster"
-            android:layout_width="56dp"
-            android:layout_height="80dp"
+            android:layout_width="58dp"
+            android:layout_height="83dp"
             app:cardCornerRadius="7dp"
             app:cardElevation="0dp"
             app:cardBackgroundColor="#12202A"
@@ -134,6 +183,38 @@
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
                 android:background="@drawable/bg_vodp_poster" />
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_gravity="bottom"
+                android:orientation="vertical"
+                android:paddingStart="5dp"
+                android:paddingEnd="5dp"
+                android:paddingBottom="6dp">
+                <TextView
+                    android:id="@+id/tv_poster_title"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:ellipsize="end"
+                    android:maxLines="2"
+                    android:fontFamily="sans-serif-medium"
+                    android:textStyle="bold"
+                    android:textColor="@color/stremio_text_primary"
+                    android:textSize="@dimen/player_poster_title_size"
+                    android:lineSpacingMultiplier="1.1"
+                    tools:text="Nexus Prime" />
+                <TextView
+                    android:id="@+id/tv_poster_sub"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="2dp"
+                    android:maxLines="1"
+                    android:fontFamily="monospace"
+                    android:textColor="@color/neon_cyan"
+                    android:textSize="@dimen/player_poster_sub_size"
+                    android:letterSpacing="0.06"
+                    tools:text="S02 E04" />
+            </LinearLayout>
         </androidx.cardview.widget.CardView>
 
         <LinearLayout
@@ -141,18 +222,54 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:layout_marginStart="16dp"
+            android:layout_marginStart="13dp"
             android:clipChildren="false"
             android:clipToPadding="false"
             app:layout_constraintStart_toEndOf="@id/cv_player_poster"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintBottom_toBottomOf="parent">
 
-            <!-- seek bar -->
-            <!-- Custom design seek bar (visual) + transparent media3 TimeBar (scrub/focus). -->
+            <!-- status row: accent + NOW PLAYING / PAUSED ... time remaining -->
+            <LinearLayout
+                android:id="@+id/layout_status_row"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginBottom="6dp">
+                <View
+                    android:layout_width="1.5dp"
+                    android:layout_height="8dp"
+                    android:layout_marginEnd="6dp"
+                    android:background="@drawable/bg_vodp_status_accent" />
+                <TextView
+                    android:id="@+id/tv_player_status"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:fontFamily="monospace"
+                    android:textColor="@color/neon_cyan"
+                    android:textSize="@dimen/player_status_size"
+                    android:letterSpacing="0.12"
+                    android:text="@string/ui_now_playing_2" />
+                <TextView
+                    android:id="@+id/tv_player_remaining"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="monospace"
+                    android:textColor="@color/stremio_text_faint"
+                    android:textSize="@dimen/player_status_size"
+                    android:letterSpacing="0.06"
+                    tools:text="13:22 remaining" />
+            </LinearLayout>
+
+            <!-- seek bar: custom tick track (visual) + transparent media3 TimeBar (scrub/focus).
+                 clipChildren off so the overlay can draw the scrub-time bubble above itself. -->
             <FrameLayout
                 android:layout_width="match_parent"
-                android:layout_height="@dimen/player_seek_row_height">
+                android:layout_height="@dimen/player_seek_row_height"
+                android:clipChildren="false"
+                android:clipToPadding="false">
 
                 <com.tvonnet.debridxtreamiptv.player.stabilized.VodSeekOverlay
                     android:id="@+id/vod_seek_overlay"
@@ -181,8 +298,8 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
-                android:layout_marginTop="3dp"
-                android:layout_marginBottom="14dp">
+                android:layout_marginTop="2dp"
+                android:layout_marginBottom="10dp">
                 <TextView
                     android:id="@+id/exo_position"
                     android:layout_width="0dp"
@@ -190,7 +307,7 @@
                     android:layout_weight="1"
                     android:fontFamily="monospace"
                     android:textColor="@color/live_osd_text_soft"
-                    android:textSize="8sp"
+                    android:textSize="@dimen/player_timestamp_size"
                     android:letterSpacing="0.04"
                     tools:text="24:17" />
                 <TextView
@@ -199,70 +316,83 @@
                     android:layout_height="wrap_content"
                     android:fontFamily="monospace"
                     android:textColor="@color/stremio_text_faint"
-                    android:textSize="8sp"
+                    android:textSize="@dimen/player_timestamp_size"
                     android:letterSpacing="0.04"
                     tools:text="1:32:08" />
             </LinearLayout>
 
             <!-- glass control card -->
             <LinearLayout
+                android:id="@+id/layout_control_card"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:background="@drawable/bg_vodp_glass_card"
+                android:paddingStart="11dp"
+                android:paddingEnd="11dp"
+                android:paddingTop="9dp"
+                android:paddingBottom="7dp"
+                android:clipChildren="false"
+                android:clipToPadding="false">
+
+            <LinearLayout
                 android:id="@+id/layout_control_row"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
                 android:gravity="center_vertical"
-                android:background="@drawable/bg_vodp_glass_card"
-                android:paddingStart="14dp"
-                android:paddingEnd="14dp"
-                android:paddingTop="10dp"
-                android:paddingBottom="10dp"
                 android:clipChildren="false"
                 android:clipToPadding="false">
 
                 <!-- back 10s (media3-managed: ImageButton) -->
-                <ImageButton
-                    android:id="@+id/exo_rew"
-                    android:layout_width="@dimen/player_ctrl_btn_size"
-                    android:layout_height="@dimen/player_ctrl_btn_size"
-                    android:background="@drawable/bg_player_ref_button"
-                    android:padding="11dp"
-                    android:scaleType="fitCenter"
-                    android:src="@drawable/ic_rewind"
-                    android:focusable="true"
-                    android:nextFocusUp="@id/exo_progress"
-                    app:tint="@color/live_osd_text_soft"
-                    android:contentDescription="@string/a11y_rewind" />
+                <LinearLayout style="@style/VodPlayerLabelledButton">
+                    <ImageButton
+                        android:id="@+id/exo_rew"
+                        android:layout_width="@dimen/player_ctrl_btn_size"
+                        android:layout_height="@dimen/player_ctrl_btn_size"
+                        android:background="@drawable/bg_player_ref_button"
+                        android:padding="11dp"
+                        android:scaleType="fitCenter"
+                        android:src="@drawable/ic_rewind"
+                        android:focusable="true"
+                        android:nextFocusUp="@id/exo_progress"
+                        app:tint="@color/live_osd_text_soft"
+                        android:contentDescription="@string/a11y_rewind" />
+                    <TextView style="@style/VodPlayerButtonLabel" android:text="@string/ui_seek_back_10" />
+                </LinearLayout>
 
                 <!-- prev episode (series only) -->
-                <ImageButton
-                    android:id="@+id/btn_prev_episode"
-                    android:layout_width="@dimen/player_ctrl_btn_size"
-                    android:layout_height="@dimen/player_ctrl_btn_size"
-                    android:layout_marginStart="6dp"
-                    android:background="@drawable/bg_player_ref_button"
-                    android:padding="11dp"
-                    android:scaleType="fitCenter"
-                    android:src="@drawable/ic_skip_previous"
-                    android:focusable="true"
-                    android:visibility="gone"
-                    android:nextFocusUp="@id/exo_progress"
-                    app:tint="@color/live_osd_text_soft"
-                    android:contentDescription="@string/a11y_prev_episode" />
+                <LinearLayout style="@style/VodPlayerLabelledButton" android:layout_marginStart="4dp" android:tag="labelled">
+                    <ImageButton
+                        android:id="@+id/btn_prev_episode"
+                        android:layout_width="@dimen/player_ctrl_btn_size"
+                        android:layout_height="@dimen/player_ctrl_btn_size"
+                        android:background="@drawable/bg_player_ref_button"
+                        android:padding="11dp"
+                        android:scaleType="fitCenter"
+                        android:src="@drawable/ic_skip_previous"
+                        android:focusable="true"
+                        android:visibility="gone"
+                        android:nextFocusUp="@id/exo_progress"
+                        app:tint="@color/live_osd_text_soft"
+                        android:contentDescription="@string/a11y_prev_episode" />
+                    <TextView style="@style/VodPlayerButtonLabel" android:text="@string/ui_prev_ep" />
+                </LinearLayout>
 
                 <!-- play / pause (big circle) -->
                 <FrameLayout
                     android:id="@+id/layout_play_pause"
-                    android:layout_width="52dp"
-                    android:layout_height="52dp"
-                    android:layout_marginStart="6dp"
-                    android:layout_marginEnd="6dp"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:layout_marginStart="7dp"
+                    android:layout_marginEnd="7dp"
                     android:focusable="false">
                     <ImageButton
                         android:id="@+id/exo_play"
                         android:layout_width="match_parent"
                         android:layout_height="match_parent"
                         android:background="@drawable/bg_player_play_circle"
-                        android:padding="16dp"
+                        android:padding="15dp"
                         android:scaleType="fitCenter"
                         android:src="@drawable/ic_play_arrow_24"
                         android:focusable="true"
@@ -274,7 +404,7 @@
                         android:layout_width="match_parent"
                         android:layout_height="match_parent"
                         android:background="@drawable/bg_player_play_circle"
-                        android:padding="16dp"
+                        android:padding="15dp"
                         android:scaleType="fitCenter"
                         android:src="@drawable/ic_pause"
                         android:focusable="true"
@@ -285,66 +415,75 @@
                 </FrameLayout>
 
                 <!-- next episode (series only) -->
-                <ImageButton
-                    android:id="@+id/btn_next_episode"
-                    android:layout_width="@dimen/player_ctrl_btn_size"
-                    android:layout_height="@dimen/player_ctrl_btn_size"
-                    android:background="@drawable/bg_player_ref_button"
-                    android:padding="11dp"
-                    android:scaleType="fitCenter"
-                    android:src="@drawable/ic_skip_next"
-                    android:focusable="true"
-                    android:visibility="gone"
-                    android:nextFocusUp="@id/exo_progress"
-                    app:tint="@color/live_osd_text_soft"
-                    android:contentDescription="@string/a11y_next_episode" />
+                <LinearLayout style="@style/VodPlayerLabelledButton" android:tag="labelled">
+                    <ImageButton
+                        android:id="@+id/btn_next_episode"
+                        android:layout_width="@dimen/player_ctrl_btn_size"
+                        android:layout_height="@dimen/player_ctrl_btn_size"
+                        android:background="@drawable/bg_player_ref_button"
+                        android:padding="11dp"
+                        android:scaleType="fitCenter"
+                        android:src="@drawable/ic_skip_next"
+                        android:focusable="true"
+                        android:visibility="gone"
+                        android:nextFocusUp="@id/exo_progress"
+                        app:tint="@color/live_osd_text_soft"
+                        android:contentDescription="@string/a11y_next_episode" />
+                    <TextView style="@style/VodPlayerButtonLabel" android:text="@string/ui_next_ep" />
+                </LinearLayout>
 
                 <!-- fwd 10s (media3-managed: ImageButton) -->
-                <ImageButton
-                    android:id="@+id/exo_ffwd"
-                    android:layout_width="@dimen/player_ctrl_btn_size"
-                    android:layout_height="@dimen/player_ctrl_btn_size"
-                    android:layout_marginStart="6dp"
-                    android:background="@drawable/bg_player_ref_button"
-                    android:padding="11dp"
-                    android:scaleType="fitCenter"
-                    android:src="@drawable/ic_forward"
-                    android:focusable="true"
-                    android:nextFocusUp="@id/exo_progress"
-                    app:tint="@color/live_osd_text_soft"
-                    android:contentDescription="@string/a11y_ffwd" />
+                <LinearLayout style="@style/VodPlayerLabelledButton" android:layout_marginStart="4dp">
+                    <ImageButton
+                        android:id="@+id/exo_ffwd"
+                        android:layout_width="@dimen/player_ctrl_btn_size"
+                        android:layout_height="@dimen/player_ctrl_btn_size"
+                        android:background="@drawable/bg_player_ref_button"
+                        android:padding="11dp"
+                        android:scaleType="fitCenter"
+                        android:src="@drawable/ic_forward"
+                        android:focusable="true"
+                        android:nextFocusUp="@id/exo_progress"
+                        app:tint="@color/live_osd_text_soft"
+                        android:contentDescription="@string/a11y_ffwd" />
+                    <TextView style="@style/VodPlayerButtonLabel" android:text="@string/ui_seek_fwd_10" />
+                </LinearLayout>
 
                 <!-- episodes list (series only) -->
-                <ImageButton
-                    android:id="@+id/btn_episodes"
-                    android:layout_width="@dimen/player_ctrl_btn_size"
-                    android:layout_height="@dimen/player_ctrl_btn_size"
-                    android:layout_marginStart="6dp"
-                    android:background="@drawable/bg_player_ref_button"
-                    android:padding="12dp"
-                    android:scaleType="fitCenter"
-                    android:src="@drawable/ic_player_episodes"
-                    android:focusable="true"
-                    android:visibility="gone"
-                    android:nextFocusUp="@id/exo_progress"
-                    app:tint="@color/stremio_text_secondary"
-                    android:contentDescription="@string/a11y_episodes" />
+                <LinearLayout style="@style/VodPlayerLabelledButton" android:layout_marginStart="6dp" android:tag="labelled">
+                    <ImageButton
+                        android:id="@+id/btn_episodes"
+                        android:layout_width="@dimen/player_ctrl_btn_size"
+                        android:layout_height="@dimen/player_ctrl_btn_size"
+                        android:background="@drawable/bg_player_ref_button"
+                        android:padding="12dp"
+                        android:scaleType="fitCenter"
+                        android:src="@drawable/ic_player_episodes"
+                        android:focusable="true"
+                        android:visibility="gone"
+                        android:nextFocusUp="@id/exo_progress"
+                        app:tint="@color/stremio_text_secondary"
+                        android:contentDescription="@string/a11y_episodes" />
+                    <TextView style="@style/VodPlayerButtonLabel" android:text="@string/ui_episodes" />
+                </LinearLayout>
 
                 <!-- sources / language switch (movies only): re-pick a source mid-playback -->
-                <ImageButton
-                    android:id="@+id/btn_player_sources"
-                    android:layout_width="@dimen/player_ctrl_btn_size"
-                    android:layout_height="@dimen/player_ctrl_btn_size"
-                    android:layout_marginStart="6dp"
-                    android:background="@drawable/bg_player_ref_button"
-                    android:padding="10dp"
-                    android:scaleType="fitCenter"
-                    android:src="@drawable/ic_player_sources"
-                    android:focusable="true"
-                    android:visibility="gone"
-                    android:nextFocusUp="@id/exo_progress"
-                    app:tint="@color/stremio_text_secondary"
-                    android:contentDescription="@string/a11y_sources" />
+                <LinearLayout style="@style/VodPlayerLabelledButton" android:layout_marginStart="6dp" android:tag="labelled">
+                    <ImageButton
+                        android:id="@+id/btn_player_sources"
+                        android:layout_width="@dimen/player_ctrl_btn_size"
+                        android:layout_height="@dimen/player_ctrl_btn_size"
+                        android:background="@drawable/bg_player_ref_button"
+                        android:padding="10dp"
+                        android:scaleType="fitCenter"
+                        android:src="@drawable/ic_player_sources"
+                        android:focusable="true"
+                        android:visibility="gone"
+                        android:nextFocusUp="@id/exo_progress"
+                        app:tint="@color/stremio_text_secondary"
+                        android:contentDescription="@string/a11y_sources" />
+                    <TextView style="@style/VodPlayerButtonLabel" android:text="@string/ui_sources" />
+                </LinearLayout>
 
                 <View
                     android:layout_width="0dp"
@@ -361,57 +500,86 @@
                     android:clipChildren="false"
                     android:clipToPadding="false">
 
-                    <ImageButton
-                        android:id="@+id/btn_player_audio"
-                        android:layout_width="@dimen/player_ctrl_btn_size"
-                        android:layout_height="@dimen/player_ctrl_btn_size"
-                        android:background="@drawable/bg_player_ref_button"
-                        android:padding="11dp"
-                        android:scaleType="fitCenter"
-                        android:src="@drawable/ic_player_audio_waveform"
-                        android:focusable="true"
-                        android:nextFocusUp="@id/exo_progress"
-                        app:tint="@color/stremio_text_secondary"
-                        android:contentDescription="@string/a11y_audio_tracks" />
+                    <LinearLayout style="@style/VodPlayerLabelledButton">
+                        <ImageButton
+                            android:id="@+id/btn_player_audio"
+                            android:layout_width="@dimen/player_ctrl_btn_size"
+                            android:layout_height="@dimen/player_ctrl_btn_size"
+                            android:background="@drawable/bg_player_ref_button"
+                            android:padding="11dp"
+                            android:scaleType="fitCenter"
+                            android:src="@drawable/ic_player_audio_waveform"
+                            android:focusable="true"
+                            android:nextFocusUp="@id/exo_progress"
+                            app:tint="@color/stremio_text_secondary"
+                            android:contentDescription="@string/a11y_audio_tracks" />
+                        <TextView
+                            android:id="@+id/tv_audio_label"
+                            style="@style/VodPlayerButtonLabel"
+                            android:text="@string/ui_audio" />
+                    </LinearLayout>
 
-                    <ImageButton
-                        android:id="@+id/btn_player_subtitles"
-                        android:layout_width="@dimen/player_ctrl_btn_size"
-                        android:layout_height="@dimen/player_ctrl_btn_size"
-                        android:layout_marginStart="6dp"
-                        android:background="@drawable/bg_player_ref_button"
-                        android:padding="11dp"
-                        android:scaleType="fitCenter"
-                        android:src="@drawable/ic_player_subtitles"
-                        android:focusable="true"
-                        android:nextFocusUp="@id/exo_progress"
-                        app:tint="@color/stremio_text_secondary"
-                        android:contentDescription="@string/a11y_subtitles" />
+                    <LinearLayout style="@style/VodPlayerLabelledButton" android:layout_marginStart="4dp">
+                        <ImageButton
+                            android:id="@+id/btn_player_subtitles"
+                            android:layout_width="@dimen/player_ctrl_btn_size"
+                            android:layout_height="@dimen/player_ctrl_btn_size"
+                            android:background="@drawable/bg_player_ref_button"
+                            android:padding="11dp"
+                            android:scaleType="fitCenter"
+                            android:src="@drawable/ic_player_subtitles"
+                            android:focusable="true"
+                            android:nextFocusUp="@id/exo_progress"
+                            app:tint="@color/stremio_text_secondary"
+                            android:contentDescription="@string/a11y_subtitles" />
+                        <TextView
+                            android:id="@+id/tv_subs_label"
+                            style="@style/VodPlayerButtonLabel"
+                            android:text="@string/ui_subs" />
+                    </LinearLayout>
 
-                    <ImageButton
-                        android:id="@+id/btn_aspect_ratio"
-                        android:layout_width="@dimen/player_ctrl_btn_size"
-                        android:layout_height="@dimen/player_ctrl_btn_size"
-                        android:layout_marginStart="6dp"
-                        android:background="@drawable/bg_player_ref_button"
-                        android:padding="12dp"
-                        android:scaleType="fitCenter"
-                        android:src="@drawable/ic_aspect_ratio"
-                        android:focusable="true"
-                        android:nextFocusUp="@id/exo_progress"
-                        app:tint="@color/stremio_text_secondary"
-                        android:contentDescription="@string/a11y_aspect" />
-
-                    <!-- retained for Activity compatibility (aspect label updates no-op if absent) -->
-                    <TextView
-                        android:id="@+id/tv_aspect_label"
-                        android:layout_width="0dp"
-                        android:layout_height="0dp"
-                        android:visibility="gone" />
+                    <LinearLayout style="@style/VodPlayerLabelledButton" android:layout_marginStart="4dp">
+                        <ImageButton
+                            android:id="@+id/btn_aspect_ratio"
+                            android:layout_width="@dimen/player_ctrl_btn_size"
+                            android:layout_height="@dimen/player_ctrl_btn_size"
+                            android:background="@drawable/bg_player_ref_button"
+                            android:padding="12dp"
+                            android:scaleType="fitCenter"
+                            android:src="@drawable/ic_aspect_ratio"
+                            android:focusable="true"
+                            android:nextFocusUp="@id/exo_progress"
+                            app:tint="@color/stremio_text_secondary"
+                            android:contentDescription="@string/a11y_aspect" />
+                        <TextView
+                            android:id="@+id/tv_aspect_label"
+                            style="@style/VodPlayerButtonLabel"
+                            android:text="@string/ui_aspect_fit" />
+                    </LinearLayout>
 
                 </LinearLayout>
 
             </LinearLayout>
+
+            <!-- d-pad hint (TV only: a legend is a 10-foot idiom, banned on the phone) -->
+            <LinearLayout
+                android:id="@+id/layout_dpad_hint"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="7dp"
+                android:orientation="horizontal"
+                android:gravity="center"
+                android:visibility="@integer/player_dpad_hint_visibility">
+                <TextView style="@style/VodPlayerHint" android:text="@string/ui_hint_seek_10" />
+                <TextView style="@style/VodPlayerHintSep" />
+                <TextView style="@style/VodPlayerHint" android:text="@string/ui_hint_seek_bar" />
+                <TextView style="@style/VodPlayerHintSep" />
+                <TextView style="@style/VodPlayerHint" android:text="@string/ui_hint_ok_play_pause" />
+                <TextView style="@style/VodPlayerHintSep" />
+                <TextView style="@style/VodPlayerHint" android:text="@string/ui_hint_back_exit" />
+            </LinearLayout>
+
+            </LinearLayout><!-- /glass card -->
 
         </LinearLayout>
 

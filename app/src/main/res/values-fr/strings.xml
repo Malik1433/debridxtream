@@ -998,4 +998,24 @@
         <item quantity="one">%1$d FLUX</item>
         <item quantity="other">%1$d FLUX</item>
     </plurals>
+    <!-- VOD Player controller polish (2026-09-20) -->
+    <string name="ui_seek_back_10">−10s</string>
+    <string name="ui_seek_fwd_10">+10s</string>
+    <string name="ui_prev_ep">ÉP PRÉC.</string>
+    <string name="ui_next_ep">ÉP SUIV.</string>
+    <string name="ui_sources">SOURCES</string>
+    <string name="ui_audio">AUDIO</string>
+    <string name="ui_subs">SOUS-T.</string>
+    <string name="ui_aspect_fit">AJUSTER</string>
+    <string name="ui_aspect_fill">REMPLIR</string>
+    <string name="ui_aspect_zoom">ZOOM</string>
+    <string name="ui_aspect_fixed_width">LARGEUR</string>
+    <string name="ui_aspect_fixed_height">HAUTEUR</string>
+    <string name="ui_hint_seek_10">◀▶ AVANCER ±10s</string>
+    <string name="ui_hint_seek_bar">▲ BARRE</string>
+    <string name="ui_hint_ok_play_pause">OK LECTURE/PAUSE</string>
+    <string name="ui_hint_back_exit">RETOUR QUITTER</string>
+    <string name="c_status_paused">EN PAUSE</string>
+    <string name="f_time_remaining">%1$s restantes</string>
+    <string name="c_subs_off">NON</string>
 </resources>

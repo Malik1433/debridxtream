@@ -18,4 +18,17 @@
     <!-- Two lines at the autosize maximum, plus room for descenders. Definite, because
          autosize and wrap_content together clip the last line. -->
     <dimen name="loader_title_height">140dp</dimen>
+    <!-- VOD controller type, design px ÷ 2 (polish 2026-09-20). -->
+    <dimen name="player_back_label_size">7.5sp</dimen>
+    <dimen name="player_title_size">11sp</dimen>
+    <dimen name="player_pill_text_size">6sp</dimen>
+    <dimen name="player_subtitle_size">7.5sp</dimen>
+    <dimen name="player_clock_size">8sp</dimen>
+    <dimen name="player_poster_title_size">6sp</dimen>
+    <dimen name="player_poster_sub_size">5sp</dimen>
+    <dimen name="player_status_size">6.5sp</dimen>
+    <dimen name="player_timestamp_size">7sp</dimen>
+    <dimen name="player_btn_label_size">5sp</dimen>
+    <dimen name="player_btn_label_max_width">44dp</dimen>
+    <dimen name="player_hint_size">5.5sp</dimen>
 </resources>

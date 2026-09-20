@@ -72,13 +72,13 @@ internal class PlayerTrackSelectionUi(
 
     private fun updateAspectLabel(mode: Int) {
         val label = when (mode) {
-            androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FILL -> "FILL"
-            androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_ZOOM -> "ZOOM"
-            androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FIXED_WIDTH -> "W·FIT"
-            androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FIXED_HEIGHT -> "H·FIT"
-            else -> "FIT"
+            androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FILL -> R.string.ui_aspect_fill
+            androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_ZOOM -> R.string.ui_aspect_zoom
+            androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FIXED_WIDTH -> R.string.ui_aspect_fixed_width
+            androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FIXED_HEIGHT -> R.string.ui_aspect_fixed_height
+            else -> R.string.ui_aspect_fit
         }
-        playerView.findViewById<TextView>(R.id.tv_aspect_label)?.text = label
+        playerView.findViewById<TextView>(R.id.tv_aspect_label)?.setText(label)
     }
 
     fun cycleResizeMode() {

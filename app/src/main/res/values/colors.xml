@@ -378,5 +378,13 @@
     <color name="vodp_quality_grad_start">#A06000</color>
     <color name="vodp_quality_grad_end">#FFAA00</color>
     <color name="vodp_tab_rest_bg">#0DFFFFFF</color>
+    <!-- VOD Player polish 2026-09-20 -->
+    <color name="vodp_back_pill_bg">#990C111B</color>      <!-- rgba(12,17,27,0.6) -->
+    <color name="vodp_back_pill_stroke">#1AFFFFFF</color>  <!-- rgba(255,255,255,0.10) -->
+    <color name="vodp_episode_pill_bg">#1A00F0FF</color>   <!-- rgba(0,240,255,0.10) -->
+    <color name="vodp_episode_pill_stroke">#4000F0FF</color> <!-- rgba(0,240,255,0.25) -->
+    <color name="vodp_hint">#334155</color>
+    <color name="vodp_hint_sep">#1E293B</color>
+    <color name="vodp_seek_bubble_bg">#F0060912</color>
+    <color name="vodp_seek_bubble_stroke">#7300F0FF</color> <!-- rgba(0,240,255,0.45) -->
 </resources>
-

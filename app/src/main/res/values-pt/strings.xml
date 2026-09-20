@@ -998,4 +998,24 @@
         <item quantity="one">%1$d STREAM</item>
         <item quantity="other">%1$d STREAMS</item>
     </plurals>
+    <!-- VOD Player controller polish (2026-09-20) -->
+    <string name="ui_seek_back_10">−10s</string>
+    <string name="ui_seek_fwd_10">+10s</string>
+    <string name="ui_prev_ep">EP ANT.</string>
+    <string name="ui_next_ep">EP SEG.</string>
+    <string name="ui_sources">FONTES</string>
+    <string name="ui_audio">ÁUDIO</string>
+    <string name="ui_subs">LEGENDAS</string>
+    <string name="ui_aspect_fit">AJUSTAR</string>
+    <string name="ui_aspect_fill">PREENCHER</string>
+    <string name="ui_aspect_zoom">ZOOM</string>
+    <string name="ui_aspect_fixed_width">LARGURA</string>
+    <string name="ui_aspect_fixed_height">ALTURA</string>
+    <string name="ui_hint_seek_10">◀▶ SALTAR ±10s</string>
+    <string name="ui_hint_seek_bar">▲ BARRA</string>
+    <string name="ui_hint_ok_play_pause">OK PLAY/PAUSA</string>
+    <string name="ui_hint_back_exit">VOLTAR SAIR</string>
+    <string name="c_status_paused">EM PAUSA</string>
+    <string name="f_time_remaining">faltam %1$s</string>
+    <string name="c_subs_off">NÃO</string>
 </resources>

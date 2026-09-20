@@ -29,4 +29,6 @@
     <!-- The television keeps its vertical rail beside the detail panel; see values/ for why the
          phone differs. -->
     <bool name="settings_categories_are_horizontal">false</bool>
+    <!-- The VOD controller's D-pad legend is on for the television (View.VISIBLE). -->
+    <integer name="player_dpad_hint_visibility">0</integer>
 </resources>

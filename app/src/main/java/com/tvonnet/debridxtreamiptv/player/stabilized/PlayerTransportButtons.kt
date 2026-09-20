@@ -55,9 +55,9 @@ internal class PlayerTransportButtons(
         val btnNext = playerView.findViewById<View>(R.id.btn_next_episode)
         val btnPrev = playerView.findViewById<View>(R.id.btn_prev_episode)
         val btnEpisodes = playerView.findViewById<View>(R.id.btn_episodes)
-        btnNext?.isVisible = isSeriesControls
-        btnPrev?.isVisible = isSeriesControls
-        btnEpisodes?.isVisible = isSeriesControls
+        btnNext?.setLabelledVisible(isSeriesControls)
+        btnPrev?.setLabelledVisible(isSeriesControls)
+        btnEpisodes?.setLabelledVisible(isSeriesControls)
         if (isSeriesControls) {
             btnNext?.setOnClickListener { actions.onNextEpisode() }
             btnPrev?.setOnClickListener { actions.onPreviousEpisode() }
@@ -70,7 +70,7 @@ internal class PlayerTransportButtons(
         // Movies: an in-player "Sources" button to switch source/language mid-playback
         // (e.g. Hindi -> German) without going back to the detail screen.
         val btnSources = playerView.findViewById<View>(R.id.btn_player_sources)
-        btnSources?.isVisible = isMovie
+        btnSources?.setLabelledVisible(isMovie)
         if (isMovie) {
             btnSources?.setOnClickListener {
                 playerView.hideController()
@@ -107,4 +107,13 @@ internal class PlayerTransportButtons(
             updateVolumeIcon(target, maxVolume, btnVolume)
         }
     }
+}
+
+/**
+ * A control that carries a caption sits in a tag="labelled" wrapper (custom_player_control_view);
+ * toggling only the ImageButton would leave its caption standing alone.
+ */
+private fun View.setLabelledVisible(visible: Boolean) {
+    isVisible = visible
+    (parent as? View)?.takeIf { it.tag == "labelled" }?.isVisible = visible
 }

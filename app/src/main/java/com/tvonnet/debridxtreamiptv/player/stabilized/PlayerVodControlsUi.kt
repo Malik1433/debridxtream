@@ -5,8 +5,13 @@ import android.os.Looper
 import android.util.Log
 import android.view.KeyEvent
 import android.view.View
+import android.widget.TextView
 import androidx.core.view.isVisible
+import androidx.media3.common.C
+import androidx.media3.common.Player
 import androidx.media3.exoplayer.SeekParameters
+import androidx.media3.ui.DefaultTrackNameProvider
+import java.util.Locale
 import com.tvonnet.debridxtreamiptv.R
 import com.tvonnet.debridxtreamiptv.data.model.ContentType
 
@@ -54,16 +59,87 @@ internal class PlayerVodControlsUi(
     fun onStop() = seekOverlayHandler.removeCallbacks(seekOverlayRunnable)
 
     private fun updateSeekOverlay() {
-        if (isScrubbing) return
         val p = player ?: return
+        updateStatusChrome(p)
+        if (isScrubbing) return
         val dur = p.duration
         if (dur > 0L) {
             seekOverlay?.setProgress(p.currentPosition.toFloat() / dur)
             seekOverlay?.setBuffered(p.bufferedPosition.toFloat() / dur)
+            seekOverlay?.setBubbleText(formatClock(p.currentPosition))
         } else {
             seekOverlay?.setProgress(0f)
             seekOverlay?.setBuffered(0f)
+            seekOverlay?.setBubbleText(null)
         }
+    }
+
+    // ── status row + control captions (VOD Player.dc.html polish, 2026-09-20) ──
+    // Refreshed on the same 2 Hz tick as the bar; every setter only writes on change so the
+    // TextViews are not re-laid-out twice a second for nothing.
+    private var lastStatus: String? = null
+    private var lastRemaining: String? = null
+    private var lastAudio: String? = null
+    private var lastSubs: String? = null
+
+    private fun updateStatusChrome(p: Player) {
+        val ctx = activity.context ?: return
+        val status = if (p.playWhenReady && p.playbackState != Player.STATE_ENDED) {
+            ctx.getString(R.string.ui_now_playing_2)
+        } else {
+            ctx.getString(R.string.c_status_paused)
+        }
+        if (status != lastStatus) { lastStatus = status; setText(R.id.tv_player_status, status) }
+
+        val dur = p.duration
+        val remaining = if (dur > 0L) {
+            ctx.getString(R.string.f_time_remaining, formatClock((dur - p.currentPosition).coerceAtLeast(0L)))
+        } else {
+            ""
+        }
+        if (remaining != lastRemaining) { lastRemaining = remaining; setText(R.id.tv_player_remaining, remaining) }
+
+        val audio = selectedTrackLabel(p, C.TRACK_TYPE_AUDIO) ?: ctx.getString(R.string.ui_audio)
+        if (audio != lastAudio) { lastAudio = audio; setText(R.id.tv_audio_label, audio) }
+
+        val subs = selectedTrackLabel(p, C.TRACK_TYPE_TEXT)
+        val subsLabel = subs ?: ctx.getString(R.string.c_subs_off)
+        if (subsLabel != lastSubs) {
+            lastSubs = subsLabel
+            playerView.findViewById<TextView>(R.id.tv_subs_label)?.apply {
+                text = subsLabel
+                // The design paints the caption cyan while subtitles are on.
+                setTextColor(ctx.getColor(if (subs != null) R.color.neon_cyan else R.color.stremio_text_faint))
+            }
+        }
+    }
+
+    private fun setText(id: Int, value: String) { playerView.findViewById<TextView>(id)?.text = value }
+
+    /** Upper-cased name of the selected track of [type], or null when none is selected. */
+    private fun selectedTrackLabel(p: Player, type: Int): String? {
+        val ctx = activity.context ?: return null
+        val group = p.currentTracks.groups.firstOrNull { it.type == type && it.isSelected } ?: return null
+        val index = (0 until group.length).firstOrNull { group.isTrackSelected(it) } ?: return null
+        val format = group.getTrackFormat(index)
+        val name = format.language?.takeIf { it.isNotBlank() && it != C.LANGUAGE_UNDETERMINED }
+            ?.let { Locale(it).getDisplayLanguage(Locale.getDefault()) }
+            ?: DefaultTrackNameProvider(ctx.resources).getTrackName(format)
+        return name.uppercase(Locale.getDefault())
+    }
+
+    private fun formatClock(ms: Long): String {
+        val total = ms / 1000
+        val h = total / 3600
+        val m = (total % 3600) / 60
+        val s = total % 60
+        return if (h > 0) String.format(Locale.US, "%d:%02d:%02d", h, m, s) else String.format(Locale.US, "%d:%02d", m, s)
+    }
+
+    /** The status row fades out while the bar is focused — the time bubble takes its place. */
+    private fun setSeekFocusedChrome(focused: Boolean) {
+        seekOverlay?.setFocusedVisual(focused)
+        playerView.findViewById<View>(R.id.layout_status_row)?.animate()?.alpha(if (focused) 0f else 1f)?.setDuration(200)?.start()
     }
 
     fun setupSeekOverlay() {
@@ -79,15 +155,16 @@ internal class PlayerVodControlsUi(
         timeBar?.addListener(object : androidx.media3.ui.TimeBar.OnScrubListener {
             override fun onScrubStart(timeBar: androidx.media3.ui.TimeBar, position: Long) {
                 isScrubbing = true
-                seekOverlay?.setFocusedVisual(true)
+                setSeekFocusedChrome(true)
             }
             override fun onScrubMove(timeBar: androidx.media3.ui.TimeBar, position: Long) {
                 val dur = player?.duration ?: 0L
                 if (dur > 0L) seekOverlay?.setProgress(position.toFloat() / dur)
+                seekOverlay?.setBubbleText(formatClock(position))
             }
             override fun onScrubStop(timeBar: androidx.media3.ui.TimeBar, position: Long, canceled: Boolean) {
                 isScrubbing = false
-                seekOverlay?.setFocusedVisual(false)
+                setSeekFocusedChrome((timeBar as? View)?.isFocused == true)
                 // Show the committed target immediately (media3 masks currentPosition to the
                 // seek target), so the bar lands where the user scrubbed instead of snapping back.
                 val dur = player?.duration ?: 0L
@@ -95,7 +172,7 @@ internal class PlayerVodControlsUi(
                 updateSeekOverlay()
             }
         })
-        timeBar?.setOnFocusChangeListener { _, focused -> seekOverlay?.setFocusedVisual(focused) }
+        timeBar?.setOnFocusChangeListener { _, focused -> setSeekFocusedChrome(focused) }
         seekOverlayHandler.removeCallbacks(seekOverlayRunnable)
         seekOverlayHandler.post(seekOverlayRunnable)
     }

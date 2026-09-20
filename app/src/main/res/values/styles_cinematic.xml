@@ -325,5 +325,40 @@
         <item name="android:textSize">17sp</item>
         <item name="android:fontFamily">@font/outfit_semibold</item>
     </style>
-
+    <!-- VOD Player controller (polish 2026-09-20): icon button + mono caption. -->
+    <style name="VodPlayerLabelledButton">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:orientation">vertical</item>
+        <item name="android:gravity">center_horizontal</item>
+        <item name="android:clipChildren">false</item>
+        <item name="android:clipToPadding">false</item>
+    </style>
+    <style name="VodPlayerButtonLabel">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_marginTop">2.5dp</item>
+        <item name="android:maxWidth">@dimen/player_btn_label_max_width</item>
+        <item name="android:maxLines">1</item>
+        <item name="android:ellipsize">end</item>
+        <item name="android:gravity">center</item>
+        <item name="android:fontFamily">monospace</item>
+        <item name="android:textSize">@dimen/player_btn_label_size</item>
+        <item name="android:textColor">@color/stremio_text_faint</item>
+        <item name="android:letterSpacing">0.08</item>
+    </style>
+    <style name="VodPlayerHint">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:fontFamily">monospace</item>
+        <item name="android:textSize">@dimen/player_hint_size</item>
+        <item name="android:textColor">@color/vodp_hint</item>
+        <item name="android:letterSpacing">0.1</item>
+    </style>
+    <style name="VodPlayerHintSep" parent="VodPlayerHint">
+        <item name="android:layout_marginStart">10dp</item>
+        <item name="android:layout_marginEnd">10dp</item>
+        <item name="android:textColor">@color/vodp_hint_sep</item>
+        <item name="android:text">│</item>
+    </style>
 </resources>

@@ -124,4 +124,8 @@
       411dp screen. The phone's own hero scrolls away with the rows, so it costs nothing to leave.
     -->
     <bool name="debrid_home_shows_hero">true</bool>
+    <!-- The VOD controller's D-pad legend: a 10-foot idiom, so the phone never shows it.
+         android:visibility resolves an integer as the ENUM INDEX (0 visible, 1 invisible,
+         2 gone), not the View constant - 8 crashed the inflate on the phone. -->
+    <integer name="player_dpad_hint_visibility">2</integer>
 </resources>

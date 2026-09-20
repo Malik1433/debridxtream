@@ -497,4 +497,24 @@
         <item quantity="one">%1$d server</item>
         <item quantity="other">%1$d servers</item>
     </plurals>
+    <!-- VOD Player controller polish (2026-09-20) -->
+    <string name="ui_seek_back_10">−10s</string>
+    <string name="ui_seek_fwd_10">+10s</string>
+    <string name="ui_prev_ep">PREV EP</string>
+    <string name="ui_next_ep">NEXT EP</string>
+    <string name="ui_sources">SOURCES</string>
+    <string name="ui_audio">AUDIO</string>
+    <string name="ui_subs">SUBS</string>
+    <string name="ui_aspect_fit">FIT</string>
+    <string name="ui_aspect_fill">FILL</string>
+    <string name="ui_aspect_zoom">ZOOM</string>
+    <string name="ui_aspect_fixed_width">W·FIT</string>
+    <string name="ui_aspect_fixed_height">H·FIT</string>
+    <string name="ui_hint_seek_10">◀▶ SEEK ±10s</string>
+    <string name="ui_hint_seek_bar">▲ SEEK BAR</string>
+    <string name="ui_hint_ok_play_pause">OK PLAY/PAUSE</string>
+    <string name="ui_hint_back_exit">BACK EXIT</string>
+    <string name="c_status_paused">PAUSED</string>
+    <string name="f_time_remaining">%1$s remaining</string>
+    <string name="c_subs_off">OFF</string>
 </resources>
