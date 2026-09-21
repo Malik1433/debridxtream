@@ -59,8 +59,8 @@ android {
         // ANSWERABLE: LicenseManager writes appVersionCode to licenses/{installId} on every
         // launch, so anything still reporting 36 has not taken the account build — which is
         // exactly the question U8b hangs on.
-        versionCode 139
-        versionName "3.3.6"
+        versionCode 140
+        versionName "3.3.7"
         multiDexEnabled true
         multiDexKeepFile file('multidex-keep.txt')
         multiDexKeepProguard file('multidex-keep.pro')
