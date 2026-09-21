@@ -173,9 +173,19 @@ internal class PlayerInputRouter(
     }
 
     // Standard Controller triggers: a trigger key pops the hidden VOD transport controller.
+    //
+    // Uses the tracked [isControllerVisible], NOT `playerView.isControllerFullyVisible` (that
+    // one is documented sometimes-stale at the BACK handler for the same reason it broke D-pad
+    // nav here, device-confirmed 2026-09-20): while genuinely visible with a row button focused,
+    // a stale-false read made EVERY arrow press re-fire [showControllerWithSmartFocus] as if the
+    // controller had just been revealed - for LEFT/RIGHT that yanks focus onto the seek bar and
+    // seeks (so "move right to Next Episode" instead landed on the bar), and for UP/DOWN it
+    // re-centres on play/pause - which is what made the row look "stuck" one button off from
+    // wherever the last hijack had parked it. The tracked flag only flips on a genuine
+    // ControllerVisibilityListener callback, so it can't glitch mid-navigation the same way.
     private fun maybeShowVodController(event: KeyEvent): Boolean {
         val controllerCanAppear = contentType != ContentType.LIVE_TV && playerView.useController
-        if (!controllerCanAppear || activity.isNextEpisodePromptVisible() || playerView.isControllerFullyVisible) {
+        if (!controllerCanAppear || activity.isNextEpisodePromptVisible() || isControllerVisible) {
             return false
         }
         if (!isControllerTriggerKey(event.keyCode)) return false
