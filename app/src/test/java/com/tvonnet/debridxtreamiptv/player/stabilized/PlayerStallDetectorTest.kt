@@ -27,6 +27,28 @@ class PlayerStallDetectorTest {
         assertEquals(0, d.strikeCount)
     }
 
+    /**
+     * A live zap lands on a window whose position is usually BELOW the old channel's; a seek
+     * backwards does the same. Both are the clock moving, not the clock stopping - the old
+     * `>` rule counted a fresh channel as stuck until it climbed past the previous value,
+     * which is how a zap turned into a "stall" verdict ("channel stops", 2026-09-21).
+     */
+    @Test
+    fun `a position that moves backwards is progress too, not a stall`() {
+        val d = PlayerStallDetector()
+        d.reset(5_000_000L, 0L) // the old channel, deep into its live window
+
+        assertEquals(
+            StallVerdict.PROGRESSING,
+            d.onTick(true, positionMs = 12_000L, nowMs = 3_000L, thresholdMs = threshold, requiredStrikes = strikes)
+        )
+        // ...and from there a genuinely stuck clock still strikes on schedule.
+        assertEquals(
+            StallVerdict.WARNING,
+            d.onTick(true, positionMs = 12_000L, nowMs = 3_000L + threshold, thresholdMs = threshold, requiredStrikes = strikes)
+        )
+    }
+
     @Test
     fun `a stuck position only strikes after the threshold elapses`() {
         val d = PlayerStallDetector()

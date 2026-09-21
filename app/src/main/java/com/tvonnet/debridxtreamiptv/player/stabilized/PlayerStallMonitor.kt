@@ -38,7 +38,8 @@ internal class PlayerStallMonitor(
         }
     }
     private val fastWedgeRunnable = Runnable { checkFastWedge() }
-    private var readyBaselinePositionMs = 0L
+    // The playback clock as first seen READY for the CURRENT source; -1 = not sampled yet.
+    private var fastWedgeSampleMs = -1L
 
     private var player: ExoPlayer?
         get() = activity.player
@@ -73,8 +74,11 @@ internal class PlayerStallMonitor(
         // go through BUFFERING, not READY), so the route change doesn't have to wait for
         // the generic 12s+strikes stall verdict. Armed on every start, engaged or not —
         // the escape route can wedge too (2026-09-15), and then the way out is BACK.
+        // The clock is sampled by the check itself once the player is READY - never here:
+        // a live zap calls this BEFORE prepare(), so a baseline read now is the OLD
+        // channel's position, and every zap looked frozen (2026-09-21, "channel stops").
         stallHandler.removeCallbacks(fastWedgeRunnable)
-        readyBaselinePositionMs = player?.currentPosition ?: 0L
+        fastWedgeSampleMs = -1L
         stallHandler.postDelayed(fastWedgeRunnable, FAST_WEDGE_CHECK_MS)
     }
 
@@ -87,7 +91,13 @@ internal class PlayerStallMonitor(
         val p = player ?: return
         if (!p.playWhenReady || p.playbackState != Player.STATE_READY) return
         val pos = p.currentPosition
-        if (pos - readyBaselinePositionMs >= FAST_WEDGE_MIN_PROGRESS_MS) return
+        if (fastWedgeSampleMs < 0L) {
+            // First READY observation of this source: sample now, judge after a second window.
+            fastWedgeSampleMs = pos
+            stallHandler.postDelayed(fastWedgeRunnable, FAST_WEDGE_SAMPLE_MS)
+            return
+        }
+        if (pos - fastWedgeSampleMs >= FAST_WEDGE_MIN_PROGRESS_MS) return
         tryAudioWedgeEscape(p, pos)
     }
 
@@ -298,6 +308,8 @@ internal class PlayerStallMonitor(
     private companion object {
         // Fast wedge check: 3s after READY with <250ms of progress = frozen clock.
         const val FAST_WEDGE_CHECK_MS = 3000L
+        /** Window between the READY sample and the verdict. */
+        const val FAST_WEDGE_SAMPLE_MS = 1500L
         const val FAST_WEDGE_MIN_PROGRESS_MS = 250L
         const val VIDEO_FREEZE_THRESHOLD_MS = 8000L
         // Live viewers zap within seconds — catch a frozen first frame fast.

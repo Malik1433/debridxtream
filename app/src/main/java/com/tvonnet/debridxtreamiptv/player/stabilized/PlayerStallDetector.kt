@@ -56,7 +56,11 @@ internal class PlayerStallDetector {
             reset(positionMs, nowMs)
             return StallVerdict.IDLE
         }
-        if (positionMs > lastBoundPosition) {
+        // Any movement is progress, backwards included: a live zap lands on a new window whose
+        // position is usually BELOW the old channel's, and a seek back is not a stall either.
+        // Waiting for the clock to climb past the old value counted a fresh channel as stuck for
+        // however long that took (2026-09-21).
+        if (positionMs != lastBoundPosition) {
             reset(positionMs, nowMs)
             return StallVerdict.PROGRESSING
         }
