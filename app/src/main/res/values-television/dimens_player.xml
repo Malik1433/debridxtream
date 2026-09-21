@@ -29,6 +29,6 @@
     <dimen name="player_status_size">6.5sp</dimen>
     <dimen name="player_timestamp_size">7sp</dimen>
     <dimen name="player_btn_label_size">5sp</dimen>
-    <dimen name="player_btn_label_max_width">44dp</dimen>
+    <dimen name="player_btn_label_max_width">52dp</dimen>
     <dimen name="player_hint_size">5.5sp</dimen>
 </resources>

@@ -15,7 +15,9 @@ import android.media.AudioManager
 import android.view.View
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.core.view.doOnNextLayout
 import androidx.media3.ui.PlayerView
+import androidx.media3.ui.SubtitleView
 import com.tvonnet.debridxtreamiptv.R
 import com.tvonnet.debridxtreamiptv.data.model.ContentType
 import dagger.hilt.android.AndroidEntryPoint
@@ -232,6 +234,33 @@ class VodPlayerFragment : BasePlayerFragment() {
         )
     }
 
+    /**
+     * The bottom OSD (poster caption + status row + seek bar + control card + D-pad hint) grew
+     * with the 2026-09-20 polish pass, and media3's SubtitleView has no idea - an in-progress
+     * line was rendering half UNDER the glass control card (device-reported, phone). Push
+     * subtitles up by the OSD's own measured height while the controller shows; drop back to
+     * the SubtitleView default once it hides. Measured, not a guessed constant, so it keeps
+     * working if the OSD's height ever changes again.
+     */
+    private fun updateSubtitleBottomPadding(controllerVisible: Boolean) {
+        val subtitleView = playerView.subtitleView ?: return
+        if (!controllerVisible) {
+            subtitleView.setBottomPaddingFraction(SubtitleView.DEFAULT_BOTTOM_PADDING_FRACTION)
+            return
+        }
+        val bottomBar = playerView.findViewById<View>(R.id.layout_bottom_bar) ?: return
+        val osdHeight = bottomBar.height
+        val viewportHeight = playerView.height
+        if (osdHeight <= 0 || viewportHeight <= 0) {
+            // First show, before this layout pass has measured yet.
+            bottomBar.doOnNextLayout { updateSubtitleBottomPadding(isControllerVisible) }
+            return
+        }
+        val fraction = (osdHeight.toFloat() / viewportHeight) + 0.02f
+        subtitleView.setBottomPaddingFraction(fraction.coerceAtMost(0.6f))
+    }
+
+
     override fun setupVodPlayback(streamTitle: String?) {
         playerView.useController = true
         playerView.controllerAutoShow = true
@@ -248,6 +277,7 @@ class VodPlayerFragment : BasePlayerFragment() {
         playerView.setControllerVisibilityListener(object : PlayerView.ControllerVisibilityListener {
             override fun onVisibilityChanged(visibility: Int) {
                 isControllerVisible = visibility == View.VISIBLE
+                updateSubtitleBottomPadding(isControllerVisible)
                 if (!isControllerVisible) {
                     playerView.requestFocus()
                 }

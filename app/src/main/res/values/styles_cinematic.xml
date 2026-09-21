@@ -345,7 +345,7 @@
         <item name="android:fontFamily">monospace</item>
         <item name="android:textSize">@dimen/player_btn_label_size</item>
         <item name="android:textColor">@color/stremio_text_faint</item>
-        <item name="android:letterSpacing">0.08</item>
+        <item name="android:letterSpacing">0.05</item>
     </style>
     <style name="VodPlayerHint">
         <item name="android:layout_width">wrap_content</item>
