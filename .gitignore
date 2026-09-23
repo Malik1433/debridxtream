@@ -195,3 +195,7 @@ fix2_*.xml
 # Pulled AudioTrack-watch captures (multi-MB logcat dumps; the watcher is scripts/audio_track_watch.sh)
 /docs/reports/audio_track_watch/
 .vercel
+# Node/Next build artefacts anywhere in the repo (the website/ project, admin-panel tooling).
+# Untracked node_modules was tripping the zero-byte check in the hygiene gate.
+node_modules/
+.next/

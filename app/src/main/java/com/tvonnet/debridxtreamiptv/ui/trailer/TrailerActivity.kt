@@ -272,7 +272,8 @@ class TrailerActivity : AppCompatActivity() {
         playbackStarted = false
         isIframeMode = true
         overlayMessage.visibility = View.GONE
-        val safeId = id.trim().replace("'", "")
+        // Allow-listed, not quote-stripped - it is pasted into the iframe page (sec review 2026-09-23).
+        val safeId = id.trim().takeIf { YOUTUBE_ID.matches(it) }.orEmpty()
 
         loading.visibility = View.VISIBLE
         webView.loadDataWithBaseURL(APP_WEB_ORIGIN, buildIframeHtml(safeId), "text/html", "utf-8", null)
@@ -510,6 +511,7 @@ class TrailerActivity : AppCompatActivity() {
     }
 
     companion object {
+        private val YOUTUBE_ID = Regex("^[A-Za-z0-9_-]{6,24}$") // YouTube's own alphabet
         private const val EXTRA_TRAILER_VALUE = "extra_trailer_value"
         private const val APP_WEB_ORIGIN = "https://debridxtream.local"
         private const val PLAYBACK_WATCHDOG_DELAY_MS = 10000L

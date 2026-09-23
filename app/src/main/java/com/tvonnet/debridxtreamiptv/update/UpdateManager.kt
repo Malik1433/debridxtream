@@ -3,11 +3,14 @@ package com.tvonnet.debridxtreamiptv.update
 import android.app.Activity
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
+import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.os.Build
 import android.provider.Settings
 import android.util.Log
 import androidx.core.content.FileProvider
+import androidx.core.content.pm.PackageInfoCompat
 import com.google.firebase.firestore.FirebaseFirestore
 import com.tvonnet.debridxtreamiptv.BuildConfig
 import com.tvonnet.debridxtreamiptv.R
@@ -36,6 +39,16 @@ import java.util.concurrent.TimeUnit
  *
  * Owner release flow: build APK → upload to Firebase Storage → set the new
  * versionCode/apkUrl in the admin panel → clients update on next launch.
+ *
+ * Two invariants guard that path, because it ends in "install this APK" on a customer's
+ * device (security review 2026-09-23):
+ *  1. the URL must be **https** — the app permits cleartext for IPTV, so an http apkUrl
+ *     would let anyone on the customer's network swap the APK in flight;
+ *  2. the downloaded file must be **this app, signed by this key** — package name and
+ *     signing certificate are checked against the running app BEFORE the installer is
+ *     opened, so a swapped or tampered file is deleted instead of offered.
+ * Neither is a formality: without them the update prompt is a ready-made dropper that
+ * the customer has been trained to accept.
  */
 object UpdateManager {
 
@@ -78,34 +91,45 @@ object UpdateManager {
     private fun fetchAndOffer(activity: Activity, announceResult: Boolean) {
         FirebaseFirestore.getInstance().collection("app_config").document("version")
             .get()
-            .addOnSuccessListener { snap ->
-                if (activity.isFinishing) return@addOnSuccessListener
-                if (snap == null || !snap.exists()) {
-                    if (announceResult) toast(activity, R.string.update_none_configured)
-                    return@addOnSuccessListener
-                }
-                val latest = (snap.getLong("latestVersionCode") ?: 0L).toInt()
-                val minSupported = (snap.getLong("minSupportedVersionCode") ?: 0L).toInt()
-                val apkUrl = snap.getString("apkUrl").orEmpty()
-                if (latest <= BuildConfig.VERSION_CODE || apkUrl.isBlank()) {
-                    if (announceResult) toast(activity, R.string.update_up_to_date)
-                    return@addOnSuccessListener
-                }
-
-                val forced = (snap.getBoolean("forceUpdate") == true) ||
-                    BuildConfig.VERSION_CODE < minSupported
-                promptUpdate(
-                    activity = activity,
-                    versionName = snap.getString("latestVersionName") ?: latest.toString(),
-                    changelog = snap.getString("changelog").orEmpty(),
-                    apkUrl = apkUrl,
-                    forced = forced
-                )
-            }
+            .addOnSuccessListener { snap -> onVersionDoc(activity, announceResult, snap) }
             .addOnFailureListener {
                 Log.w(TAG, "update check failed", it)
                 if (announceResult && !activity.isFinishing) toast(activity, R.string.update_check_failed)
             }
+    }
+
+    private fun onVersionDoc(
+        activity: Activity,
+        announceResult: Boolean,
+        snap: com.google.firebase.firestore.DocumentSnapshot?
+    ) {
+        if (activity.isFinishing) return
+        if (snap == null || !snap.exists()) {
+            if (announceResult) toast(activity, R.string.update_none_configured)
+            return
+        }
+        val latest = (snap.getLong("latestVersionCode") ?: 0L).toInt()
+        val apkUrl = snap.getString("apkUrl").orEmpty()
+        when (offerable(latest, apkUrl)) {
+            OfferVerdict.UP_TO_DATE -> {
+                if (announceResult) toast(activity, R.string.update_up_to_date)
+                return
+            }
+            OfferVerdict.REFUSED -> {
+                Log.e(TAG, "refusing update: apkUrl is not https")
+                if (announceResult) toast(activity, R.string.c_update_failed)
+                return
+            }
+            OfferVerdict.OFFER -> Unit
+        }
+        val minSupported = (snap.getLong("minSupportedVersionCode") ?: 0L).toInt()
+        promptUpdate(
+            activity = activity,
+            versionName = snap.getString("latestVersionName") ?: latest.toString(),
+            changelog = snap.getString("changelog").orEmpty(),
+            apkUrl = apkUrl,
+            forced = (snap.getBoolean("forceUpdate") == true) || BuildConfig.VERSION_CODE < minSupported
+        )
     }
 
     private fun toast(activity: Activity, resId: Int) =
@@ -160,6 +184,12 @@ object UpdateManager {
                 }
                 streamApkTo(apk, apkUrl, progress)
                 progress.dismissQuietly()
+                if (!isOurSignedApk(activity, apk)) {
+                    apk.delete()
+                    Log.e(TAG, "refusing update: downloaded APK is not this app signed by this key")
+                    toast(activity, R.string.c_update_failed)
+                    return@launch
+                }
                 installApk(activity, apk)
             } catch (ce: CancellationException) {
                 // The screen went away. Leave the part-file behind: the next attempt deletes it.
@@ -285,6 +315,65 @@ object UpdateManager {
         if (!apk.exists() || !canInstallPackages(activity)) return
         pendingApk = null
         launchPackageInstaller(activity, apk)
+    }
+
+    private enum class OfferVerdict { UP_TO_DATE, REFUSED, OFFER }
+
+    /** Whether a published row is worth offering: newer, and delivered over https (see the class doc). */
+    private fun offerable(latest: Int, apkUrl: String): OfferVerdict = when {
+        latest <= BuildConfig.VERSION_CODE || apkUrl.isBlank() -> OfferVerdict.UP_TO_DATE
+        !isHttpsUrl(apkUrl) -> OfferVerdict.REFUSED
+        else -> OfferVerdict.OFFER
+    }
+
+    /** Only https may deliver an APK; see the class doc. */
+    private fun isHttpsUrl(url: String): Boolean =
+        runCatching { java.net.URI(url).scheme?.lowercase() == "https" }.getOrDefault(false)
+
+    /**
+     * True when [apk] declares OUR package name and carries OUR signing certificate.
+     *
+     * The platform installer would refuse a same-package APK signed by another key anyway, but it
+     * would happily install a DIFFERENT package - which is how a swapped download turns the update
+     * prompt into "install this unrelated app", with the customer's trust already spent. Checking
+     * here means a bad file never reaches that dialog.
+     */
+    private fun isOurSignedApk(context: Context, apk: File): Boolean = try {
+        val pm = context.packageManager
+        val flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            PackageManager.GET_SIGNING_CERTIFICATES
+        } else {
+            @Suppress("DEPRECATION")
+            PackageManager.GET_SIGNATURES
+        }
+        val info = pm.getPackageArchiveInfo(apk.absolutePath, flags)
+        val samePackage = info?.packageName == context.packageName
+        val newer = (info?.let { PackageInfoCompat.getLongVersionCode(it) } ?: -1L) > BuildConfig.VERSION_CODE
+        samePackage && newer && signaturesOf(info) == installedSignatures(pm, context.packageName)
+    } catch (e: Exception) {
+        Log.e(TAG, "could not verify the downloaded APK", e)
+        false
+    }
+
+    private fun signaturesOf(info: android.content.pm.PackageInfo?): Set<String> {
+        info ?: return emptySet()
+        val sigs = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            info.signingInfo?.apkContentsSigners
+        } else {
+            @Suppress("DEPRECATION")
+            info.signatures
+        }
+        return sigs.orEmpty().mapNotNull { it?.toCharsString() }.toSet()
+    }
+
+    private fun installedSignatures(pm: PackageManager, pkg: String): Set<String> {
+        val flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            PackageManager.GET_SIGNING_CERTIFICATES
+        } else {
+            @Suppress("DEPRECATION")
+            PackageManager.GET_SIGNATURES
+        }
+        return signaturesOf(runCatching { pm.getPackageInfo(pkg, flags) }.getOrNull())
     }
 
     private fun launchPackageInstaller(activity: Activity, apk: File) {
