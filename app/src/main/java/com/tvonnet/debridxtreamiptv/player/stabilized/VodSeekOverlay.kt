@@ -1,6 +1,7 @@
 package com.tvonnet.debridxtreamiptv.player.stabilized
 
 import android.content.Context
+import android.graphics.BlurMaskFilter
 import android.graphics.Canvas
 import android.graphics.LinearGradient
 import android.graphics.Paint
@@ -32,6 +33,15 @@ class VodSeekOverlay @JvmOverloads constructor(
     private val density = resources.displayMetrics.density
     private fun dp(v: Float) = v * density
 
+    init {
+        // The wash and the playhead halo are REAL blurs (the design's `filter: blur(9px)` and
+        // `box-shadow 0 0 14px`), and BlurMaskFilter only renders on a software canvas. This view
+        // is a 1666x48 strip repainted at 2 Hz, so software is free; the hard-edged rounded
+        // rectangles that stood in for it read as a solid blue capsule on the TV (owner photo,
+        // 2026-09-21).
+        setLayerType(LAYER_TYPE_SOFTWARE, null)
+    }
+
     private var progress = 0f
     private var buffered = 0f
     private var focusedState = false
@@ -40,13 +50,17 @@ class VodSeekOverlay @JvmOverloads constructor(
     private val tickPlayed = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0xFF00F0FF.toInt() }
     private val tickBuffered = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0x52FFFFFF }
     private val tickUnplayed = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0x21FFFFFF }
-    private val washPaint = Paint(Paint.ANTI_ALIAS_FLAG)
-    private val washOuterPaint = Paint(Paint.ANTI_ALIAS_FLAG)
+    private val washPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        maskFilter = BlurMaskFilter(dp(4.5f), BlurMaskFilter.Blur.NORMAL)
+    }
     private val edgeLine = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0x80FFFFFF.toInt() }
     private val edgeDot = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0xBFFFFFFF.toInt() }
     private val headCore = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0xFFFFFFFF.toInt() }
-    private val headHaloInner = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0x8000F0FF.toInt() }
-    private val headHaloOuter = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0x3300B4FF }
+    private val headHalo = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = 0x8000F0FF.toInt()
+        maskFilter = BlurMaskFilter(dp(5f), BlurMaskFilter.Blur.NORMAL)
+    }
+    private val headRing = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0x6600B4FF }
     private val bubbleBg = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0xF0060912.toInt() }
     private val bubbleStroke = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = 0x7300F0FF; style = Paint.Style.STROKE; strokeWidth = dp(1f)
@@ -84,13 +98,10 @@ class VodSeekOverlay @JvmOverloads constructor(
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
         super.onSizeChanged(w, h, oldw, oldh)
         // The wash gradient depends only on the width — build it once per resize, not per frame.
+        // rgba(0,119,255,.28) -> rgba(0,240,255,.42), as the design has it.
         washPaint.shader = LinearGradient(
             0f, 0f, w.toFloat(), 0f,
             intArrayOf(0x470077FF, 0x6B00F0FF), null, Shader.TileMode.CLAMP
-        )
-        washOuterPaint.shader = LinearGradient(
-            0f, 0f, w.toFloat(), 0f,
-            intArrayOf(0x1F0077FF, 0x2E00F0FF), null, Shader.TileMode.CLAMP
         )
     }
 
@@ -112,24 +123,26 @@ class VodSeekOverlay @JvmOverloads constructor(
         val px = w * progress
         if (progress > 0f) drawWash(canvas, px, cy, m)
         drawTicks(canvas, w, cy, m)
-        if (buffered > progress && buffered < 1f) drawBufferedEdge(canvas, w * buffered, cy, m)
+        // The frontier marker sits on the playhead when the buffer barely leads it - two
+        // markers a few px apart read as a glitch, so it only shows once there is daylight.
+        if (buffered - progress > 0.015f && buffered < 1f) drawBufferedEdge(canvas, w * buffered, cy, m)
         val hx = px.coerceIn(m.headW / 2f, w - m.headW / 2f)
         drawPlayhead(canvas, hx, cy, m)
         val text = bubbleText
         if (focusedState && !text.isNullOrEmpty()) drawBubble(canvas, hx, cy - m.headH / 2f, w, text)
     }
 
-    /** Glow wash under the played span: two soft rounded layers stand in for a blur. */
+    /** Blurred glow wash under the played span - washH is its whole height, as in the design. */
     private fun drawWash(canvas: Canvas, px: Float, cy: Float, m: Metrics) {
-        rect.set(0f, cy - m.washH * 1.7f, px, cy + m.washH * 1.7f)
-        canvas.drawRoundRect(rect, m.washH, m.washH, washOuterPaint)
-        rect.set(0f, cy - m.washH, px, cy + m.washH)
-        canvas.drawRoundRect(rect, m.washH, m.washH, washPaint)
+        val half = m.washH / 2f
+        rect.set(0f, cy - half, px, cy + half)
+        canvas.drawRoundRect(rect, dp(4f), dp(4f), washPaint)
     }
 
     private fun drawTicks(canvas: Canvas, w: Float, cy: Float, m: Metrics) {
         val gap = dp(1f)
-        val ticks = (w / dp(5.5f)).toInt().coerceIn(24, 160)
+        // ~88 ticks across the design's 1808 px bar -> a 9.5 dp pitch on the halved scale.
+        val ticks = (w / dp(9.5f)).toInt().coerceIn(24, 120)
         val tickW = ((w - gap * (ticks - 1)) / ticks).coerceAtLeast(dp(1f))
         for (i in 0 until ticks) {
             val x = i * (tickW + gap)
@@ -149,14 +162,14 @@ class VodSeekOverlay @JvmOverloads constructor(
         canvas.drawCircle(bx, cy, dp(1.5f), edgeDot)
     }
 
-    /** Cyan halo, then the white bar. */
+    /** Blurred cyan halo, a 1 px ring, then the white bar (box-shadow 0 0 14px + 0 0 0 1px). */
     private fun drawPlayhead(canvas: Canvas, hx: Float, cy: Float, m: Metrics) {
         val hw = m.headW
         val hh = m.headH
-        rect.set(hx - hw / 2f - dp(3f), cy - hh / 2f - dp(3f), hx + hw / 2f + dp(3f), cy + hh / 2f + dp(3f))
-        canvas.drawRoundRect(rect, dp(3f), dp(3f), headHaloOuter)
-        rect.set(hx - hw / 2f - dp(1.2f), cy - hh / 2f - dp(1.2f), hx + hw / 2f + dp(1.2f), cy + hh / 2f + dp(1.2f))
-        canvas.drawRoundRect(rect, dp(2f), dp(2f), headHaloInner)
+        rect.set(hx - hw / 2f - dp(1.5f), cy - hh / 2f - dp(1.5f), hx + hw / 2f + dp(1.5f), cy + hh / 2f + dp(1.5f))
+        canvas.drawRoundRect(rect, dp(2f), dp(2f), headHalo)
+        rect.set(hx - hw / 2f - dp(0.5f), cy - hh / 2f - dp(0.5f), hx + hw / 2f + dp(0.5f), cy + hh / 2f + dp(0.5f))
+        canvas.drawRoundRect(rect, dp(2f), dp(2f), headRing)
         rect.set(hx - hw / 2f, cy - hh / 2f, hx + hw / 2f, cy + hh / 2f)
         canvas.drawRoundRect(rect, dp(1.5f), dp(1.5f), headCore)
     }
