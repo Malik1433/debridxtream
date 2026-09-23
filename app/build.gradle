@@ -59,8 +59,8 @@ android {
         // ANSWERABLE: LicenseManager writes appVersionCode to licenses/{installId} on every
         // launch, so anything still reporting 36 has not taken the account build — which is
         // exactly the question U8b hangs on.
-        versionCode 140
-        versionName "3.3.7"
+        versionCode 142
+        versionName "3.3.9"
         multiDexEnabled true
         multiDexKeepFile file('multidex-keep.txt')
         multiDexKeepProguard file('multidex-keep.pro')
@@ -299,6 +299,10 @@ dependencies {
     testImplementation 'androidx.test:core:1.5.0'
     testImplementation 'org.robolectric:robolectric:4.16.1'
     testImplementation "org.jetbrains.kotlin:kotlin-test:$kotlin_version"
+    // Declared, not inherited: PlayerViewModelDebridDirectPassthroughTest calls a private suspend
+    // function through kotlin.reflect.full, and until the Ktor removal it got kotlin-reflect for
+    // free off the server library's transitive graph (2026-09-23).
+    testImplementation "org.jetbrains.kotlin:kotlin-reflect:$kotlin_version"
     testImplementation 'androidx.work:work-testing:2.11.2'
     
     // No Jetpack Compose (removed 2026-09-14, audit F9). The whole UI is Views + ViewBinding; the
@@ -326,12 +330,9 @@ dependencies {
     implementation 'com.google.firebase:firebase-crashlytics-ktx'
 
     // Ktor Server (Companion Config Server)
-    def ktor_version = '2.3.7'
-    implementation "io.ktor:ktor-server-core:$ktor_version"
-    implementation "io.ktor:ktor-server-cio:$ktor_version"
-    implementation "io.ktor:ktor-server-content-negotiation:$ktor_version"
-    implementation "io.ktor:ktor-serialization-gson:$ktor_version"
-    implementation "io.ktor:ktor-server-cors:$ktor_version"
-    implementation "io.ktor:ktor-server-status-pages:$ktor_version"
-    implementation "io.ktor:ktor-server-host-common:$ktor_version"
+    // No Ktor. It existed for CompanionConfigServer - an embedded HTTP server that bound
+    // 0.0.0.0:8085 and took IPTV credentials on POST /api/config. U8b replaced that channel with
+    // the owner-scoped `playlists` collection and left the class with no callers; R8 stripped it
+    // from every shipped APK, so this deletes source that could only ever be re-wired by accident
+    // (security review 2026-09-23).
 }

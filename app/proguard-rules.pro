@@ -52,10 +52,3 @@
 -if interface * { @retrofit2.http.* <methods>; }
 -keep,allowobfuscation interface <1>
 
-# ── Ktor (Phase 6: CIO powers the companion-pairing server) ─────────────────────
-# Without these the release server silently fails to start.
--keep class io.ktor.** { *; }
--keep class io.ktor.server.cio.** { *; }
--dontwarn io.ktor.**
--keep class org.slf4j.** { *; }
--dontwarn org.slf4j.**
