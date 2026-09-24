@@ -59,8 +59,8 @@ android {
         // ANSWERABLE: LicenseManager writes appVersionCode to licenses/{installId} on every
         // launch, so anything still reporting 36 has not taken the account build — which is
         // exactly the question U8b hangs on.
-        versionCode 142
-        versionName "3.3.9"
+        versionCode 143
+        versionName "3.4.0"
         multiDexEnabled true
         multiDexKeepFile file('multidex-keep.txt')
         multiDexKeepProguard file('multidex-keep.pro')
@@ -328,6 +328,10 @@ dependencies {
     implementation 'com.google.firebase:firebase-auth-ktx'
     // LP-D-1: remote crash reporting (works without Play services on Fire OS)
     implementation 'com.google.firebase:firebase-crashlytics-ktx'
+    // Security review 2026-09-24: App Check, MONITOR-ONLY (see MainApplication for why). Version
+    // from the BOM. No `-debug` provider dependency - that one is dev/emulator only and must
+    // never ship, so it is deliberately absent here.
+    implementation 'com.google.firebase:firebase-appcheck-playintegrity'
 
     // Ktor Server (Companion Config Server)
     // No Ktor. It existed for CompanionConfigServer - an embedded HTTP server that bound

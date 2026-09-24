@@ -29,6 +29,8 @@ class MainApplication : Application(), Configuration.Provider {
         // G3: the diagnostics switch decides whether Crashlytics/Analytics collect at all.
         com.tvonnet.debridxtreamiptv.util.DiagnosticsConsent.applyStored(this)
 
+        installAppCheck()
+
         registerSystemBarInsetPadding()
 
         // Reset crash counter if app stays alive for 15 seconds
@@ -50,6 +52,32 @@ class MainApplication : Application(), Configuration.Provider {
                 com.tvonnet.debridxtreamiptv.features.seriesv2.worker.SeriesCachePruningWorker
                     .schedule(this@MainApplication)
             }
+        }
+    }
+
+    /**
+     * App Check, Play Integrity provider - MONITOR ONLY (security review 2026-09-24).
+     *
+     * Play Integrity needs Google Play services on the device, and this app's actual fleet is
+     * Fire TV - stock Fire OS does NOT ship Play services (see the Crashlytics comment above,
+     * which already had to account for this). If Firestore's rules were made to REQUIRE an
+     * App Check token, every customer on a stock Fire TV would be locked out alongside any
+     * cracked client - the security fix would be a worse outage than the thing it defends
+     * against. So this installs the provider and nothing reads its result: Firebase Console's
+     * App Check tab starts reporting verified/unverified traffic, which is the data needed to
+     * decide whether enforcement is ever safe here. No Firestore rule depends on this today.
+     *
+     * Never crashes app start: on a device with no Play services the token fetch fails
+     * asynchronously and Firestore simply proceeds without one, exactly as it did before this
+     * existed.
+     */
+    private fun installAppCheck() {
+        runCatching {
+            com.google.firebase.appcheck.FirebaseAppCheck.getInstance().installAppCheckProviderFactory(
+                com.google.firebase.appcheck.playintegrity.PlayIntegrityAppCheckProviderFactory.getInstance()
+            )
+        }.onFailure {
+            android.util.Log.w("MainApplication", "App Check provider install failed (non-fatal)", it)
         }
     }
 
