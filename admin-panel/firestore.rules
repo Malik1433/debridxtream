@@ -330,16 +330,23 @@ service cloud.firestore {
       allow create: if isAdmin() ||
         (isSignedIn() && request.resource.data.authUid == request.auth.uid &&
          identityShapeOk(request.resource.data));
+      // The key allowlist is checked on the CHANGED keys here, not the merged document: a field some
+      // other writer put on the doc must not lock the device out of refreshing its own identity.
       allow update: if isAdmin() ||
         (isSignedIn() && request.resource.data.authUid == request.auth.uid &&
-         identityShapeOk(request.resource.data) &&
+         request.resource.data.diff(resource.data).affectedKeys()
+           .hasOnly(['authUid', 'proof', 'appVersionCode', 'updatedAt']) &&
+         proofOk(request.resource.data) &&
          (!('proof' in resource.data) || request.resource.data.proof == resource.data.proof));
       allow delete: if isAdmin();
     }
 
     function identityShapeOk(d) {
-      return d.keys().hasOnly(['authUid', 'proof', 'appVersionCode', 'updatedAt']) &&
-        d.proof is string && d.proof.matches('^[a-f0-9]{64}$');
+      return d.keys().hasOnly(['authUid', 'proof', 'appVersionCode', 'updatedAt']) && proofOk(d);
+    }
+
+    function proofOk(d) {
+      return d.proof is string && d.proof.matches('^[a-f0-9]{64}$');
     }
 
     // ── Device → account binding ────────────────────────────────────────
