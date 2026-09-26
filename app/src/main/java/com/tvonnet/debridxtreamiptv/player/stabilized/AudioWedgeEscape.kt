@@ -104,7 +104,8 @@ internal object AudioWedgeEscape {
      * the 2026-08-27 dump showed: Server=00000000 on all 53 stuck tracks). A track
      * that cannot even be created is the saturated flavor of the same failure.
      *
-     * Cheap and safe on a healthy device: one track, released after <=600ms, silent,
+     * Cheap and safe on a healthy device: one track, silent, released as soon as it consumes (or after
+     * PROBE_OBSERVE_MS when it never does - the verdict itself still lands at 500 ms),
      * no audio focus. Call whenever a playback surface spins up; it self-guards
      * against re-entry. While engaged it still probes — that is how the escape is
      * RELEASED once the primary consumes again — but only every
@@ -123,25 +124,29 @@ internal object AudioWedgeEscape {
         Thread({
             try {
                 val forced = isForcedByAdb(appContext)
-                val primaryConsumes = !forced && !probeDetectsWedge()
-                when (decide(engaged, forced, primaryConsumes)) {
-                    RouteDecision.ENGAGE -> {
-                        engage()
-                        if (forced) {
-                            Log.w("PlayerActivity", "Audio wedge escape FORCED via adb setting (QA override)")
-                        } else {
-                            Log.w("PlayerActivity", "Audio wedge probe: primary mixer not consuming — 5.1 upmix escape engaged pre-playback")
-                        }
-                    }
-                    RouteDecision.RELEASE -> if (release()) {
-                        Log.w("PlayerActivity", "Audio wedge probe: primary mixer consuming again — 5.1 upmix escape released (the DIRECT route can wedge too)")
-                    }
-                    RouteDecision.KEEP -> Unit
-                }
+                if (forced) applyProbeVerdict(forced = true, primaryConsumes = false)
+                else probeDetectsWedge { wedged -> applyProbeVerdict(forced = false, primaryConsumes = !wedged) }
             } finally {
                 probeRunning = false
             }
         }, "AudioWedgeProbe").apply { isDaemon = true }.start()
+    }
+
+    private fun applyProbeVerdict(forced: Boolean, primaryConsumes: Boolean) {
+        when (decide(engaged, forced, primaryConsumes)) {
+            RouteDecision.ENGAGE -> {
+                engage()
+                if (forced) {
+                    Log.w("PlayerActivity", "Audio wedge escape FORCED via adb setting (QA override)")
+                } else {
+                    Log.w("PlayerActivity", "Audio wedge probe: primary mixer not consuming — 5.1 upmix escape engaged pre-playback")
+                }
+            }
+            RouteDecision.RELEASE -> if (release()) {
+                Log.w("PlayerActivity", "Audio wedge probe: primary mixer consuming again — 5.1 upmix escape released (the DIRECT route can wedge too)")
+            }
+            RouteDecision.KEEP -> Unit
+        }
     }
 
     /**
@@ -154,8 +159,8 @@ internal object AudioWedgeEscape {
         val appContext = context.applicationContext
         val main = android.os.Handler(android.os.Looper.getMainLooper())
         Thread({
-            val consumes = !isForcedByAdb(appContext) && !probeDetectsWedge()
-            main.post { onResult(consumes) }
+            if (isForcedByAdb(appContext)) main.post { onResult(false) }
+            else probeDetectsWedge { wedged -> main.post { onResult(!wedged) } }
         }, "AudioWedgeProbe").apply { isDaemon = true }.start()
     }
 
@@ -164,13 +169,28 @@ internal object AudioWedgeEscape {
         android.provider.Settings.Global.getInt(context.contentResolver, "dx_audio_wedge_escape", 0) == 1
     }.getOrDefault(false)
 
-    private fun probeDetectsWedge(): Boolean {
+    /**
+     * Runs the probe and hands [onVerdict] (wedged = true) the SAME answer, at the SAME moment, as
+     * before: consumed within [PROBE_WINDOW_MS] = healthy, otherwise wedged.
+     *
+     * F1/W0 (2026-09-27): on the Fire TV Cube the verdict "wedged" was reached by that 500 ms
+     * timeout pre-playback, while the HDMI route was cold, and the 5.1 DIRECT escape it engages is
+     * the route that later wedged. Whether a healthy cold route simply needs longer than 500 ms is
+     * the open question. So after delivering the verdict the probe keeps watching the same track for
+     * up to [PROBE_OBSERVE_MS] and logs WHEN it first consumed ([probeTimingLogLine]). Diagnostics
+     * only: the decision, its threshold and its timing are unchanged.
+     */
+    private fun probeDetectsWedge(onVerdict: (wedged: Boolean) -> Unit) {
+        var delivered = false
+        fun deliver(wedged: Boolean) {
+            if (!delivered) { delivered = true; onVerdict(wedged) }
+        }
         var track: AudioTrack? = null
         try {
             val minBuf = AudioTrack.getMinBufferSize(
                 PROBE_SAMPLE_RATE, AudioFormat.CHANNEL_OUT_STEREO, AudioFormat.ENCODING_PCM_16BIT
             )
-            if (minBuf <= 0) return false
+            if (minBuf <= 0) { deliver(false); return }
             track = AudioTrack(
                 AudioAttributes.Builder()
                     .setUsage(AudioAttributes.USAGE_MEDIA)
@@ -185,36 +205,65 @@ internal object AudioWedgeEscape {
                 AudioTrack.MODE_STREAM,
                 AudioManager.AUDIO_SESSION_ID_GENERATE
             )
-            if (track.state != AudioTrack.STATE_INITIALIZED) return true
+            if (track.state != AudioTrack.STATE_INITIALIZED) { deliver(true); return }
             val silence = ByteArray(minBuf)
             track.play()
             // Non-blocking: on a wedged device a blocking write would hang this thread
             // exactly the way playback hangs.
             track.write(silence, 0, silence.size, AudioTrack.WRITE_NON_BLOCKING)
-            val deadline = SystemClock.elapsedRealtime() + PROBE_WINDOW_MS
-            while (SystemClock.elapsedRealtime() < deadline) {
-                if (track.playbackHeadPosition > 0) return false
-                Thread.sleep(PROBE_POLL_MS)
-            }
-            return true
+            val firstProgressMs = watchProbeTrack(track, ::deliver)
+            Log.i("PlayerActivity", probeTimingLogLine(firstProgressMs, PROBE_WINDOW_MS, PROBE_OBSERVE_MS))
         } catch (e: UnsupportedOperationException) {
             // "Cannot create AudioTrack" — the saturated flavor of the wedge.
             Log.w("PlayerActivity", "Audio wedge probe: AudioTrack creation refused (saturated primary)", e)
-            return true
+            deliver(true)
         } catch (e: InterruptedException) {
             Thread.currentThread().interrupt()
-            return false
+            deliver(false)
         } catch (e: Exception) {
             Log.w("PlayerActivity", "Audio wedge probe failed", e)
-            return false
+            deliver(false)
         } finally {
             runCatching { track?.release() }
         }
     }
 
+    /**
+     * Polls [track] until it first consumes or [PROBE_OBSERVE_MS] passes. [deliver] gets the verdict
+     * the moment it is known - consumed before [PROBE_WINDOW_MS], or that window elapsed without it -
+     * and the loop then keeps watching only to time the first consumption. Returns that time, or null.
+     */
+    private fun watchProbeTrack(track: AudioTrack, deliver: (wedged: Boolean) -> Unit): Long? {
+        val start = SystemClock.elapsedRealtime()
+        var firstProgressMs: Long? = null
+        while (true) {
+            val elapsed = SystemClock.elapsedRealtime() - start
+            if (firstProgressMs == null && track.playbackHeadPosition > 0) firstProgressMs = elapsed
+            if (firstProgressMs != null && firstProgressMs < PROBE_WINDOW_MS) deliver(false)
+            else if (elapsed >= PROBE_WINDOW_MS) deliver(true)
+            if (firstProgressMs != null || elapsed >= PROBE_OBSERVE_MS) return firstProgressMs
+            Thread.sleep(PROBE_POLL_MS)
+        }
+    }
+
+    /**
+     * Pure: the one line the W0 analysis greps for. `late` = the route DID consume, but only after
+     * the window had already declared it wedged - a false positive, with the real cold-start time.
+     */
+    internal fun probeTimingLogLine(firstProgressMs: Long?, windowMs: Long, observeMs: Long): String = when {
+        firstProgressMs == null ->
+            "Audio wedge probe timing: result=no_progress firstProgressMs=none observedMs=$observeMs verdict=wedged"
+        firstProgressMs < windowMs ->
+            "Audio wedge probe timing: result=in_window firstProgressMs=$firstProgressMs windowMs=$windowMs verdict=consuming"
+        else ->
+            "Audio wedge probe timing: result=late firstProgressMs=$firstProgressMs windowMs=$windowMs verdict=wedged (false positive)"
+    }
+
     private const val PROBE_SAMPLE_RATE = 48_000
     private const val PROBE_WINDOW_MS = 500L
     private const val PROBE_POLL_MS = 50L
+    // How long the probe keeps watching AFTER its verdict, for the timing log only.
+    private const val PROBE_OBSERVE_MS = 3000L
     private const val RELEASE_BACKOFF_MS = 5 * 60_000L
     private const val ENGAGED_PROBE_INTERVAL_MS = 30 * 60_000L
 }

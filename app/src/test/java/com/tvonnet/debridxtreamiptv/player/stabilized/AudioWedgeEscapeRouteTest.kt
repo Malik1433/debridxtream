@@ -59,4 +59,27 @@ class AudioWedgeEscapeRouteTest {
         // elapsedRealtime can be tiny right after boot; the backoff must not swallow it.
         assertTrue(AudioWedgeEscape.release(nowMs = 10L))
     }
+
+    // W0 (2026-09-27): the probe timing line is what the field analysis greps. "late" is the case
+    // under suspicion - a healthy but cold HDMI route that consumed only after 500 ms had already
+    // been called wedged.
+    @Test
+    fun `probe timing line separates in-window, late and never`() {
+        assertEquals(
+            "Audio wedge probe timing: result=in_window firstProgressMs=120 windowMs=500 verdict=consuming",
+            AudioWedgeEscape.probeTimingLogLine(120L, 500L, 3000L)
+        )
+        assertEquals(
+            "Audio wedge probe timing: result=late firstProgressMs=850 windowMs=500 verdict=wedged (false positive)",
+            AudioWedgeEscape.probeTimingLogLine(850L, 500L, 3000L)
+        )
+        assertEquals(
+            "Audio wedge probe timing: result=late firstProgressMs=500 windowMs=500 verdict=wedged (false positive)",
+            AudioWedgeEscape.probeTimingLogLine(500L, 500L, 3000L)
+        )
+        assertEquals(
+            "Audio wedge probe timing: result=no_progress firstProgressMs=none observedMs=3000 verdict=wedged",
+            AudioWedgeEscape.probeTimingLogLine(null, 500L, 3000L)
+        )
+    }
 }
