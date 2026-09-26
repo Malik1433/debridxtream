@@ -272,6 +272,10 @@ let devices = [];   // [{id, ...data}]
 let unsub = null;
 
 function toast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.style.opacity=1; setTimeout(()=>t.style.opacity=0, 2200); }
+// Everything below that builds a row with innerHTML puts Firestore values into it, and several of
+// those are written by UNAUTHENTICATED clients (a licence's activationCode / appVersionName, its doc
+// id) or by any self-registered reseller (displayName, email). Every such value goes through esc().
+function esc(v){ return String(v==null?'':v).replace(/[&<>"'`]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;','`':'&#96;'}[c])); }
 function fmtTime(ms){ if(!ms) return '—'; const d=new Date(ms); return d.toLocaleDateString()+' '+d.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}); }
 
 async function login(){
@@ -369,14 +373,14 @@ function renderDevices(){
     const trialLeft = (status==='pending' && d.createdAt) ? (d.createdAt + TRIAL_MS - Date.now()) : 0;
     const statusChip = trialLeft > 0
       ? `<span class="chip trial">TRIAL · ${Math.max(1, Math.ceil(trialLeft/86400000))}D LEFT</span>`
-      : `<span class="chip ${status}">${status.toUpperCase()}</span>`;
+      : `<span class="chip ${esc(status)}">${esc(String(status).toUpperCase())}</span>`;
     tr.innerHTML = `
-      <td class="code" title="${d.id}">${d.activationCode||d.id.slice(0,8)}</td>
+      <td class="code" title="${esc(d.id)}">${esc(d.activationCode||d.id.slice(0,8))}</td>
       <td>${statusChip}</td>
-      <td><span class="chip ${tier}">${tier.toUpperCase()}</span></td>
+      <td><span class="chip ${esc(tier)}">${esc(String(tier).toUpperCase())}</span></td>
       <td>${Number.isFinite(d.expiresAt) && d.expiresAt > 0 ? new Date(d.expiresAt).toLocaleDateString() : '—'}</td>
-      <td class="muted">${fmtTime(d.lastSeenAt)}</td>
-      <td class="muted">${d.appVersionName||'—'}</td>
+      <td class="muted">${esc(fmtTime(d.lastSeenAt))}</td>
+      <td class="muted">${esc(d.appVersionName||'—')}</td>
       <td></td><td></td><td></td>`;
     // account (read-only). Set as TEXT, never interpolated into the HTML above — an email
     // address is user-supplied and this table is rendered with innerHTML.
@@ -599,10 +603,10 @@ function renderResellers(){
     const tr=document.createElement('tr');
     const status=r.status||'active';
     tr.innerHTML = `
-      <td>${r.displayName||'—'}<div class="muted code">${r.email||r.id}</div></td>
-      <td><span class="chip ${status==='active'?'active':'inactive'}">${status.toUpperCase()}</span></td>
-      <td style="font-weight:700;color:var(--accent-700)">${r.credits||0}</td>
-      <td class="muted">${r.clientCount||0}</td>
+      <td>${esc(r.displayName||'—')}<div class="muted code">${esc(r.email||r.id)}</div></td>
+      <td><span class="chip ${status==='active'?'active':'inactive'}">${esc(String(status).toUpperCase())}</span></td>
+      <td style="font-weight:700;color:var(--accent-700)">${esc(r.credits||0)}</td>
+      <td class="muted">${esc(r.clientCount||0)}</td>
       <td></td>`;
     const act=tr.children[4]; const rowEl=document.createElement('div'); rowEl.className='row'; act.appendChild(rowEl);
     const bAdd=document.createElement('button'); bAdd.className='good'; bAdd.textContent='+ Credits';
@@ -644,10 +648,10 @@ function renderPlans(){
   for (const p of plans){
     const tr=document.createElement('tr');
     tr.innerHTML = `
-      <td>${p.name||p.id}</td>
-      <td><span class="chip ${p.tier==='premium'?'premium':'normal'}">${(p.tier||'normal').toUpperCase()}</span></td>
-      <td>${p.months||0}</td>
-      <td style="font-weight:700;color:var(--accent-700)">${p.cost||0}</td>
+      <td>${esc(p.name||p.id)}</td>
+      <td><span class="chip ${p.tier==='premium'?'premium':'normal'}">${esc(String(p.tier||'normal').toUpperCase())}</span></td>
+      <td>${esc(p.months||0)}</td>
+      <td style="font-weight:700;color:var(--accent-700)">${esc(p.cost||0)}</td>
       <td></td>`;
     const del=document.createElement('button'); del.className='bad'; del.textContent='✕';
     del.onclick=()=>{ if(confirm('Delete plan "'+(p.name||p.id)+'"?')) db.collection('plans').doc(p.id).delete().then(()=>toast('Deleted')).catch(e=>toast(e.message)); };
@@ -683,10 +687,10 @@ function renderPackages(){
   for (const p of packages){
     const tr=document.createElement('tr');
     tr.innerHTML = `
-      <td>${p.name||p.id}</td>
-      <td style="font-weight:600">${p.credits||0}</td>
-      <td class="muted">${p.bonus?('+'+p.bonus):'0'}</td>
-      <td style="font-weight:700">$${(p.priceUsd||0).toFixed(2)}</td>
+      <td>${esc(p.name||p.id)}</td>
+      <td style="font-weight:600">${esc(p.credits||0)}</td>
+      <td class="muted">${esc(p.bonus?('+'+p.bonus):'0')}</td>
+      <td style="font-weight:700">$${esc((Number(p.priceUsd)||0).toFixed(2))}</td>
       <td></td>`;
     const del=document.createElement('button'); del.className='bad'; del.textContent='✕';
     del.onclick=()=>{ if(confirm('Delete package "'+(p.name||p.id)+'"?')) db.collection('credit_packages').doc(p.id).delete().then(()=>toast('Deleted')).catch(e=>toast(e.message)); };
@@ -725,13 +729,13 @@ function renderOrders(){
     const tr=document.createElement('tr');
     const st=o.status||'pending';
     tr.innerHTML = `
-      <td class="muted">${fmtTime(o.createdAt)}</td>
-      <td>${o.resellerEmail||o.resellerId||'—'}</td>
-      <td>${o.packageName||o.packageId||'—'}</td>
-      <td style="font-weight:700;color:var(--accent-700)">${o.credits||0}</td>
-      <td style="font-weight:700">${o.currency||'USD'} ${(o.amount||0).toFixed ? (o.amount).toFixed(2) : o.amount}</td>
-      <td><span class="chip ${st==='paid'?'active':st==='failed'?'inactive':'pending'}">${st.toUpperCase()}</span></td>
-      <td class="muted code">${o.provider||'—'}</td>`;
+      <td class="muted">${esc(fmtTime(o.createdAt))}</td>
+      <td>${esc(o.resellerEmail||o.resellerId||'—')}</td>
+      <td>${esc(o.packageName||o.packageId||'—')}</td>
+      <td style="font-weight:700;color:var(--accent-700)">${esc(o.credits||0)}</td>
+      <td style="font-weight:700">${esc(o.currency||'USD')} ${esc((o.amount||0).toFixed ? (o.amount).toFixed(2) : o.amount)}</td>
+      <td><span class="chip ${st==='paid'?'active':st==='failed'?'inactive':'pending'}">${esc(String(st).toUpperCase())}</span></td>
+      <td class="muted code">${esc(o.provider||'—')}</td>`;
     rows.appendChild(tr);
   }
 }
