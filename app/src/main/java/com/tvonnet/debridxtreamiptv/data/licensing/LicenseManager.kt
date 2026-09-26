@@ -385,7 +385,7 @@ class LicenseManager private constructor(context: Context) {
         private const val DAY_MS = 24 * 60 * 60 * 1000L
         private const val TRIAL_DURATION_MS = 7 * DAY_MS
         // The well-known constant ANDROID_ID some old emulators/ROMs report.
-        private const val LEGACY_EMULATOR_ANDROID_ID = "9774d56d682e549c"
+        internal const val LEGACY_EMULATOR_ANDROID_ID = "9774d56d682e549c"
 
         private fun sha256(value: String): String =
             MessageDigest.getInstance("SHA-256")
