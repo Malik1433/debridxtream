@@ -14,6 +14,7 @@
  *   cd admin-panel && firebase deploy --only functions
  */
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
+const crypto = require("crypto");
 const admin = require("firebase-admin");
 
 admin.initializeApp();
@@ -23,6 +24,58 @@ const MONTH_MS = 30 * 24 * 60 * 60 * 1000;
 
 /** Fallback for a subscription written before deviceLimit existed (§7.8: the owner chose 3). */
 const DEFAULT_DEVICE_LIMIT = 3;
+
+/**
+ * The activation code a licence doc id MUST have - a port of LicenseManager.deriveActivationCode.
+ *
+ * Security audit 2026-09-26 (H2): the stored `activationCode` is written by the unauthenticated
+ * device, so it proves nothing. Looking a device up by it alone let anyone register a doc under
+ * somebody else's code and have a reseller's credits, or a customer's account, land on THEIR device.
+ */
+const CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // no 0/O/1/I
+function deriveActivationCode(installId) {
+  const digest = crypto.createHash("sha256").update(installId, "utf8").digest();
+  let code = "";
+  for (let i = 0; i < 8; i++) code += CODE_ALPHABET[digest[i] % CODE_ALPHABET.length];
+  return `${code.slice(0, 4)}-${code.slice(4, 8)}`;
+}
+
+/** Oldest-first ordering key; a legacy doc with no createdAt counts as the oldest. */
+function createdAtMs(data) {
+  const c = data && data.createdAt;
+  if (!c) return 0;
+  if (typeof c.toMillis === "function") return c.toMillis();
+  return Number(c) || 0;
+}
+
+/**
+ * The licence a customer-typed code really belongs to, or null.
+ *
+ * Only docs whose ID hashes to the code count, which rules out a copied `activationCode` field. The
+ * code is 40 bits, so a patient attacker could still grind out a second id with the same code; the
+ * rules pin createdAt to the server clock, so the device that showed the code on its screen was
+ * registered first - the OLDEST match is the real one.
+ *
+ * Paged rather than a single small limit: copying the field is free, so a fixed window could be
+ * filled with decoys that push the genuine doc out of it. The cap bounds the cost of a flood.
+ */
+const CODE_LOOKUP_PAGE = 100;
+const CODE_LOOKUP_MAX_PAGES = 10;
+async function findLicenseByActivationCode(activationCode) {
+  const genuine = [];
+  let query = db.collection("licenses").where("activationCode", "==", activationCode)
+    .orderBy(admin.firestore.FieldPath.documentId()).limit(CODE_LOOKUP_PAGE);
+  for (let page = 0; page < CODE_LOOKUP_MAX_PAGES; page++) {
+    const snap = await query.get();
+    snap.docs.forEach((d) => {
+      if (deriveActivationCode(d.id) === activationCode) genuine.push(d);
+    });
+    if (snap.size < CODE_LOOKUP_PAGE) break;
+    query = query.startAfter(snap.docs[snap.docs.length - 1]);
+  }
+  genuine.sort((a, b) => createdAtMs(a.data()) - createdAtMs(b.data()));
+  return genuine.length ? genuine[0].ref : null;
+}
 
 /** Shared credit-spend transaction for both activate and renew. */
 async function spendAndApply({ callerUid, licenseRef, planId, requireOwnedByCaller }) {
@@ -122,9 +175,8 @@ exports.activateClient = onCall(async (req) => {
   }
 
   // The device doc id is the installId, not the code — look it up by activationCode.
-  const q = await db.collection("licenses")
-    .where("activationCode", "==", activationCode).limit(1).get();
-  if (q.empty) {
+  const licenseRef = await findLicenseByActivationCode(activationCode);
+  if (!licenseRef) {
     throw new HttpsError(
       "not-found",
       "No device found for that activation code. Ask the customer to open the app first."
@@ -132,7 +184,7 @@ exports.activateClient = onCall(async (req) => {
   }
   return spendAndApply({
     callerUid: uid,
-    licenseRef: q.docs[0].ref,
+    licenseRef,
     planId,
     requireOwnedByCaller: false,
   });
@@ -188,15 +240,13 @@ exports.claimDevice = onCall(async (req) => {
     throw new HttpsError("invalid-argument", "activationCode is required.");
   }
 
-  const q = await db.collection("licenses")
-    .where("activationCode", "==", activationCode).limit(1).get();
-  if (q.empty) {
+  const licenseRef = await findLicenseByActivationCode(activationCode);
+  if (!licenseRef) {
     throw new HttpsError(
       "not-found",
       "No TV found for that code. Open the app on your TV and check the code on screen."
     );
   }
-  const licenseRef = q.docs[0].ref;
   const installId = licenseRef.id;
 
   return db.runTransaction(async (tx) => {

@@ -20,6 +20,19 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    // The telemetry a device may write about itself, checked only for the keys in `keys` (on an
+    // update that is the CHANGED keys, so a legacy value nobody is touching can never block a write).
+    // The activation code alphabet is LicenseManager.deriveActivationCode's: no 0/O/1/I.
+    function licenseTelemetryOk(d, keys) {
+      return (!keys.hasAny(['activationCode']) ||
+          (d.activationCode is string &&
+           d.activationCode.matches('^[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}$'))) &&
+        (!keys.hasAny(['appVersionName']) ||
+          (d.appVersionName is string && d.appVersionName.matches('^[0-9A-Za-z._+-]{1,32}$'))) &&
+        (!keys.hasAny(['appVersionCode']) || d.appVersionCode is int) &&
+        (!keys.hasAny(['lastSeenAt']) || d.lastSeenAt == request.time);
+    }
+
     // ── Device licenses ────────────────────────────────────────────────
     // The TV app is UNAUTHENTICATED; its doc id is an unguessable install UUID
     // which acts as the capability. Devices may register themselves as
@@ -44,17 +57,30 @@ service cloud.firestore {
       // far-future createdAt to mint an unlimited "trial" (createdAt drives the 7-day
       // trial window). The app writes FieldValue.serverTimestamp(), which resolves to
       // request.time.
+      // Security audit 2026-09-26: the unauthenticated fields below are rendered by the admin panel,
+      // and they were unbounded — any string, any type. They are now shaped here as well as escaped
+      // there (C2), and ownership/reseller keys can no longer be seeded on a self-created doc.
       allow create: if isAdmin() || (
         request.resource.data.status == 'pending' &&
         request.resource.data.tier == 'normal' &&
         !('expiresAt' in request.resource.data) &&
-        request.resource.data.createdAt == request.time
+        request.resource.data.createdAt == request.time &&
+        !request.resource.data.keys().hasAny(['ownerUid', 'resellerId', 'resellerEmail',
+          'subscriptionId', 'planId', 'activatedAt', 'note', 'deviceName']) &&
+        licenseTelemetryOk(request.resource.data, request.resource.data.keys())
       );
 
       // Device may only touch telemetry fields; entitlement fields are admin-only.
+      // activationCode is write-once (H2): the app derives it from the doc id, so a legitimate
+      // write never changes it, and letting anyone who knows an installId CHANGE it made that
+      // device impossible to activate.
       allow update: if isAdmin() || (
         request.resource.data.diff(resource.data).affectedKeys()
-          .hasOnly(['lastSeenAt', 'appVersionCode', 'appVersionName', 'activationCode'])
+          .hasOnly(['lastSeenAt', 'appVersionCode', 'appVersionName', 'activationCode']) &&
+        licenseTelemetryOk(request.resource.data,
+          request.resource.data.diff(resource.data).affectedKeys()) &&
+        (!('activationCode' in resource.data) ||
+          request.resource.data.activationCode == resource.data.activationCode)
       ) || (
         // §7 U7: the owning customer may rename their own TV — that key and no other. Naming a
         // device is the one thing here that is purely theirs; ownership itself is set by
@@ -62,7 +88,9 @@ service cloud.firestore {
         isSignedIn() &&
         resource.data.ownerUid == request.auth.uid &&
         request.resource.data.ownerUid == resource.data.ownerUid &&
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['deviceName'])
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['deviceName']) &&
+        request.resource.data.deviceName is string &&
+        request.resource.data.deviceName.size() <= 60
       );
 
       allow delete: if isAdmin();
@@ -283,13 +311,35 @@ service cloud.firestore {
     // it cannot nominate somebody else's identity. Overwrites are allowed by the same test, because
     // clearing app data mints a fresh anonymous uid and a customer must not need support to recover
     // from that.
+    //
+    // Security audit 2026-09-26 (H1): "a device can only register ITSELF" was not true. The installId
+    // is not a secret (the activation screen prints it as the support id), so any anonymous caller
+    // could overwrite this doc with THEIR uid, and the next claimDevice bound the attacker to the
+    // customer's account - playlists and add-ons included.
+    //
+    // A write now has to carry `proof`: a value only the physical device can produce
+    // (DeviceIdentity.proofFor - a hash of ANDROID_ID under a different salt from the installId, so
+    // knowing the installId does not give it). The first write pins it; every later write, including
+    // the fresh anonymous uid after a clear-data, must present the same proof. Nobody but the device
+    // itself can read it back (get is limited to the doc's own authUid). A doc written before this
+    // change has no proof and accepts the first one offered - staff can delete a doc to reset it.
     match /device_identity/{installId} {
       allow get: if isAdmin() ||
         (isSignedIn() && resource.data.authUid == request.auth.uid);
       allow list: if isAdmin();
-      allow create, update: if isAdmin() ||
-        (isSignedIn() && request.resource.data.authUid == request.auth.uid);
+      allow create: if isAdmin() ||
+        (isSignedIn() && request.resource.data.authUid == request.auth.uid &&
+         identityShapeOk(request.resource.data));
+      allow update: if isAdmin() ||
+        (isSignedIn() && request.resource.data.authUid == request.auth.uid &&
+         identityShapeOk(request.resource.data) &&
+         (!('proof' in resource.data) || request.resource.data.proof == resource.data.proof));
       allow delete: if isAdmin();
+    }
+
+    function identityShapeOk(d) {
+      return d.keys().hasOnly(['authUid', 'proof', 'appVersionCode', 'updatedAt']) &&
+        d.proof is string && d.proof.matches('^[a-f0-9]{64}$');
     }
 
     // ── Device → account binding ────────────────────────────────────────
