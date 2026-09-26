@@ -1,6 +1,7 @@
 package com.tvonnet.debridxtreamiptv.player.stabilized
 
 import androidx.media3.common.MimeTypes
+import androidx.media3.common.Player
 import com.tvonnet.debridxtreamiptv.data.model.ContentType
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -106,5 +107,28 @@ class PlayerHelpersTest {
         assertEquals("debrid", qoeMode(ContentType.MOVIE, PlaybackSource.DEBRID))
         assertEquals("vod", qoeMode(ContentType.MOVIE, PlaybackSource.IPTV))
         assertEquals("vod", qoeMode(null, PlaybackSource.IPTV))
+    }
+    // F1 Phase 0: these names are what the on-device QA greps for. A renamed or shifted constant
+    // would silently turn "AUDIO_BECOMING_NOISY" into "UNKNOWN(3)" in the one line that matters.
+    @Test
+    fun `playWhenReady reasons are named`() {
+        assertEquals("USER_REQUEST", playWhenReadyReasonName(Player.PLAY_WHEN_READY_CHANGE_REASON_USER_REQUEST))
+        assertEquals("AUDIO_FOCUS_LOSS", playWhenReadyReasonName(Player.PLAY_WHEN_READY_CHANGE_REASON_AUDIO_FOCUS_LOSS))
+        assertEquals("AUDIO_BECOMING_NOISY", playWhenReadyReasonName(Player.PLAY_WHEN_READY_CHANGE_REASON_AUDIO_BECOMING_NOISY))
+        assertEquals("REMOTE", playWhenReadyReasonName(Player.PLAY_WHEN_READY_CHANGE_REASON_REMOTE))
+        assertEquals("END_OF_MEDIA_ITEM", playWhenReadyReasonName(Player.PLAY_WHEN_READY_CHANGE_REASON_END_OF_MEDIA_ITEM))
+        assertEquals("SUPPRESSED_TOO_LONG", playWhenReadyReasonName(6))
+        assertEquals("UNKNOWN(99)", playWhenReadyReasonName(99))
+    }
+
+    @Test
+    fun `playback suppression reasons are named`() {
+        assertEquals("NONE", playbackSuppressionReasonName(Player.PLAYBACK_SUPPRESSION_REASON_NONE))
+        assertEquals(
+            "TRANSIENT_AUDIO_FOCUS_LOSS",
+            playbackSuppressionReasonName(Player.PLAYBACK_SUPPRESSION_REASON_TRANSIENT_AUDIO_FOCUS_LOSS)
+        )
+        assertEquals("UNSUITABLE_AUDIO_OUTPUT", playbackSuppressionReasonName(3))
+        assertEquals("UNKNOWN(42)", playbackSuppressionReasonName(42))
     }
 }

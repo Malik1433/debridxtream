@@ -235,12 +235,50 @@ internal class PlayerEventListener(
          }
     }
     override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
+        logPlayWhenReadyChange(playWhenReady, reason)
         if (contentType != ContentType.LIVE_TV) {
             updatePlayPauseVisibility(playerView, playWhenReady, isControllerVisible)
         } else if (playWhenReady) {
             maybeSnapToLiveEdge()
         }
     }
+    /**
+     * F1 Phase 0 (docs/reports/F1_UNEXPECTED_PAUSE_DESIGN.md): a VOD played ~7 s and then sat at
+     * PAUSED, where no watchdog looks. Diagnostics only - says WHO flipped playWhenReady, and how long
+     * ago the last key was, so the user's own pause is distinguishable from a system one.
+     */
+    private fun logPlayWhenReadyChange(playWhenReady: Boolean, reason: Int) {
+        val p = player
+        val keyAgeMs = if (session.lastKeyAtMs > 0L) SystemClock.elapsedRealtime() - session.lastKeyAtMs else -1L
+        Log.i(
+            "PlayerActivity",
+            "playWhenReady=$playWhenReady reason=${playWhenReadyReasonName(reason)} " +
+                "state=${p?.playbackState} pos=${p?.currentPosition} " +
+                "suppression=${playbackSuppressionReasonName(p?.playbackSuppressionReason ?: 0)} " +
+                "lastKey=${session.lastKeyCode} lastKeyAgeMs=$keyAgeMs"
+        )
+        if (!playWhenReady) {
+            PlaybackDiagnosticsRecorder.record(
+                activity.requireContext(),
+                "play_when_ready_false",
+                diagnosticsPlaybackFields() + mapOf(
+                    "reason" to playWhenReadyReasonName(reason),
+                    "positionMs" to (p?.currentPosition ?: 0L),
+                    "lastKeyCode" to session.lastKeyCode,
+                    "lastKeyAgeMs" to keyAgeMs
+                )
+            )
+        }
+    }
+
+    override fun onPlaybackSuppressionReasonChanged(playbackSuppressionReason: Int) {
+        Log.i(
+            "PlayerActivity",
+            "playbackSuppression=${playbackSuppressionReasonName(playbackSuppressionReason)} " +
+                "pos=${player?.currentPosition}"
+        )
+    }
+
     // H6: one reliability observation per source attempt (this listener is per-init).
     private var hasRecordedReliabilitySuccess = false
 

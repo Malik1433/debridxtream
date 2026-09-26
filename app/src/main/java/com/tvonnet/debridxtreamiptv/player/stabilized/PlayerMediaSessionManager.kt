@@ -8,6 +8,7 @@ import android.media.session.MediaSession
 import android.media.session.PlaybackState
 import android.os.Handler
 import android.os.Looper
+import android.util.Log
 import androidx.media3.common.Player
 
 /**
@@ -123,8 +124,10 @@ internal class PlayerMediaSessionManager(
      */
     private class TransportCallback(private val player: Player) : MediaSession.Callback() {
         override fun onPlay() { player.play() }
-        override fun onPause() { player.pause() }
-        override fun onStop() { player.pause() }
+        // F1 Phase 0: a session command is a SYSTEM pause (CEC, Alexa, another app) - say so, because
+        // to the player it arrives as an ordinary USER_REQUEST.
+        override fun onPause() { Log.i(TAG, "media session onPause (system command)"); player.pause() }
+        override fun onStop() { Log.i(TAG, "media session onStop (system command)"); player.pause() }
         override fun onSeekTo(pos: Long) { if (player.isCurrentMediaItemSeekable) player.seekTo(pos) }
         override fun onFastForward() { if (player.isCurrentMediaItemSeekable) player.seekForward() }
         override fun onRewind() { if (player.isCurrentMediaItemSeekable) player.seekBack() }

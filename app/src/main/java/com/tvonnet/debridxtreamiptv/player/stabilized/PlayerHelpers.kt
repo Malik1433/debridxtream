@@ -3,6 +3,7 @@ package com.tvonnet.debridxtreamiptv.player.stabilized
 import androidx.media3.common.C
 import androidx.media3.common.MimeTypes
 import androidx.media3.common.PlaybackException
+import androidx.media3.common.Player
 import androidx.media3.datasource.HttpDataSource
 import com.tvonnet.debridxtreamiptv.data.model.ContentType
 import java.util.Locale
@@ -315,3 +316,27 @@ internal const val HTTP_429_COOLOFF_MS = 20_000L
 
 /** Permanently-broken sources: retrying these only delays the app-level fallback. */
 private val FAIL_FAST_RESPONSE_CODES = setOf(401, 403, 404, 410, 416, 451)
+
+/**
+ * F1 Phase 0 (docs/reports/F1_UNEXPECTED_PAUSE_DESIGN.md): readable names for WHY playWhenReady
+ * changed, so one logcat line says who paused a player that then sat at PAUSED. Numeric literals
+ * for the reasons newer than the oldest Media3 this code has shipped against.
+ */
+internal fun playWhenReadyReasonName(reason: Int): String = when (reason) {
+    Player.PLAY_WHEN_READY_CHANGE_REASON_USER_REQUEST -> "USER_REQUEST"
+    Player.PLAY_WHEN_READY_CHANGE_REASON_AUDIO_FOCUS_LOSS -> "AUDIO_FOCUS_LOSS"
+    Player.PLAY_WHEN_READY_CHANGE_REASON_AUDIO_BECOMING_NOISY -> "AUDIO_BECOMING_NOISY"
+    Player.PLAY_WHEN_READY_CHANGE_REASON_REMOTE -> "REMOTE"
+    Player.PLAY_WHEN_READY_CHANGE_REASON_END_OF_MEDIA_ITEM -> "END_OF_MEDIA_ITEM"
+    6 -> "SUPPRESSED_TOO_LONG"
+    else -> "UNKNOWN($reason)"
+}
+
+/** Same, for [Player.getPlaybackSuppressionReason]: playing is wanted but held back. */
+internal fun playbackSuppressionReasonName(reason: Int): String = when (reason) {
+    Player.PLAYBACK_SUPPRESSION_REASON_NONE -> "NONE"
+    Player.PLAYBACK_SUPPRESSION_REASON_TRANSIENT_AUDIO_FOCUS_LOSS -> "TRANSIENT_AUDIO_FOCUS_LOSS"
+    2 -> "UNSUITABLE_AUDIO_ROUTE"
+    3 -> "UNSUITABLE_AUDIO_OUTPUT"
+    else -> "UNKNOWN($reason)"
+}

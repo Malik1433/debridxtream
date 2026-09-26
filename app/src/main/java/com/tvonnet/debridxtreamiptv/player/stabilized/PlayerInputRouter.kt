@@ -2,6 +2,7 @@ package com.tvonnet.debridxtreamiptv.player.stabilized
 
 import com.tvonnet.debridxtreamiptv.R
 import android.util.Log
+import android.os.SystemClock
 import android.view.KeyEvent
 import com.tvonnet.debridxtreamiptv.BuildConfig
 import com.tvonnet.debridxtreamiptv.data.model.ContentType
@@ -56,6 +57,10 @@ internal class PlayerInputRouter(
     private fun toggleEpgOverlayPinned() = activity.toggleEpgOverlayPinned()
 
     fun dispatchKeyEvent(event: KeyEvent): Boolean? {
+        if (event.action == KeyEvent.ACTION_DOWN) {
+            session.lastKeyCode = event.keyCode
+            session.lastKeyAtMs = SystemClock.elapsedRealtime()
+        }
         // LP-D-6: per-key logging only in debug builds (was unconditional).
         if (BuildConfig.DEBUG) {
             Log.d("PlayerActivity", "dispatchKeyEvent: code=${event.keyCode}, action=${event.action}")

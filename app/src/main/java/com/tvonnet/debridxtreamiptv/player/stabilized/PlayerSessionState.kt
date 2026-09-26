@@ -91,4 +91,8 @@ internal class PlayerSessionState {
     var watchdogExtensions: Int = 0
     var watchdogBufferedPosAtArm: Long = -1L
     var networkAvailable: Boolean = true
+
+    // ── F1 Phase 0: the last key the player saw, so a pause can be told apart from the user's own ──
+    var lastKeyCode: Int = 0
+    var lastKeyAtMs: Long = 0L
 }
