@@ -131,4 +131,20 @@ class PlayerHelpersTest {
         assertEquals("UNSUITABLE_AUDIO_OUTPUT", playbackSuppressionReasonName(3))
         assertEquals("UNKNOWN(42)", playbackSuppressionReasonName(42))
     }
+
+    // F1 Phase 1-A: a TV must NOT pause on becoming-noisy (HDMI route churn fires it with no key
+    // pressed); a handset must, or unplugging headphones blasts the speaker.
+    @Test
+    fun `becoming-noisy pauses a handset but never a television`() {
+        val tv = android.content.res.Configuration.UI_MODE_TYPE_TELEVISION
+        val normal = android.content.res.Configuration.UI_MODE_TYPE_NORMAL
+        val undefined = android.content.res.Configuration.UI_MODE_TYPE_UNDEFINED
+        assertEquals(false, shouldPauseOnAudioBecomingNoisy(tv, hasLeanback = true, hasTouchscreen = false))
+        assertEquals(false, shouldPauseOnAudioBecomingNoisy(tv, hasLeanback = false, hasTouchscreen = true))
+        // A box that does not report TELEVISION but is leanback-only is still a TV.
+        assertEquals(false, shouldPauseOnAudioBecomingNoisy(undefined, hasLeanback = true, hasTouchscreen = false))
+        assertEquals(true, shouldPauseOnAudioBecomingNoisy(normal, hasLeanback = false, hasTouchscreen = true))
+        // A leanback-declaring tablet has a speaker and a jack: keep the handset behaviour.
+        assertEquals(true, shouldPauseOnAudioBecomingNoisy(normal, hasLeanback = true, hasTouchscreen = true))
+    }
 }

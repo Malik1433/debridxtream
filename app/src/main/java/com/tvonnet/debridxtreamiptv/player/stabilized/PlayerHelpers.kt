@@ -340,3 +340,24 @@ internal fun playbackSuppressionReasonName(reason: Int): String = when (reason) 
     3 -> "UNSUITABLE_AUDIO_OUTPUT"
     else -> "UNKNOWN($reason)"
 }
+
+/**
+ * F1 Phase 1-A: should the player pause on ACTION_AUDIO_BECOMING_NOISY?
+ *
+ * That broadcast exists so unplugging headphones does not blast audio out of a phone's speaker.
+ * A television has no speaker to fall back to - HDMI is its only output - and on the Fire TV
+ * (AFTGAZL, 2026-09-27 capture) HDMI route churn fires it half a second into playback with no key
+ * pressed, leaving the player at PAUSED where no watchdog looks. So: handsets keep it, TVs don't.
+ *
+ * This asks what the DEVICE is, never the UI-mode override: a phone forced into the TV layout still
+ * has headphones. [uiModeType] is `UiModeManager.currentModeType`.
+ */
+internal fun shouldPauseOnAudioBecomingNoisy(
+    uiModeType: Int,
+    hasLeanback: Boolean,
+    hasTouchscreen: Boolean,
+): Boolean {
+    val isTelevision = uiModeType == android.content.res.Configuration.UI_MODE_TYPE_TELEVISION ||
+        (hasLeanback && !hasTouchscreen)
+    return !isTelevision
+}

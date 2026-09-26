@@ -1,6 +1,9 @@
 package com.tvonnet.debridxtreamiptv.player.stabilized
 
+import android.app.UiModeManager
 import android.content.Context
+import android.content.pm.PackageManager
+import android.content.res.Configuration
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.datasource.cache.CacheDataSink
@@ -179,6 +182,17 @@ internal class PlayerEngineFactory(
             .setMediaCodecSelector(codecSelector)
     }
 
+    // F1 Phase 1-A: see shouldPauseOnAudioBecomingNoisy - a TV has no speaker for this to protect.
+    private fun pauseOnAudioBecomingNoisy(): Boolean {
+        val pm = context.packageManager
+        return shouldPauseOnAudioBecomingNoisy(
+            uiModeType = (context.getSystemService(Context.UI_MODE_SERVICE) as? UiModeManager)?.currentModeType
+                ?: Configuration.UI_MODE_TYPE_UNDEFINED,
+            hasLeanback = pm.hasSystemFeature(PackageManager.FEATURE_LEANBACK),
+            hasTouchscreen = pm.hasSystemFeature(PackageManager.FEATURE_TOUCHSCREEN),
+        )
+    }
+
     private fun buildExoPlayer(
         mediaSourceFactory: DefaultMediaSourceFactory,
         loadControl: DefaultLoadControl,
@@ -212,7 +226,7 @@ internal class PlayerEngineFactory(
             .setSeekForwardIncrementMs(10000)
             .setSeekBackIncrementMs(10000)
             .setAudioAttributes(audioAttributes, /* handleAudioFocus= */ true)
-            .setHandleAudioBecomingNoisy(true)
+            .setHandleAudioBecomingNoisy(pauseOnAudioBecomingNoisy())
             .setWakeMode(C.WAKE_MODE_NETWORK)
             .setSeekParameters(SeekParameters.CLOSEST_SYNC)
             .build()
