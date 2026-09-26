@@ -6,6 +6,7 @@ import android.content.Intent
 import android.media.MediaMetadata
 import android.media.session.MediaSession
 import android.media.session.PlaybackState
+import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
@@ -50,6 +51,9 @@ internal class PlayerMediaSessionManager(
         fun setCallback(callback: MediaSession.Callback?)
         fun setSessionActivity(intent: PendingIntent?)
         fun release()
+
+        /** Package of the controller behind the command being handled right now (API 28+), if known. */
+        fun currentControllerPackage(): String? = null
     }
 
     private var session: PlatformSession? = null
@@ -70,7 +74,7 @@ internal class PlayerMediaSessionManager(
         unbind() // clears title too - so it is set AFTER, never before
         this.title = title
         val s = sessionFactory(context)
-        s.setCallback(TransportCallback(player))
+        s.setCallback(TransportCallback(player) { s.currentControllerPackage() })
         s.setSessionActivity(returnToPlayerIntent())
         s.setActive(true)
         session = s
@@ -122,12 +126,16 @@ internal class PlayerMediaSessionManager(
      * dressed up as a feature. STOP is a pause — the session never releases a player it
      * does not own.
      */
-    private class TransportCallback(private val player: Player) : MediaSession.Callback() {
+    private class TransportCallback(
+        private val player: Player,
+        private val callerPackage: () -> String?,
+    ) : MediaSession.Callback() {
         override fun onPlay() { player.play() }
-        // F1 Phase 0: a session command is a SYSTEM pause (CEC, Alexa, another app) - say so, because
-        // to the player it arrives as an ordinary USER_REQUEST.
-        override fun onPause() { Log.i(TAG, "media session onPause (system command)"); player.pause() }
-        override fun onStop() { Log.i(TAG, "media session onStop (system command)"); player.pause() }
+        // F1 Phase 0/1-C: a session command is a SYSTEM pause (CEC, Alexa, another app) - say so, and
+        // say WHO, because to the player it arrives as an ordinary USER_REQUEST. The 2026-09-27 Fire TV
+        // capture saw one arrive 3.8 s into playback with no key pressed.
+        override fun onPause() { Log.i(TAG, systemCommandLogLine("onPause", callerPackage())); player.pause() }
+        override fun onStop() { Log.i(TAG, systemCommandLogLine("onStop", callerPackage())); player.pause() }
         override fun onSeekTo(pos: Long) { if (player.isCurrentMediaItemSeekable) player.seekTo(pos) }
         override fun onFastForward() { if (player.isCurrentMediaItemSeekable) player.seekForward() }
         override fun onRewind() { if (player.isCurrentMediaItemSeekable) player.seekBack() }
@@ -158,10 +166,22 @@ internal class PlayerMediaSessionManager(
         override fun setCallback(callback: MediaSession.Callback?) = session.setCallback(callback, mainHandler)
         override fun setSessionActivity(intent: PendingIntent?) = session.setSessionActivity(intent)
         override fun release() = session.release()
+        override fun currentControllerPackage(): String? =
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                // Only valid inside a callback; outside one the framework throws - never let a log
+                // line take down a pause.
+                runCatching { session.currentControllerInfo?.packageName }.getOrNull()
+            } else {
+                null
+            }
     }
 
     internal companion object {
         const val TAG = "PlayerMediaSession"
+
+        /** Pure: the log line for a transport command the SYSTEM sent (see [TransportCallback]). */
+        internal fun systemCommandLogLine(command: String, callerPackage: String?): String =
+            "media session $command (system command) from=${callerPackage ?: "unknown"}"
 
         private const val TRANSPORT_ACTIONS =
             PlaybackState.ACTION_PLAY or PlaybackState.ACTION_PAUSE or PlaybackState.ACTION_PLAY_PAUSE or

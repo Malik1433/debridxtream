@@ -52,6 +52,9 @@ class PlayerMediaSessionManagerTest {
         override fun setCallback(callback: MediaSession.Callback?) { boundCallback = callback }
         override fun setSessionActivity(intent: PendingIntent?) {}
         override fun release() { released = true }
+        var controllerPackage: String? = null
+        var controllerQueries = 0
+        override fun currentControllerPackage(): String? { controllerQueries++; return controllerPackage }
     }
 
     /** The smallest Player media3 will accept: idle, no items, main looper. */
@@ -186,5 +189,29 @@ class PlayerMediaSessionManagerTest {
         assertTrue(vod and PlaybackState.ACTION_SEEK_TO != 0L)
         assertTrue(vod and PlaybackState.ACTION_FAST_FORWARD != 0L)
         assertTrue(vod and PlaybackState.ACTION_REWIND != 0L)
+    }
+
+    // ── F1 Phase 1-C: who sent a system pause ─────────────────────────────────────
+
+    @Test
+    fun `a system pause asks the session who sent it`() {
+        manager.bind(FakePlayer())
+        val session = created.single()
+        session.controllerPackage = "com.amazon.vizzini"
+        session.boundCallback!!.onPause()
+        session.boundCallback!!.onStop()
+        assertEquals(2, session.controllerQueries)
+    }
+
+    @Test
+    fun `the system command log line names the caller, or says unknown`() {
+        assertEquals(
+            "media session onPause (system command) from=com.amazon.vizzini",
+            PlayerMediaSessionManager.systemCommandLogLine("onPause", "com.amazon.vizzini")
+        )
+        assertEquals(
+            "media session onStop (system command) from=unknown",
+            PlayerMediaSessionManager.systemCommandLogLine("onStop", null)
+        )
     }
 }
