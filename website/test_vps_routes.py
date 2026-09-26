@@ -1,3 +1,4 @@
+import os
 import paramiko
 import sys
 
@@ -5,8 +6,11 @@ if hasattr(sys.stdout, 'reconfigure'):
     sys.stdout.reconfigure(encoding='utf-8', errors='replace')
 
 s = paramiko.SSHClient()
-s.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-s.connect('209.74.88.56', 22, 'root', '4d8s0U6B8vs7gRMYNm')
+# Credentials come from the environment (see deploy_to_vps.py) - the repository is public.
+s.load_system_host_keys()
+s.set_missing_host_key_policy(paramiko.RejectPolicy())
+s.connect(os.environ.get("VPS_HOST", "209.74.88.56"), 22, os.environ.get("VPS_USER", "root"),
+          os.environ.get("VPS_PASSWORD") or None, key_filename=os.environ.get("VPS_KEY_FILE") or None)
 
 routes = ['/', '/link', '/admin', '/account', '/reseller/login', '/setup-guide', '/download', '/pricing']
 for r in routes:

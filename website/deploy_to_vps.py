@@ -9,9 +9,12 @@ if hasattr(sys.stdout, 'reconfigure'):
 if hasattr(sys.stderr, 'reconfigure'):
     sys.stderr.reconfigure(encoding='utf-8', errors='replace')
 
-host = "209.74.88.56"
-user = "root"
-pwd = "4d8s0U6B8vs7gRMYNm"
+host = os.environ.get("VPS_HOST", "209.74.88.56")
+user = os.environ.get("VPS_USER", "root")
+# Credentials never live in this file: the repository is public. Prefer an SSH key
+# (VPS_KEY_FILE, or the default ~/.ssh keys / agent); VPS_PASSWORD is a fallback only.
+pwd = os.environ.get("VPS_PASSWORD") or None
+key_file = os.environ.get("VPS_KEY_FILE") or None
 
 project_dir = os.path.dirname(os.path.abspath(__file__))
 archive_path = os.path.join(project_dir, "dxplay_deploy.tar.gz")
@@ -50,8 +53,11 @@ print(f"✅ Bundle ready: {archive_size_mb:.2f} MB", flush=True)
 
 print(f"\n🔌 Step 2: Connecting to VPS ({host})...", flush=True)
 ssh = paramiko.SSHClient()
-ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-ssh.connect(host, port=22, username=user, password=pwd, timeout=30)
+# Known hosts only: an unknown or changed host key is refused instead of silently trusted.
+# First time from a new machine, run `ssh <user>@<host>` once to record the server's key.
+ssh.load_system_host_keys()
+ssh.set_missing_host_key_policy(paramiko.RejectPolicy())
+ssh.connect(host, port=22, username=user, password=pwd, key_filename=key_file, timeout=30)
 
 def run_cmd(cmd, timeout=600):
     print(f"\n[SERVER] {cmd}", flush=True)
