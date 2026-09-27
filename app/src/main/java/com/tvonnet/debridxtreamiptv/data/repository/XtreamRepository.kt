@@ -110,7 +110,6 @@ class XtreamRepository @Inject constructor(
 
 
     val syncProgress: StateFlow<SyncProgress> get() = syncManager.syncProgress
-    
     // Phase 4: @Synchronized so concurrent first-callers (MainActivity + HomeFragment + every
     // browse ViewModel all call initialize()) can't both pass the idempotency guard while
     // apiService is still null and rebuild the whole Retrofit/OkHttp stack twice (a race that
@@ -163,7 +162,7 @@ class XtreamRepository @Inject constructor(
                 val isAuthenticated = userInfo?.auth == 1 ||
                     userInfo?.status.equals("Active", ignoreCase = true)
                 if (userInfo != null && isAuthenticated) {
-                    Result.Success(body)
+                    Result.Success(body).also { com.tvonnet.debridxtreamiptv.data.prefs.ServerClock.remember(context, body.server_info?.timezone) }
                 } else {
                     val message = userInfo?.message?.takeIf { it.isNotBlank() }
                         ?: "Account is not active or authorized"
@@ -395,6 +394,7 @@ class XtreamRepository @Inject constructor(
         channelKey: String,
         limit: Int = 2
     ): Result<Pair<EpgEntity?, EpgEntity?>> = epgSyncManager.fetchShortEpgNowNext(streamId, channelKey, limit)
+    suspend fun channelHasArchive(streamId: String): Boolean? = epgSyncManager.channelHasArchive(streamId)
 
     // XtreamEpgListing.toEpgEntityOrNull / decodeBase64IfPossible moved to EpgMapping.kt (Phase 7) —
     // pure leaf-mappers, same package, resolved by wildcard import. Behaviour unchanged.

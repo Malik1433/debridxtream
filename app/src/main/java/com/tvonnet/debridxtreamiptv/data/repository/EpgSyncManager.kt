@@ -263,6 +263,21 @@ internal class EpgSyncManager(
         }
     }
 
+    /**
+     * Catch-up: does this channel keep recordings? True when ANY programme in its archive table is
+     * marked has_archive=1 - the one airing now never is (it is still being recorded), so the
+     * channel as a whole is what counts. Null when the provider could not be asked.
+     */
+    suspend fun channelHasArchive(streamId: String): Boolean? = try {
+        val response = apiService?.getSimpleDataTable(username, password, streamId = streamId)
+        if (response?.isSuccessful != true) null
+        else response.body()?.listings.orEmpty().any { it.hasArchive == 1 }
+    } catch (ce: kotlinx.coroutines.CancellationException) { throw ce
+    } catch (e: Exception) {
+        android.util.Log.w("EpgSyncManager", "archive lookup failed: ${e.javaClass.simpleName}", e)
+        null
+    }
+
     suspend fun fetchShortEpgNowNext(
         streamId: String,
         channelKey: String,
