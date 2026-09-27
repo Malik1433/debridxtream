@@ -19,6 +19,7 @@ internal class LiveRebufferPatience(private val nowMs: () -> Long) {
     private val stallTimesMs = ArrayDeque<Long>()
     private var waitingSinceMs = NOT_WAITING
     private var streamKey: Any? = null
+    private var startedOnce = false
 
     /** Called with the stall count and the buffer asked for, when a stall asks for more than usual. */
     @Volatile var onPatient: ((stallsInWindow: Int, targetMs: Long) -> Unit)? = null
@@ -28,14 +29,32 @@ internal class LiveRebufferPatience(private val nowMs: () -> Long) {
     fun onStream(key: Any?) {
         if (key == streamKey) return
         streamKey = key
-        stallTimesMs.clear()
-        waitingSinceMs = NOT_WAITING
+        reset()
     }
 
     @Synchronized
     fun reset() {
         stallTimesMs.clear()
         waitingSinceMs = NOT_WAITING
+        startedOnce = false
+    }
+
+    /**
+     * Any "may I start?" on a stream that already played once is a stall, not only Media3's own
+     * rebuffer. Fire TV QA (2026-09-27): after a network drop the app's reconnect RE-PREPARES the
+     * player, Media3 reports that start as a first load (rebuffering=false), and the stall count
+     * never moved. The very first start of a stream is the only one that is not a stall.
+     *
+     * @param rebuffering Media3's own flag; [baseSaysGo] the player's own threshold answer.
+     */
+    @Synchronized
+    fun shouldStart(bufferedMs: Long, rebuffering: Boolean, baseSaysGo: Boolean): Boolean {
+        if (!rebuffering && !startedOnce) {
+            if (baseSaysGo) startedOnce = true
+            return baseSaysGo
+        }
+        startedOnce = true
+        return shouldResume(bufferedMs, baseSaysGo)
     }
 
     /** True while a rebuffer is being held for more than the player's own threshold. */

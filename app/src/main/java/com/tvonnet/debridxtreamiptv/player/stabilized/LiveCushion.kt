@@ -47,8 +47,7 @@ internal class LivePatienceLoadControl(
 
     override fun shouldStartPlayback(parameters: LoadControl.Parameters): Boolean {
         val baseSaysGo = delegate.shouldStartPlayback(parameters)
-        if (!parameters.rebuffering) return baseSaysGo
-        return patience.shouldResume(parameters.bufferedDurationUs / 1000, baseSaysGo)
+        return patience.shouldStart(parameters.bufferedDurationUs / 1000, parameters.rebuffering, baseSaysGo)
     }
 
     override fun shouldContinueLoading(parameters: LoadControl.Parameters): Boolean =

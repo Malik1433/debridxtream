@@ -78,4 +78,25 @@ class LiveCushionPolicyTest {
         assertEquals(1f, fill.speedFor(8_000L))
         assertEquals(1f, fill.speedFor(6_000L))
     }
+
+    @Test
+    fun `a reconnect that re-prepares the same stream counts as a stall`() {
+        patience.onStream("a")
+        assertTrue(patience.shouldStart(2_000L, rebuffering = false, baseSaysGo = true)) // first start
+        now += 20_000L
+        assertTrue(patience.shouldStart(2_000L, rebuffering = false, baseSaysGo = true)) // re-prepare: stall 1
+        now += 40_000L
+        assertFalse(patience.shouldStart(2_000L, rebuffering = false, baseSaysGo = true)) // stall 2: hold
+        assertTrue(patience.shouldStart(5_000L, rebuffering = false, baseSaysGo = true))
+    }
+
+    @Test
+    fun `the first start of a new stream is never held`() {
+        patience.onStream("a")
+        patience.shouldStart(2_000L, rebuffering = false, baseSaysGo = true)
+        now += 10_000L
+        patience.shouldStart(2_000L, rebuffering = true, baseSaysGo = true)
+        patience.onStream("b")
+        assertTrue(patience.shouldStart(1_000L, rebuffering = false, baseSaysGo = true))
+    }
 }
