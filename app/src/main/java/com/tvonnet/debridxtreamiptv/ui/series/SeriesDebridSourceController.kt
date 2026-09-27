@@ -12,6 +12,7 @@ import com.tvonnet.debridxtreamiptv.data.repository.MovieSource
 import com.tvonnet.debridxtreamiptv.debug.PlaybackDiagnosticsRecorder
 import com.tvonnet.debridxtreamiptv.ui.sources.SourceFilterState
 import com.tvonnet.debridxtreamiptv.ui.sources.SourceFilterUtils
+import com.tvonnet.debridxtreamiptv.ui.sources.nextInSameLanguage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -130,15 +131,7 @@ class SeriesDebridSourceController(
         val failedIds = failedDebridStreamIdsByEpisode[episodeId].orEmpty()
         val filteredSources = SourceFilterUtils.apply(sources, filterState)
             .filterNot { source -> source.stream.stream_id?.let { it in failedIds } == true }
-        if (filteredSources.isEmpty()) return null
-
-        val failedIndex = filteredSources.indexOfFirst { it.stream.stream_id == failedStreamId }
-        val nextIndex = when {
-            failedIndex in 0 until filteredSources.lastIndex -> failedIndex + 1
-            failedIndex == -1 -> 0
-            else -> -1
-        }
-        return if (nextIndex >= 0) filteredSources[nextIndex] else null
+        return activity.nextInSameLanguage(filteredSources, sources, failedStreamId, filterState, credentialsPreferences)
     }
 
     fun markDebridEpisodeSourceCached(episodeId: String, streamId: String?, isCached: Boolean) {

@@ -26,6 +26,7 @@ import com.tvonnet.debridxtreamiptv.ui.sources.SizeFilterAdapter
 import com.tvonnet.debridxtreamiptv.ui.sources.SizeFilterOption
 import com.tvonnet.debridxtreamiptv.ui.sources.SourceFilterState
 import com.tvonnet.debridxtreamiptv.ui.sources.SourceFilterUtils
+import com.tvonnet.debridxtreamiptv.ui.sources.nextInSameLanguage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
@@ -523,15 +524,7 @@ class MovieDebridSourceController(
     ): MovieSource? {
         val filteredSources = SourceFilterUtils.apply(sources, debridFilterState)
             .filterNot { source -> source.stream.stream_id?.let { it in failedDebridStreamIds } == true }
-        if (filteredSources.isEmpty()) return null
-
-        val failedIndex = filteredSources.indexOfFirst { it.stream.stream_id == failedStreamId }
-        val nextIndex = when {
-            failedIndex in 0 until filteredSources.lastIndex -> failedIndex + 1
-            failedIndex == -1 -> 0
-            else -> -1
-        }
-        return if (nextIndex >= 0) filteredSources[nextIndex] else null
+        return activity.nextInSameLanguage(filteredSources, sources, failedStreamId, debridFilterState, credentialsPrefs)
     }
 
     fun refreshMediaFusionCacheStatus(

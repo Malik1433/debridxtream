@@ -83,6 +83,7 @@
     <string name="c_this_device_needs_to_check">This device needs to check in — it will unlock by itself once online</string>
     <string name="c_try_restarting_normally">Try Restarting Normally</string>
     <string name="c_trying_next_source">Trying next source...</string>
+    <string name="c_no_more_sources_in_language">No other %1$s source left. Pick one from the list.</string>
     <string name="c_tv_added_syncing">✓ TV ADDED · SYNCING…</string>
     <string name="c_tv_guide_row_density">TV Guide Row Density</string>
     <string name="c_tv_guide_timeline_zoom">TV Guide Timeline Zoom</string>

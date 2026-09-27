@@ -530,6 +530,7 @@
     <string name="c_this_device_needs_to_check">Este dispositivo necesita conectarse — se desbloqueará solo al estar en línea</string>
     <string name="c_try_restarting_normally">Probar reinicio normal</string>
     <string name="c_trying_next_source">Probando la siguiente fuente…</string>
+    <string name="c_no_more_sources_in_language">No quedan más fuentes en %1$s. Elige una de la lista.</string>
     <string name="c_tv_added_syncing">✓ TV AÑADIDA · SINCRONIZANDO…</string>
     <string name="c_tv_guide_row_density">Guía TV: densidad de filas</string>
     <string name="c_tv_guide_timeline_zoom">Guía TV: zoom de la línea temporal</string>
