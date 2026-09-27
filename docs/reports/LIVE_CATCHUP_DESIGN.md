@@ -22,6 +22,28 @@ dobara aazmaya jata hai; halki feed pehle (`ddef31c`).
 | ⚠️ Unverified | Pehli bytes 188-byte TS par aligned nahi lagin. Fire TV par ek play test zaroori hai |
 | Waqt | `server_info.time_now` / timezone (Europe/Amsterdam). Start time **server ke waqt** mein bhejna hota hai |
 
+### C0: Fire TV par nateeje (2026-09-27)
+
+- **Chalta hai:** `|HINDI| DD SPORTS` ki recording par hardware decode (AVC 1920x1080) hua aur audio
+  bhi chala. Test player VLC tha, jo baad mein uninstall kar diya gaya. **4 min 44 s bina toote**
+  chala. Picture aur awaz saaf hai ya nahi, yeh owner ki aankh se confirm hona baqi hai.
+- **Seek:** protocol poora support karta hai. `Content-Length` milta hai, beech ke offset par `206`
+  aata hai, aur wahan ke bytes **valid TS** hain (sync lock, 1063/1063 packets aligned, PAT).
+  Recording byte 0 se aligned nahi, lekin TS hai. Pichla khula sawal isi se band hua.
+- ⚠️ **`duration` nahi mana jata.** Server recording ko **~10 minute ke chunks** mein bhejta hai.
+  5 min maango ya 30 min, jawab mein woh ~10 min ka chunk aata hai jis mein `start` ka waqt ho.
+- **Chalta hua chunk badhta hai.** "Ab" wala chunk pehle recorded hissa tezi se (burst) bhejta hai,
+  phir **real-time** (2.43 Mbps) par aage badhta hai, aur chunk ki had par khatam ho jata hai.
+  Ek test mein 6 min 45 s par khatam hua, taqreeban 10 min ka content.
+
+**Design par asar:** har catch-up playback **chunks ki zanjeer** (`CatchupChunkChain`) hogi. Ek
+chunk `ENDED` ho to agla chunk mangna hai, `start = pichle chunk ka aakhri waqt`. Timeshift minute
+se neeche granularity nahi deta, is liye jod par kuch second ka hissa do dafa aa sakta hai. Us ko
+naye chunk ke andar seek karke chhodna hoga (`Range`/TS seek). Yeh sab se nazuk hissa hai, aur C2 mein
+hi pehli dafa saabit karna hoga ke jod be-jhatke hai. C4 (delayed live) bhi isi zanjeer par chalega:
+2 min peeche chalne ka matlab hai ke agla chunk hamesha pehle se recorded hoga aur burst mein aayega.
+Yahi 2 min ka zakheera hai. Is liye C4 ab mumkin lagta hai, lekin jod ke be-jhatke hone par tikka hai.
+
 ## 2. Yeh match ki raat kyun ahem hai
 
 Live `.ts` real-time raftaar par aata hai, is liye aage ka buffer nahi banta. **Catch-up recording
@@ -85,9 +107,9 @@ nahi deta.
 
 | Phase | Kya | Risk |
 |---|---|---|
-| **C0** | Fire TV par play test: ek archive channel ka timeshift URL chalana (TS demux theek?), aur ek "abhi tak" window 10 min tak dekhna ke badhti hai ya nahi. Koi code nahi | — |
+| **C0** | ✅ Ho gaya (upar "C0 nateeje"): decode theek hai, seek protocol theek hai, 10-min chunks, chalta chunk real-time badhta hai | — |
 | **C1** | `CatchupUrlBuilder` + server timezone save (+ `ServerDataReset` + test) + `CatchupAvailability` | Low |
-| **C2** | Outage rewind prompt | Medium–High (Live landmine) |
+| **C2** | Outage rewind prompt + `CatchupChunkChain` (chunk khatam ho to agla chunk, jod par seek) | Medium–High (Live landmine, jod) |
 | **C3** | Start over | Medium |
 | **C4** | Match safe mode (sirf agar C0 haan kahe) | High |
 | **C5** | EPG catch-up UI | Medium (UI, dono rulebooks) |
@@ -104,6 +126,6 @@ nahi deta.
 
 ## 7. Owner ke faisle
 
-1. C0 chalwayein? (Mashwara: haan, pehle yahi.)
+1. ~~C0 chalwayein?~~ Ho gaya.
 2. Tarjeeh C2 → C3 → C4 → C5 theek hai?
 3. C2 ka prompt default "Live par rahein" rakhein, ya default "jahan ruka tha wahan se"?
