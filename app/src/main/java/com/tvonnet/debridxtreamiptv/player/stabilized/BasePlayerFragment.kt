@@ -617,6 +617,7 @@ open class BasePlayerFragment : Fragment(), PlayerRecoveryController.RecoveryHos
     private fun actOnStreamHealth(verdict: StreamHealth) {
         if (verdict != StreamHealth.CHANNEL_SLOW) return
         if (contentType != ContentType.LIVE_TV) return
+        liveFeedUnderLoad = true // from here on, failovers in this sitting try the lighter feeds first
         tryLiveAlternateSource {
             // Nothing left to switch to, and everything tried was just as bad: stop implying a
             // fix is one button away and name the real situation.
@@ -626,6 +627,8 @@ open class BasePlayerFragment : Fragment(), PlayerRecoveryController.RecoveryHos
 
     /** Feeds of this channel already tried in this sitting, so failover cannot go round in a circle. */
     private val triedLiveStreamIds = mutableSetOf<String>()
+    // Set once StreamHealth has judged a feed too slow in this sitting (see LiveAlternateSources.rank).
+    private var liveFeedUnderLoad = false
     private var liveFailoverInFlight = false
 
     /**
@@ -663,7 +666,7 @@ open class BasePlayerFragment : Fragment(), PlayerRecoveryController.RecoveryHos
         val found = withTimeoutOrNull(LIVE_ALTERNATE_SEARCH_MS) {
             withContext(Dispatchers.IO) { xtreamRepository.searchLive(term) }
         } ?: emptyList()
-        LiveAlternateSources.rank(name, contentId, found, triedLiveStreamIds)
+        LiveAlternateSources.rank(name, contentId, found, triedLiveStreamIds, underLoad = liveFeedUnderLoad)
             .firstOrNull { !buildLiveUrl(it).isNullOrBlank() }
     } catch (e: kotlinx.coroutines.CancellationException) {
         throw e

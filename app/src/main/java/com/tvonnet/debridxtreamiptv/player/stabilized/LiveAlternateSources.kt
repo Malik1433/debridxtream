@@ -25,12 +25,16 @@ internal object LiveAlternateSources {
      * @param currentStreamId the feed that just failed
      * @param candidates whatever a name search returned, unfiltered
      * @param alreadyTried feeds tried in this sitting, which must not come round again
+     * @param underLoad the feed was judged too slow for its bitrate (StreamHealth CHANNEL_SLOW), not
+     *   dead: then the LIGHTER feeds go first - on an overloaded match night a 2-3 Mbps SD/HD feed
+     *   keeps playing where a 6+ Mbps FHD/4K one cannot. A dead feed keeps the heavier-first order.
      */
     fun rank(
         currentName: String?,
         currentStreamId: String?,
         candidates: List<XtreamStream>,
         alreadyTried: Set<String>,
+        underLoad: Boolean = false,
     ): List<XtreamStream> = candidates
         .asSequence()
         .filter { it.stream_id != null && it.stream_id != currentStreamId }
@@ -40,12 +44,29 @@ internal object LiveAlternateSources {
         // Prefer a feed that ADVERTISES a quality tier: on this catalogue an "HD"/"FHD" entry is
         // usually the maintained one, and the bare name the leftover. It is a weak signal, so it
         // only orders the list — it never decides membership.
-        .sortedByDescending { qualityRank(it.name) }
+        .sortedByDescending { if (underLoad) loadRank(it.name) else qualityRank(it.name) }
         .take(MAX_ALTERNATES)
         .toList()
 
     /** What to search for: the channel's name without the tags, which is what a search matches on. */
     fun searchTerm(currentName: String?): String = MediaTitleCleaner.clean(currentName).trim()
+
+    /**
+     * Under load: labelled light tiers first (SD, then HD), then the heavy ones, and the bare name
+     * last - it is still the likeliest leftover, and its bitrate is anyone's guess.
+     */
+    private fun loadRank(name: String?): Int {
+        val lower = name?.lowercase().orEmpty()
+        return when {
+            Regex("\\bsd\\b").containsMatchIn(lower) -> 4
+            else -> when (qualityRank(name)) {
+                1 -> 3 // HD
+                2 -> 2 // FHD
+                3 -> 1 // UHD / 4K
+                else -> 0
+            }
+        }
+    }
 
     private fun qualityRank(name: String?): Int {
         val lower = name?.lowercase().orEmpty()
