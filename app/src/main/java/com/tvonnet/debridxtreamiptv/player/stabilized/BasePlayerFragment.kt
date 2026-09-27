@@ -703,6 +703,15 @@ open class BasePlayerFragment : Fragment(), PlayerRecoveryController.RecoveryHos
         liveTuner.performSeamlessSwitch(url)
     }
 
+    // Catch-up C2: "watch from where it stopped" (LiveCatchupController).
+    internal val catchup by lazy {
+        LiveCatchupController(this, session) {
+            CatchupUrlBuilder.Account(
+                baseServerUrl ?: prefs.getServerUrl().orEmpty(), prefs.getUsername().orEmpty(), prefs.getPassword().orEmpty()
+            )
+        }
+    }
+
     // Match mode: see LiveHoldOn. Reset by the first frame (PlayerEventListener).
     internal val liveHoldOn = LiveHoldOn { SystemClock.elapsedRealtime() }
 

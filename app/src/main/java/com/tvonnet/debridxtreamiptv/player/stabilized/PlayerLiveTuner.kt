@@ -138,6 +138,7 @@ internal class PlayerLiveTuner(
         // channel would otherwise follow the customer through every channel they tried, saying
         // "this channel is slow" about channels it had never measured.
         activity.streamHealth.reset()
+        activity.catchup.onUserZap()
         retryCount = 0
         audioSinkRecoveryCount = 0
         endedReconnects = 0

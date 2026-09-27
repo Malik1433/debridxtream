@@ -661,6 +661,12 @@
     <string name="phone_search_try">PRUEBA UNO DE ESTOS</string>
     <string name="live_trying_another_source">Probando otra fuente para este canal…</string>
     <string name="live_hold_retrying">El servidor del canal está saturado. Reintentando en %1$d s…</string>
+    <string name="catchup_resume_title">La emisión se interrumpió</string>
+    <string name="catchup_resume_message">Se detuvo hace %1$d min. ¿Ver desde donde se detuvo?</string>
+    <string name="catchup_resume_watch">Ver desde ahí</string>
+    <string name="catchup_resume_stay_live">Seguir en directo</string>
+    <string name="catchup_back_to_live">La grabación terminó. Volviendo al directo.</string>
+    <string name="catchup_unavailable">La grabación de este canal no está disponible. Se mantiene en directo.</string>
     <string name="health_channel_slow">Este canal tiene problemas ahora mismo</string>
     <string name="health_channel_all_feeds">Todas las fuentes de este canal tienen problemas</string>
     <string name="health_server_slow">El servidor del proveedor no responde</string>

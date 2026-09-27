@@ -661,6 +661,12 @@
     <string name="phone_search_try">ESSAYEZ L\'UN DE CEUX-CI</string>
     <string name="live_trying_another_source">Essai d\'une autre source pour cette chaîne…</string>
     <string name="live_hold_retrying">Le serveur de la chaîne est surchargé. Nouvel essai dans %1$d s…</string>
+    <string name="catchup_resume_title">Le flux a été interrompu</string>
+    <string name="catchup_resume_message">Il s\'est arrêté il y a %1$d min. Reprendre là où il s\'est arrêté ?</string>
+    <string name="catchup_resume_watch">Reprendre à ce moment</string>
+    <string name="catchup_resume_stay_live">Rester en direct</string>
+    <string name="catchup_back_to_live">Enregistrement terminé. Retour au direct.</string>
+    <string name="catchup_unavailable">L\'enregistrement de cette chaîne n\'est pas disponible. On reste en direct.</string>
     <string name="health_channel_slow">Cette chaîne a des difficultés en ce moment</string>
     <string name="health_channel_all_feeds">Toutes les sources de cette chaîne ont des difficultés</string>
     <string name="health_server_slow">Le serveur du fournisseur ne répond pas</string>

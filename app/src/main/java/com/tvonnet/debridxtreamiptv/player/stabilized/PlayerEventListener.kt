@@ -86,6 +86,7 @@ internal class PlayerEventListener(
     private fun diagnosticsPlaybackFields() = activity.diagnosticsFields(currentUrl, retryCount)
 
     override fun onPlaybackStateChanged(playbackState: Int) {
+        activity.catchup.onPlaybackState(playbackState)
         PlaybackDiagnosticsRecorder.record(
             activity.requireContext(),
             "player_state_changed",
@@ -153,6 +154,7 @@ internal class PlayerEventListener(
     }
 
     private fun onStateEnded() {
+         if (activity.catchup.onEnded()) return // a recording chunk ended: back to live, not a reconnect
          val nowMs = SystemClock.elapsedRealtime()
          if (nowMs - lastEndedReconnectAtMs > 30_000L) endedReconnects = 0
          val canReconnect = endedReconnects < 3
@@ -372,6 +374,7 @@ internal class PlayerEventListener(
     override fun onPlayerError(error: PlaybackException) {
         isSwitching = false
         timeoutHandler.removeCallbacks(timeoutRunnable)
+        if (activity.catchup.onError()) return // the recording failed: back to live, no retry loop
         // What the provider actually SAID. A 429 or a 403 is a fact about this account, so the
         // health verdict prefers it over anything it could infer from timing — but only if it is
         // told, which is what this line does.
