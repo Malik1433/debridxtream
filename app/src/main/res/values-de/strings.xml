@@ -532,6 +532,7 @@
     <string name="c_try_restarting_normally">Normal neu starten</string>
     <string name="c_trying_next_source">Nächste Quelle wird versucht…</string>
     <string name="c_no_more_sources_in_language">Keine weitere Quelle auf %1$s. Bitte eine aus der Liste wählen.</string>
+    <string name="c_unexpected_pause_hint">Die Wiedergabe wurde vom System angehalten. Zum Fortsetzen OK drücken.</string>
     <string name="c_tv_added_syncing">✓ TV HINZUGEFÜGT · SYNCHRONISIERUNG…</string>
     <string name="c_tv_guide_row_density">TV-Programm: Zeilendichte</string>
     <string name="c_tv_guide_timeline_zoom">TV-Programm: Zeitleisten-Zoom</string>

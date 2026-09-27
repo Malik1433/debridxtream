@@ -356,8 +356,11 @@ internal fun shouldPauseOnAudioBecomingNoisy(
     uiModeType: Int,
     hasLeanback: Boolean,
     hasTouchscreen: Boolean,
-): Boolean {
-    val isTelevision = uiModeType == android.content.res.Configuration.UI_MODE_TYPE_TELEVISION ||
-        (hasLeanback && !hasTouchscreen)
-    return !isTelevision
-}
+): Boolean = !isTelevisionDevice(uiModeType, hasLeanback, hasTouchscreen)
+
+/**
+ * Pure: is the DEVICE a television (not the UI-mode override)? `UiModeManager` says TELEVISION, or it
+ * is leanback-only with no touchscreen. Shared by the becoming-noisy rule and the unexpected-pause guard.
+ */
+internal fun isTelevisionDevice(uiModeType: Int, hasLeanback: Boolean, hasTouchscreen: Boolean): Boolean =
+    uiModeType == android.content.res.Configuration.UI_MODE_TYPE_TELEVISION || (hasLeanback && !hasTouchscreen)

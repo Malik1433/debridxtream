@@ -236,6 +236,7 @@ internal class PlayerEventListener(
     }
     override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
         logPlayWhenReadyChange(playWhenReady, reason)
+        if (!playWhenReady) reactToUnexpectedPause(activity, session, reason)
         if (contentType != ContentType.LIVE_TV) {
             updatePlayPauseVisibility(playerView, playWhenReady, isControllerVisible)
         } else if (playWhenReady) {

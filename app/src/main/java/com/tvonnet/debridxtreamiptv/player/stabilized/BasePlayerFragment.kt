@@ -503,6 +503,10 @@ open class BasePlayerFragment : Fragment(), PlayerRecoveryController.RecoveryHos
     internal val recoveryScoreboard = RecoveryScoreboard { SystemClock.elapsedRealtime() }
     private val recoverySink: (String) -> Unit = { recoveryScoreboard.onEvent(it) }
 
+    // F1 Phase 2: resumes a VOD that paused by itself (see PlayerUnexpectedPauseGuard).
+    internal val unexpectedPauseGuard = PlayerUnexpectedPauseGuard { SystemClock.elapsedRealtime() }
+    internal val isTelevision: Boolean by lazy { isTelevisionDevice(requireContext()) }
+
     internal var channelLogoUrl: String? by session::channelLogoUrl
     internal var contentType: ContentType? by session::contentType
     internal var playbackSource: PlaybackSource by session::playbackSource

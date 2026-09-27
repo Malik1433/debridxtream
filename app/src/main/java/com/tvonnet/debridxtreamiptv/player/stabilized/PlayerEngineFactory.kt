@@ -183,15 +183,7 @@ internal class PlayerEngineFactory(
     }
 
     // F1 Phase 1-A: see shouldPauseOnAudioBecomingNoisy - a TV has no speaker for this to protect.
-    private fun pauseOnAudioBecomingNoisy(): Boolean {
-        val pm = context.packageManager
-        return shouldPauseOnAudioBecomingNoisy(
-            uiModeType = (context.getSystemService(Context.UI_MODE_SERVICE) as? UiModeManager)?.currentModeType
-                ?: Configuration.UI_MODE_TYPE_UNDEFINED,
-            hasLeanback = pm.hasSystemFeature(PackageManager.FEATURE_LEANBACK),
-            hasTouchscreen = pm.hasSystemFeature(PackageManager.FEATURE_TOUCHSCREEN),
-        )
-    }
+    private fun pauseOnAudioBecomingNoisy(): Boolean = !isTelevisionDevice(context)
 
     private fun buildExoPlayer(
         mediaSourceFactory: DefaultMediaSourceFactory,
@@ -232,3 +224,14 @@ internal class PlayerEngineFactory(
             .build()
     }
     }
+
+/** What the device IS (see [isTelevisionDevice] in PlayerHelpers) - never the UI-mode override. */
+internal fun isTelevisionDevice(context: Context): Boolean {
+    val pm = context.packageManager
+    return isTelevisionDevice(
+        uiModeType = (context.getSystemService(Context.UI_MODE_SERVICE) as? UiModeManager)?.currentModeType
+            ?: Configuration.UI_MODE_TYPE_UNDEFINED,
+        hasLeanback = pm.hasSystemFeature(PackageManager.FEATURE_LEANBACK),
+        hasTouchscreen = pm.hasSystemFeature(PackageManager.FEATURE_TOUCHSCREEN),
+    )
+}

@@ -134,8 +134,8 @@ internal class PlayerMediaSessionManager(
         // F1 Phase 0/1-C: a session command is a SYSTEM pause (CEC, Alexa, another app) - say so, and
         // say WHO, because to the player it arrives as an ordinary USER_REQUEST. The 2026-09-27 Fire TV
         // capture saw one arrive 3.8 s into playback with no key pressed.
-        override fun onPause() { Log.i(TAG, systemCommandLogLine("onPause", callerPackage())); player.pause() }
-        override fun onStop() { Log.i(TAG, systemCommandLogLine("onStop", callerPackage())); player.pause() }
+        override fun onPause() { markSystemCommand(); Log.i(TAG, systemCommandLogLine("onPause", callerPackage())); player.pause() }
+        override fun onStop() { markSystemCommand(); Log.i(TAG, systemCommandLogLine("onStop", callerPackage())); player.pause() }
         override fun onSeekTo(pos: Long) { if (player.isCurrentMediaItemSeekable) player.seekTo(pos) }
         override fun onFastForward() { if (player.isCurrentMediaItemSeekable) player.seekForward() }
         override fun onRewind() { if (player.isCurrentMediaItemSeekable) player.seekBack() }
@@ -178,6 +178,16 @@ internal class PlayerMediaSessionManager(
 
     internal companion object {
         const val TAG = "PlayerMediaSession"
+
+        /**
+         * When the SYSTEM last asked us to pause (Alexa, HDMI-CEC, another app via the session). The
+         * unexpected-pause guard reads it: a pause somebody asked for is not unexpected.
+         */
+        @Volatile
+        var lastSystemCommandAtMs: Long = 0L
+            private set
+
+        private fun markSystemCommand() { lastSystemCommandAtMs = android.os.SystemClock.elapsedRealtime() }
 
         /** Pure: the log line for a transport command the SYSTEM sent (see [TransportCallback]). */
         internal fun systemCommandLogLine(command: String, callerPackage: String?): String =

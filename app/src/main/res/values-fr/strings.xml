@@ -531,6 +531,7 @@
     <string name="c_try_restarting_normally">Essayer un redémarrage normal</string>
     <string name="c_trying_next_source">Essai de la source suivante…</string>
     <string name="c_no_more_sources_in_language">Plus aucune source en %1$s. Choisissez-en une dans la liste.</string>
+    <string name="c_unexpected_pause_hint">La lecture a été mise en pause par le système. Appuyez sur OK pour continuer.</string>
     <string name="c_tv_added_syncing">✓ TV AJOUTÉE · SYNCHRO…</string>
     <string name="c_tv_guide_row_density">Guide TV : densité des lignes</string>
     <string name="c_tv_guide_timeline_zoom">Guide TV : zoom de la chronologie</string>
