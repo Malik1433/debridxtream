@@ -127,6 +127,16 @@ internal class LiveCatchupController(
         return true
     }
 
+    /**
+     * C2-5 (QA round 3): the stall monitor, the buffer watchdog and the terminal-failure path reach
+     * the recovery code without passing through the player's error callback. During a recording each
+     * of them would re-request the recording from its start, fail over to another feed, or close the
+     * player. They ask here first; a recording ends the same way as on a player error.
+     *
+     * @return true when a recording was playing and has been handled (back to live).
+     */
+    fun onRecordingStalled(): Boolean = isLive && inCatchup && onError()
+
     /** @return true when the recording chunk ended and we went back to live. */
     fun onEnded(): Boolean {
         if (!isLive || !inCatchup) return false
@@ -142,7 +152,9 @@ internal class LiveCatchupController(
         val urlAtOutage = session.currentUrl
         activity.viewLifecycleOwner.lifecycleScope.launch {
             val zone = withContext(Dispatchers.IO) { ServerClock.zone(activity.requireContext()) }
-            val (archiveId, hasArchive) = archivedFeed(listOf(streamId) + feedsSinceZap)
+            val (archiveId, hasArchive) = withTimeoutOrNull(ARCHIVE_SEARCH_MS) {
+                archivedFeed(listOf(streamId) + feedsSinceZap)
+            } ?: (streamId to null)
             val failed = archiveId in failedStreamIds
             val offer = CatchupAvailability.canOfferResume(
                 outageStartMs, System.currentTimeMillis(), zone != null, hasArchive, failed
@@ -170,7 +182,32 @@ internal class LiveCatchupController(
         for (id in feeds.distinct().drop(1)) {
             if (archiveOf(id) == true) return id to true
         }
+        // C2-5: the viewer may have opened a sibling feed with no EPG (failover hands that feed back
+        // to the Live list), so none of the feeds played knows about recordings. Ask the channel's
+        // other feeds, as failover would find them.
+        for (id in siblingFeeds() - feeds.toSet()) {
+            if (archiveOf(id) == true) return id to true
+        }
         return current to currentVerdict
+    }
+
+    private suspend fun siblingFeeds(): List<String> {
+        val name = session.pendingChannelName ?: activity.tvChannelName?.text?.toString()
+        val term = LiveAlternateSources.searchTerm(name)
+        if (term.isBlank()) return emptyList()
+        val found = try {
+            withTimeoutOrNull(SIBLING_SEARCH_MS) {
+                withContext(Dispatchers.IO) { activity.xtreamRepository.searchLive(term) }
+            }.orEmpty()
+        } catch (ce: kotlinx.coroutines.CancellationException) {
+            throw ce
+        } catch (e: Exception) {
+            Log.w("PlayerActivity", "catch-up: sibling feed search failed: ${e.javaClass.simpleName}")
+            emptyList()
+        }
+        return LiveAlternateSources.rank(name, session.contentId, found, emptySet())
+            .mapNotNull { it.stream_id }
+            .take(MAX_SIBLING_FEEDS)
     }
 
     private suspend fun archiveOf(streamId: String): Boolean? {
@@ -241,6 +278,10 @@ internal class LiveCatchupController(
     private companion object {
         const val PROMPT_MS = 8_000L
         const val ARCHIVE_LOOKUP_MS = 6_000L
+        /** Every feed together: past this the outage is old news and the prompt would be late. */
+        const val ARCHIVE_SEARCH_MS = 15_000L
+        const val SIBLING_SEARCH_MS = 5_000L
+        const val MAX_SIBLING_FEEDS = 3
         const val ARCHIVE_LOOKUP_TRIES = 2
         const val ARCHIVE_RETRY_DELAY_MS = 1_000L
         /** Start a little before the picture stopped, so nothing is missed at the join. */

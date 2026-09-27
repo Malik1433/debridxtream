@@ -141,6 +141,7 @@ internal class PlayerStallMonitor(
                         "stallThresholdMs" to stallThresholdMs
                     )
                 )
+                if (activity.catchup.onRecordingStalled()) return // C2-5: a stalled recording goes back to live
                 recovery.handlePlaybackError(PlaybackException(null, null, PlaybackException.ERROR_CODE_REMOTE_ERROR))
             }
         }

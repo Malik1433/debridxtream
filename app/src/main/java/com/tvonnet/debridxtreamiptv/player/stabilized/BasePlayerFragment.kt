@@ -163,7 +163,7 @@ open class BasePlayerFragment : Fragment(), PlayerRecoveryController.RecoveryHos
     private var subtitleEntries: List<String> by session::subtitleEntries
     private var timeoutMs: Long by session::timeoutMs
     internal val timeoutHandler = Handler(Looper.getMainLooper())
-    internal val timeoutRunnable = Runnable { recovery.handleTimeout() }
+    internal val timeoutRunnable = Runnable { if (player?.playbackState != Player.STATE_BUFFERING || !catchup.onRecordingStalled()) recovery.handleTimeout() }
     internal val retryHandler = Handler(Looper.getMainLooper())
 
     /** C1: error/timeout/network-recovery brain. Owns the connectivity callback;
