@@ -43,7 +43,9 @@ internal data class PlaybackEngineConfig(
     val requestHeaders: Map<String, String>?,
     val disableTunneling: Boolean,
     val preferredAudioLanguage: String?,
-    val preferredSubtitleLanguage: String?
+    val preferredSubtitleLanguage: String?,
+    /** Live only: the screen's stall memory, so it survives a retry that rebuilds the player. */
+    val livePatience: LiveRebufferPatience? = null
 )
 
 /** What the Activity needs to keep hold of after the build. */
@@ -119,7 +121,7 @@ internal class PlayerEngineFactory(
         config: PlaybackEngineConfig,
         isDebrid: Boolean,
         isLive: Boolean
-    ): DefaultLoadControl {
+    ): androidx.media3.exoplayer.LoadControl {
         val bufferConfig = PlayerBufferConfigFactory.buildConfig(
             context, settings, config.contentType, config.streamUrl, isDebrid
         )
@@ -139,6 +141,15 @@ internal class PlayerEngineFactory(
             .setPrioritizeTimeOverSizeThresholds(!isLowRam)
             .setBackBuffer(backBufferMs, /* retainBackBufferFromKeyframe= */ true)
             .build()
+            .let { base ->
+                if (isLive) {
+                    LivePatienceLoadControl.wrap(
+                        base, config.livePatience ?: LiveRebufferPatience { android.os.SystemClock.elapsedRealtime() }
+                    )
+                } else {
+                    base
+                }
+            }
     }
 
     private fun buildTrackSelector(config: PlaybackEngineConfig): DefaultTrackSelector {
@@ -187,7 +198,7 @@ internal class PlayerEngineFactory(
 
     private fun buildExoPlayer(
         mediaSourceFactory: DefaultMediaSourceFactory,
-        loadControl: DefaultLoadControl,
+        loadControl: androidx.media3.exoplayer.LoadControl,
         trackSelector: DefaultTrackSelector,
         renderersFactory: DefaultRenderersFactory,
         meter: DefaultBandwidthMeter

@@ -31,6 +31,7 @@ internal class PlayerStallMonitor(
     private val stallHandler = Handler(Looper.getMainLooper())
     private val stallDetector = PlayerStallDetector()
     private val freezeDetector = VideoFreezeDetector()
+    private val slowFill = LiveSlowFill()
     private val stallRunnable = object : Runnable {
         override fun run() {
             checkForStall()
@@ -104,6 +105,7 @@ internal class PlayerStallMonitor(
     private fun checkForStall() {
         PlaybackDiagnosticsRecorder.maybeRecordMemorySample(activity.requireContext()) // G1: throttled to 30s inside
         val p = player ?: return
+        slowFill.onTick(p, contentType == ContentType.LIVE_TV)
         val now = SystemClock.elapsedRealtime()
         val isLowRamDevice = DeviceProfile.isLowRamDevice(activity.requireContext())
         val stallThresholdMs = if (isLowRamDevice) LOW_RAM_STALL_THRESHOLD_MS else STALL_THRESHOLD_MS

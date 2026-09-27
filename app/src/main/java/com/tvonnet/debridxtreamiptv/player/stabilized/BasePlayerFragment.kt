@@ -1382,7 +1382,8 @@ open class BasePlayerFragment : Fragment(), PlayerRecoveryController.RecoveryHos
                 requestHeaders = requestHeaders,
                 disableTunneling = disableTunnelingForSession,
                 preferredAudioLanguage = trackManager.preferredAudioLanguage,
-                preferredSubtitleLanguage = trackManager.preferredSubtitleLanguage
+                preferredSubtitleLanguage = trackManager.preferredSubtitleLanguage,
+                livePatience = session.livePatience
             ),
             loadErrorPolicy = playbackLoadErrorPolicy,
             codecSelector = dolbyVisionAwareCodecSelector()

@@ -95,4 +95,7 @@ internal class PlayerSessionState {
     // ── F1 Phase 0: the last key the player saw, so a pause can be told apart from the user's own ──
     var lastKeyCode: Int = 0
     var lastKeyAtMs: Long = 0L
+
+    // ── Live cushion: this screen's stall memory (LiveRebufferPatience), kept across player rebuilds ──
+    val livePatience = LiveRebufferPatience { android.os.SystemClock.elapsedRealtime() }
 }
