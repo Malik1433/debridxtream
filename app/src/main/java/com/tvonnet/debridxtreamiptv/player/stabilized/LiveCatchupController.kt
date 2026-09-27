@@ -58,8 +58,12 @@ internal class LiveCatchupController(
     private val clock = LiveOutageClock { System.currentTimeMillis() }
     private var liveUrl: String? = null
     private var catchupUrl: String? = null
+    private var catchupStreamId: String? = null
     private val failedStreamIds = HashSet<String>()
     private val archivedStreamIds = HashSet<String>()
+    // C2-3: every feed of the channel that played since the zap. Live failover moves between feeds
+    // of one channel, and only some of them carry EPG and recordings.
+    private val feedsSinceZap = LinkedHashSet<String>()
     private var prompt: AlertDialog? = null
     // An outage needs something to be interrupted: slow first tuning is not one.
     private var playedSinceZap = false
@@ -67,7 +71,7 @@ internal class LiveCatchupController(
     private val isLive get() = session.contentType == ContentType.LIVE_TV
 
     /** True while a recording plays AND the viewer has not zapped away from it. */
-    private val inCatchup: Boolean
+    val inCatchup: Boolean
         get() {
             val url = catchupUrl ?: return false
             if (session.currentUrl == url) return true
@@ -78,6 +82,7 @@ internal class LiveCatchupController(
     /** The viewer changed channel: an open outage and any recording belong to the old one. */
     fun onUserZap() {
         playedSinceZap = false
+        feedsSinceZap.clear()
         clock.reset()
         clearCatchup()
         prompt?.takeIf { it.isShowing }?.dismiss()
@@ -90,6 +95,7 @@ internal class LiveCatchupController(
             Player.STATE_BUFFERING -> if (playedSinceZap) clock.onStalled()
             Player.STATE_READY -> {
                 playedSinceZap = true
+                session.contentId?.let { feedsSinceZap += it }
                 clock.onPlaying()?.let { maybeOffer(it) }
             }
         }
@@ -102,7 +108,7 @@ internal class LiveCatchupController(
             if (playedSinceZap) clock.onStalled()
             return false
         }
-        session.contentId?.let { failedStreamIds += it }
+        catchupStreamId?.let { failedStreamIds += it }
         backToLive(R.string.catchup_unavailable)
         return true
     }
@@ -121,14 +127,19 @@ internal class LiveCatchupController(
         val urlAtOutage = session.currentUrl
         activity.viewLifecycleOwner.lifecycleScope.launch {
             val zone = withContext(Dispatchers.IO) { ServerClock.zone(activity.requireContext()) }
-            val hasArchive = archiveOf(streamId)
+            val (archiveId, hasArchive) = archivedFeed(listOf(streamId) + feedsSinceZap)
+            val failed = archiveId in failedStreamIds
             val offer = CatchupAvailability.canOfferResume(
-                outageStartMs, System.currentTimeMillis(), zone != null, hasArchive, streamId in failedStreamIds
+                outageStartMs, System.currentTimeMillis(), zone != null, hasArchive, failed
             )
-            Log.i("PlayerActivity", "catch-up: outage ${(now - outageStartMs) / 1000}s archive=$hasArchive offer=$offer")
+            Log.i(
+                "PlayerActivity",
+                "catch-up: outage ${(now - outageStartMs) / 1000}s feed=$streamId archiveFeed=$archiveId " +
+                    "archive=$hasArchive zone=${zone != null} failed=$failed offer=$offer"
+            )
             if (!offer || zone == null) return@launch
             if (!activity.isResumed || session.currentUrl != urlAtOutage || inCatchup) return@launch
-            showPrompt(outageStartMs, streamId, zone)
+            showPrompt(outageStartMs, archiveId, zone)
         }
     }
 
@@ -136,6 +147,17 @@ internal class LiveCatchupController(
      * C2-1: the provider's answer was seen flipping true/false for the same channel minutes apart,
      * so a "yes" is remembered for the sitting and anything else is asked once more before giving up.
      */
+    /** The first feed of this channel that keeps recordings, with the last answer when none does. */
+    private suspend fun archivedFeed(feeds: List<String>): Pair<String, Boolean?> {
+        val current = feeds.first()
+        val currentVerdict = archiveOf(current)
+        if (currentVerdict == true) return current to true
+        for (id in feeds.distinct().drop(1)) {
+            if (archiveOf(id) == true) return id to true
+        }
+        return current to currentVerdict
+    }
+
     private suspend fun archiveOf(streamId: String): Boolean? {
         if (streamId in archivedStreamIds) return true
         var verdict: Boolean? = null
@@ -179,6 +201,7 @@ internal class LiveCatchupController(
         PlaybackDiagnosticsRecorder.record(activity.requireContext(), RecoveryScoreboard.CATCHUP_RESUME)
         liveUrl = live
         catchupUrl = url
+        catchupStreamId = streamId
         session.currentUrl = url
         activity.liveTuner.performSeamlessSwitch(url)
     }
@@ -195,6 +218,7 @@ internal class LiveCatchupController(
 
     private fun clearCatchup() {
         catchupUrl = null
+        catchupStreamId = null
         liveUrl = null
     }
 

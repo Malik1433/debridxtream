@@ -616,7 +616,7 @@ open class BasePlayerFragment : Fragment(), PlayerRecoveryController.RecoveryHos
      */
     private fun actOnStreamHealth(verdict: StreamHealth) {
         if (verdict != StreamHealth.CHANNEL_SLOW) return
-        if (contentType != ContentType.LIVE_TV) return
+        if (contentType != ContentType.LIVE_TV || catchup.inCatchup) return // C2-2: a recording is not a feed
         liveFeedUnderLoad = true // from here on, failovers in this sitting try the lighter feeds first
         tryLiveAlternateSource {
             // Nothing left to switch to, and everything tried was just as bad: stop implying a
