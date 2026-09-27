@@ -9,6 +9,7 @@ import com.tvonnet.debridxtreamiptv.data.model.ContentType
 import com.tvonnet.debridxtreamiptv.data.prefs.ServerClock
 import com.tvonnet.debridxtreamiptv.debug.PlaybackDiagnosticsRecorder
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
@@ -58,6 +59,7 @@ internal class LiveCatchupController(
     private var liveUrl: String? = null
     private var catchupUrl: String? = null
     private val failedStreamIds = HashSet<String>()
+    private val archivedStreamIds = HashSet<String>()
     private var prompt: AlertDialog? = null
     // An outage needs something to be interrupted: slow first tuning is not one.
     private var playedSinceZap = false
@@ -119,9 +121,7 @@ internal class LiveCatchupController(
         val urlAtOutage = session.currentUrl
         activity.viewLifecycleOwner.lifecycleScope.launch {
             val zone = withContext(Dispatchers.IO) { ServerClock.zone(activity.requireContext()) }
-            val hasArchive = withTimeoutOrNull(ARCHIVE_LOOKUP_MS) {
-                withContext(Dispatchers.IO) { activity.xtreamRepository.channelHasArchive(streamId) }
-            }
+            val hasArchive = archiveOf(streamId)
             val offer = CatchupAvailability.canOfferResume(
                 outageStartMs, System.currentTimeMillis(), zone != null, hasArchive, streamId in failedStreamIds
             )
@@ -130,6 +130,24 @@ internal class LiveCatchupController(
             if (!activity.isResumed || session.currentUrl != urlAtOutage || inCatchup) return@launch
             showPrompt(outageStartMs, streamId, zone)
         }
+    }
+
+    /**
+     * C2-1: the provider's answer was seen flipping true/false for the same channel minutes apart,
+     * so a "yes" is remembered for the sitting and anything else is asked once more before giving up.
+     */
+    private suspend fun archiveOf(streamId: String): Boolean? {
+        if (streamId in archivedStreamIds) return true
+        var verdict: Boolean? = null
+        withTimeoutOrNull(ARCHIVE_LOOKUP_MS) {
+            repeat(ARCHIVE_LOOKUP_TRIES) { attempt ->
+                if (attempt > 0) delay(ARCHIVE_RETRY_DELAY_MS)
+                verdict = withContext(Dispatchers.IO) { activity.xtreamRepository.channelHasArchive(streamId) }
+                if (verdict == true) return@withTimeoutOrNull
+            }
+        }
+        if (verdict == true) archivedStreamIds += streamId
+        return verdict
     }
 
     private fun showPrompt(outageStartMs: Long, streamId: String, zone: java.util.TimeZone) {
@@ -182,7 +200,9 @@ internal class LiveCatchupController(
 
     private companion object {
         const val PROMPT_MS = 8_000L
-        const val ARCHIVE_LOOKUP_MS = 4_000L
+        const val ARCHIVE_LOOKUP_MS = 6_000L
+        const val ARCHIVE_LOOKUP_TRIES = 2
+        const val ARCHIVE_RETRY_DELAY_MS = 1_000L
         /** Start a little before the picture stopped, so nothing is missed at the join. */
         const val LEAD_IN_MS = 30_000L
         /** Ignored by the provider (it serves ~10-minute chunks) but required by the endpoint. */

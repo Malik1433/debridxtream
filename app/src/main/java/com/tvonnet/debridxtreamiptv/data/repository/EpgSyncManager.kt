@@ -271,7 +271,13 @@ internal class EpgSyncManager(
     suspend fun channelHasArchive(streamId: String): Boolean? = try {
         val response = apiService?.getSimpleDataTable(username, password, streamId = streamId)
         if (response?.isSuccessful != true) null
-        else response.body()?.listings.orEmpty().any { it.hasArchive == 1 }
+        else archiveVerdict(response.body()?.listings).also {
+            val listings = response.body()?.listings
+            android.util.Log.i(
+                "EpgSyncManager",
+                "archive lookup: listings=${listings?.size} archived=${listings?.count { l -> l.hasArchive == 1 }} verdict=$it"
+            )
+        }
     } catch (ce: kotlinx.coroutines.CancellationException) { throw ce
     } catch (e: Exception) {
         android.util.Log.w("EpgSyncManager", "archive lookup failed: ${e.javaClass.simpleName}", e)
@@ -306,3 +312,11 @@ internal class EpgSyncManager(
         private const val EPG_BATCH_SIZE = 500
     }
 }
+
+/**
+ * C2-1 (2026-09-27): what a `get_simple_data_table` answer says about a channel's recordings.
+ * A 200 with no listings (absent, empty - seen under load) says NOTHING, so it is unknown (null),
+ * never "no archive": that is what made the catch-up offer flaky on a channel that has one.
+ */
+internal fun archiveVerdict(listings: List<com.tvonnet.debridxtreamiptv.data.model.XtreamEpgListing>?): Boolean? =
+    if (listings.isNullOrEmpty()) null else listings.any { it.hasArchive == 1 }
