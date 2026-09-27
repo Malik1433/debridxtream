@@ -81,8 +81,6 @@ internal class PlayerExitController(
     fun finishWithReturnToSources(autoPlayNext: Boolean, reason: String?): Boolean { if (!returnToSourcesOnExit || playbackSource != PlaybackSource.DEBRID || exitResultHandled) return false; exitResultHandled = true; PlaybackDiagnosticsRecorder.record(activity.requireContext(), "return_to_sources", activity.diagnosticsPlaybackFields() + mapOf("reasonCode" to PlaybackDiagnosticsRecorder.sanitizeReason(reason), "autoPlayNext" to autoPlayNext)); activity.setResult(Activity.RESULT_OK, buildFailedSourceReturnIntent(failedStreamId = debridStreamIdExtra ?: debridInfoHashExtra ?: contentId ?: currentUrl, reason = reason, autoPlayNext = autoPlayNext)); activity.releasePlayer("return_to_sources"); PlaybackDiagnosticsRecorder.finishSession(activity.requireContext(), "return_to_sources"); activity.finish(); return true }
 
     fun handleTerminalPlaybackFailure(reason: String, preferReturnToSources: Boolean) {
-        // C2-5: whatever path gave up, a recording that dies goes back to live, never closes the player.
-        if (activity.catchup.onRecordingStalled()) return
         PlaybackDiagnosticsRecorder.record(
             activity.requireContext(),
             "terminal_failure",

@@ -662,12 +662,6 @@
     <string name="phone_search_try">PROBIER EINS DAVON</string>
     <string name="live_trying_another_source">Andere Quelle für diesen Sender wird versucht…</string>
     <string name="live_hold_retrying">Der Server des Senders ist überlastet. Neuer Versuch in %1$d s…</string>
-    <string name="catchup_resume_title">Der Stream wurde unterbrochen</string>
-    <string name="catchup_resume_message">Er stoppte vor %1$d Min. Ab der Stelle weiterschauen?</string>
-    <string name="catchup_resume_watch">Ab dort ansehen</string>
-    <string name="catchup_resume_stay_live">Live bleiben</string>
-    <string name="catchup_back_to_live">Aufnahme zu Ende. Zurück zu Live.</string>
-    <string name="catchup_unavailable">Die Aufnahme dieses Senders ist nicht verfügbar. Es bleibt bei Live.</string>
     <string name="health_channel_slow">Dieser Sender hat gerade Probleme</string>
     <string name="health_channel_all_feeds">Alle Quellen dieses Senders haben Probleme</string>
     <string name="health_server_slow">Anbieter-Server antwortet nicht</string>

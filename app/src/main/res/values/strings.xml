@@ -373,12 +373,6 @@
          answered by trying the next one instead of asking the customer to go and find it. -->
     <string name="live_trying_another_source">Trying another source for this channel…</string>
     <string name="live_hold_retrying">The channel\'s server is overloaded. Trying again in %1$d s…</string>
-    <string name="catchup_resume_title">The stream was interrupted</string>
-    <string name="catchup_resume_message">It stopped %1$d min ago. Watch from where it stopped?</string>
-    <string name="catchup_resume_watch">Watch from there</string>
-    <string name="catchup_resume_stay_live">Stay live</string>
-    <string name="catchup_back_to_live">Recording ended. Back to live.</string>
-    <string name="catchup_unavailable">This channel\'s recording isn\'t available. Staying live.</string>
 
     <!--
       Why playback keeps stopping. "Buffering" is one symptom with several causes, and only the

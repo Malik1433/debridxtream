@@ -32,7 +32,6 @@ internal class RecoveryScoreboard(private val nowMs: () -> Long) {
         BLACK_VIDEO("black_video"),
         UNEXPECTED_PAUSE("unexpected_pause"),
         LIVE_HOLD("live_hold"),
-        CATCHUP_RESUME("catchup_resume"),
     }
 
     data class Tally(var tries: Int = 0, var ok: Int = 0, var failed: Int = 0, var handedOff: Int = 0, var abandoned: Int = 0)
@@ -107,7 +106,6 @@ internal class RecoveryScoreboard(private val nowMs: () -> Long) {
         const val UNEXPECTED_PAUSE_OK = "unexpected_pause_resume_ok"
         const val UNEXPECTED_PAUSE_FAILED = "unexpected_pause_resume_failed"
         const val LIVE_HOLD_RETRY = "live_hold_retry"
-        const val CATCHUP_RESUME = "catchup_resume"
 
         private val ATTEMPTS = mapOf(
             "stall_triggered" to Kind.STALL,
@@ -120,7 +118,6 @@ internal class RecoveryScoreboard(private val nowMs: () -> Long) {
             "black_video_tunneling_retry" to Kind.BLACK_VIDEO,
             UNEXPECTED_PAUSE_RESUME to Kind.UNEXPECTED_PAUSE,
             LIVE_HOLD_RETRY to Kind.LIVE_HOLD,
-            CATCHUP_RESUME to Kind.CATCHUP_RESUME,
         )
         private val FAILURES = setOf("terminal_failure", "audio_sink_exhausted", "audio_wedge_both_routes")
     }

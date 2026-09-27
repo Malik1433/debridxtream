@@ -1,6 +1,13 @@
 # Live catch-up (timeshift): design
 
-**Status:** DESIGN. Owner ki approval chahiye. Yeh Live playback ka landmine area hai (ek connection,
+**Status:** ❌ **BAND (owner ka faisla, 2026-09-27).** C1 aur C2 bane aur Fire TV par chaar QA
+rounds chale, phir poora code hata diya gaya. Wajah: masla buffering rokna tha, aur yeh feature
+buffering nahi rokta. Yeh user se sawal poochhta hai aur use peeche le jata hai, jabke owner ka
+qaida hai ke user ko kuch mehsoos na ho aur live bas chalta rahe. Code git history mein hai
+(`22aeb93`…`ce9fc72`), aur QA ki seekhein neeche section 8 mein hain. Neeche ka baqi hissa sirf
+record ke liye hai.
+
+~~Pehle ka status: DESIGN. Owner ki approval chahiye.~~ Yeh Live playback ka landmine area hai (ek connection,
 zap, shared player). Har phase alag commit mein aayega, aur har phase ke baad Fire TV par alag QA
 hogi (CLAUDE.md).
 **Tareekh:** 2026-09-27. **Pehle ke qadam:** match mode (`95dcf09`), yani overloaded channel
@@ -129,3 +136,16 @@ nahi deta.
 1. ~~C0 chalwayein?~~ Ho gaya.
 2. Tarjeeh C2 → C3 → C4 → C5 theek hai?
 3. C2 ka prompt default "Live par rahein" rakhein, ya default "jahan ruka tha wahan se"?
+
+## 8. Band karne se pehle QA se kya seekha (record ke liye)
+
+- Provider ki recording **server par** hoti hai, device par kuch save nahi hota. Storage ka masla
+  kabhi nahi tha.
+- DD SPORTS jaise channel ki kai feeds hoti hain (`3109`, `2745`). Sirf kuch feeds ka EPG/archive
+  hota hai, aur live failover chupke se feed badal deta hai.
+- Outage ke foran baad mangi gayi recording sirf 1–4 minute lambi hoti hai. Provider aksar connection
+  kaat kar usay khatam karta hai.
+- Stall monitor, buffer watchdog aur terminal-failure teeno player ke error callback se guzre baghair
+  recovery chalate hain. Aage koi bhi "live ke andar doosra stream" wala feature bane to in teeno ko
+  pehle se pata hona chahiye.
+

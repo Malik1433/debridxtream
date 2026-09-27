@@ -163,7 +163,7 @@ open class BasePlayerFragment : Fragment(), PlayerRecoveryController.RecoveryHos
     private var subtitleEntries: List<String> by session::subtitleEntries
     private var timeoutMs: Long by session::timeoutMs
     internal val timeoutHandler = Handler(Looper.getMainLooper())
-    internal val timeoutRunnable = Runnable { if (player?.playbackState != Player.STATE_BUFFERING || !catchup.onRecordingStalled()) recovery.handleTimeout() }
+    internal val timeoutRunnable = Runnable { recovery.handleTimeout() }
     internal val retryHandler = Handler(Looper.getMainLooper())
 
     /** C1: error/timeout/network-recovery brain. Owns the connectivity callback;
@@ -616,7 +616,7 @@ open class BasePlayerFragment : Fragment(), PlayerRecoveryController.RecoveryHos
      */
     private fun actOnStreamHealth(verdict: StreamHealth) {
         if (verdict != StreamHealth.CHANNEL_SLOW) return
-        if (contentType != ContentType.LIVE_TV || catchup.inCatchup) return // C2-2: a recording is not a feed
+        if (contentType != ContentType.LIVE_TV) return
         liveFeedUnderLoad = true // from here on, failovers in this sitting try the lighter feeds first
         tryLiveAlternateSource {
             // Nothing left to switch to, and everything tried was just as bad: stop implying a
@@ -701,15 +701,6 @@ open class BasePlayerFragment : Fragment(), PlayerRecoveryController.RecoveryHos
         contentId = alternate.stream_id
         currentUrl = url
         liveTuner.performSeamlessSwitch(url)
-    }
-
-    // Catch-up C2: "watch from where it stopped" (LiveCatchupController).
-    internal val catchup by lazy {
-        LiveCatchupController(this, session) {
-            CatchupUrlBuilder.Account(
-                baseServerUrl ?: prefs.getServerUrl().orEmpty(), prefs.getUsername().orEmpty(), prefs.getPassword().orEmpty()
-            )
-        }
     }
 
     // Match mode: see LiveHoldOn. Reset by the first frame (PlayerEventListener).

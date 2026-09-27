@@ -94,13 +94,4 @@ interface XtreamApiService {
         @Query("stream_id") streamId: String,
         @Query("limit") limit: Int = 2
     ): Response<XtreamShortEpgResponse>
-
-    /** Per-channel EPG for the archive window; each listing carries `has_archive` (catch-up). */
-    @GET("player_api.php")
-    suspend fun getSimpleDataTable(
-        @Query("username") username: String,
-        @Query("password") password: String,
-        @Query("action") action: String = "get_simple_data_table",
-        @Query("stream_id") streamId: String
-    ): Response<XtreamShortEpgResponse>
 }
