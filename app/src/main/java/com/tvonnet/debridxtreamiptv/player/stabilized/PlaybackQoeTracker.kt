@@ -47,6 +47,11 @@ class PlaybackQoeTracker(
     private var errorCount = 0
     private var firstFrameSeen = false
     private var firstTtffMs: Long? = null
+    // Rebuffer RATIO inputs: time spent rebuffering vs time actually playing, same seek rule as the count.
+    private var rebufferStartedAtMs = 0L
+    private var rebufferMs = 0L
+    private var playingSinceMs = 0L
+    private var playingMs = 0L
 
     /** Call right before prepare()/seamless-switch so TTFF measures this source. */
     fun markPrepareStart() {
@@ -74,14 +79,32 @@ class PlaybackQoeTracker(
     }
 
     override fun onPlaybackStateChanged(eventTime: AnalyticsListener.EventTime, state: Int) {
+        val now = SystemClock.elapsedRealtime()
+        if (state != Player.STATE_BUFFERING) endRebuffer(now)
         when (state) {
             Player.STATE_READY -> reachedReady = true
             Player.STATE_BUFFERING -> {
                 // Rebuffer = buffering AFTER first READY that is not seek-induced.
-                if (reachedReady && SystemClock.elapsedRealtime() - lastSeekAtMs > 1000L) {
+                if (reachedReady && now - lastSeekAtMs > 1000L) {
                     rebufferCount++
+                    rebufferStartedAtMs = now
                 }
             }
+        }
+    }
+
+    private fun endRebuffer(now: Long) {
+        if (rebufferStartedAtMs > 0L) rebufferMs += now - rebufferStartedAtMs
+        rebufferStartedAtMs = 0L
+    }
+
+    override fun onIsPlayingChanged(eventTime: AnalyticsListener.EventTime, isPlaying: Boolean) {
+        val now = SystemClock.elapsedRealtime()
+        if (isPlaying) {
+            if (playingSinceMs == 0L) playingSinceMs = now
+        } else if (playingSinceMs > 0L) {
+            playingMs += now - playingSinceMs
+            playingSinceMs = 0L
         }
     }
 
@@ -117,10 +140,22 @@ class PlaybackQoeTracker(
     fun flushSessionSummary() {
         if (summaryFlushed) return
         summaryFlushed = true
+        val now = SystemClock.elapsedRealtime()
+        endRebuffer(now)
+        closePlayingStretch(now)
+        // Local line for the on-device harvest (no consent needed: it never leaves the device).
+        android.util.Log.i(
+            "PlayerActivity",
+            "qoe session mode=${modeProvider()} playing_ms=$playingMs rebuffer_ms=$rebufferMs " +
+                "rebuffer_count=$rebufferCount rebuffer_permille=${rebufferPermille(rebufferMs, playingMs)}"
+        )
         if (!consent()) return
-        val sessionSec = (SystemClock.elapsedRealtime() - sessionStartedAtMs) / 1000L
+        val sessionSec = (now - sessionStartedAtMs) / 1000L
         analytics.logEvent("playback_session", Bundle().apply {
             putLong("session_sec", sessionSec)
+            putLong("playing_ms", playingMs)
+            putLong("rebuffer_ms", rebufferMs)
+            putInt("rebuffer_permille", rebufferPermille(rebufferMs, playingMs))
             putInt("rebuffer_count", rebufferCount)
             putInt("dropped_frames", droppedFrames)
             putString("mode", modeProvider())
@@ -144,9 +179,24 @@ class PlaybackQoeTracker(
         }
     }
 
+    /** Closes an open playing stretch at flush time. */
+    private fun closePlayingStretch(now: Long) {
+        if (playingSinceMs > 0L) playingMs += now - playingSinceMs
+        playingSinceMs = 0L
+    }
+
     /** Named so Crashlytics groups unhealthy-session reports apart from playback errors. */
     private class PlaybackSessionSummary(message: String) : Exception(message)
 
     /** Named exception type so Crashlytics groups playback non-fatals together. */
     private class PlaybackQoeException(message: String) : Exception(message)
+}
+
+/**
+ * Rebuffer ratio in per mille of wall-clock viewing (rebuffering / (rebuffering + playing)) - the
+ * number streaming services track per release. 0 when nothing was measured.
+ */
+internal fun rebufferPermille(rebufferMs: Long, playingMs: Long): Int {
+    val total = rebufferMs + playingMs
+    return if (total <= 0L) 0 else ((rebufferMs * 1000L) / total).toInt()
 }

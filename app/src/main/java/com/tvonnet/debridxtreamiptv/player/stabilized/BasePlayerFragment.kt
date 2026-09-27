@@ -498,6 +498,11 @@ open class BasePlayerFragment : Fragment(), PlayerRecoveryController.RecoveryHos
     // LP-D-2: per-player QoE analytics listener (TTFF, rebuffers, errors).
     internal var qoeTracker: PlaybackQoeTracker? = null
 
+    // Recovery scoreboard: per SCREEN, not per player build - a recovery that rebuilds the player
+    // must not reset the count. Fed by the diagnostics recorder's tap, flushed in onDestroy.
+    internal val recoveryScoreboard = RecoveryScoreboard { SystemClock.elapsedRealtime() }
+    private val recoverySink: (String) -> Unit = { recoveryScoreboard.onEvent(it) }
+
     internal var channelLogoUrl: String? by session::channelLogoUrl
     internal var contentType: ContentType? by session::contentType
     internal var playbackSource: PlaybackSource by session::playbackSource
@@ -792,6 +797,7 @@ open class BasePlayerFragment : Fragment(), PlayerRecoveryController.RecoveryHos
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        PlaybackDiagnosticsRecorder.recoverySink = recoverySink
 
         if (BuildConfig.DEBUG) {
             Log.d("PlayerActivity", "onViewCreated package=${requireActivity().packageName} taskId=${requireActivity().taskId} component=${intent.component}")
@@ -1522,7 +1528,12 @@ open class BasePlayerFragment : Fragment(), PlayerRecoveryController.RecoveryHos
     }
 
 
-    override fun onDestroy() { super.onDestroy(); loaderUi.release(); dismissActiveTrackDialog(); liveOsd?.release(); if (::historyManager.isInitialized) historyManager.recordPlaybackHistoryIfNeeded(); releasePlayer("on_destroy"); PlaybackDiagnosticsRecorder.finishSession(requireContext(), "activity_destroyed") }
+    override fun onDestroy() { super.onDestroy(); loaderUi.release(); dismissActiveTrackDialog(); liveOsd?.release(); if (::historyManager.isInitialized) historyManager.recordPlaybackHistoryIfNeeded(); releasePlayer("on_destroy"); PlaybackDiagnosticsRecorder.finishSession(requireContext(), "activity_destroyed"); flushRecoveryScoreboard() }
+
+    private fun flushRecoveryScoreboard() {
+        if (PlaybackDiagnosticsRecorder.recoverySink === recoverySink) PlaybackDiagnosticsRecorder.recoverySink = null
+        RecoveryScoreboardReporter.flush(requireContext(), recoveryScoreboard, qoeMode(contentType, playbackSource))
+    }
 
     internal fun resolveTimeoutMs(url: String): Long = when {
         url.lowercase().contains("mediafusion.elfhosted.com") -> MEDIAFUSION_TIMEOUT_MS

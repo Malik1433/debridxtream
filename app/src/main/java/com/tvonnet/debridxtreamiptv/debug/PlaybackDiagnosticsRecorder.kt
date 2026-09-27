@@ -42,7 +42,15 @@ object PlaybackDiagnosticsRecorder {
     private var peakJavaHeapMb: Long = 0L
     private var lastMemorySampleMs: Long = 0L
 
+    /**
+     * The player screen's recovery scoreboard listens here (see RecoveryScoreboard): every event
+     * name, BEFORE the debug gate, so release builds count recoveries too. Names only - no fields.
+     */
+    @Volatile
+    var recoverySink: ((String) -> Unit)? = null
+
     fun record(context: Context, eventType: String, fields: Map<String, Any?> = emptyMap()) {
+        recoverySink?.invoke(eventType)
         if (!isEnabled(context)) return
         synchronized(lock) {
             val file = ensureSessionFile(context) ?: return
