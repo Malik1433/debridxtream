@@ -59,6 +59,7 @@ internal class LiveCatchupController(
     private var liveUrl: String? = null
     private var catchupUrl: String? = null
     private var catchupStreamId: String? = null
+    private var catchupPlayingSinceMs: Long? = null
     private val failedStreamIds = HashSet<String>()
     private val archivedStreamIds = HashSet<String>()
     // C2-3: every feed of the channel that played since the zap. Live failover moves between feeds
@@ -90,7 +91,13 @@ internal class LiveCatchupController(
     }
 
     fun onPlaybackState(state: Int) {
-        if (!isLive || inCatchup) return
+        if (!isLive) return
+        if (inCatchup) {
+            if (state == Player.STATE_READY && catchupPlayingSinceMs == null) {
+                catchupPlayingSinceMs = System.currentTimeMillis()
+            }
+            return
+        }
         when (state) {
             Player.STATE_BUFFERING -> if (playedSinceZap) clock.onStalled()
             Player.STATE_READY -> {
@@ -108,14 +115,22 @@ internal class LiveCatchupController(
             if (playedSinceZap) clock.onStalled()
             return false
         }
-        catchupStreamId?.let { failedStreamIds += it }
-        backToLive(R.string.catchup_unavailable)
+        val playedMs = catchupPlayingSinceMs?.let { System.currentTimeMillis() - it }
+        val naturalEnd = CatchupAvailability.isNaturalEnd(playedMs)
+        Log.i("PlayerActivity", "catch-up: recording stopped by an error after ${playedMs?.div(1000)}s natural_end=$naturalEnd")
+        if (naturalEnd) {
+            backToLive(R.string.catchup_back_to_live)
+        } else {
+            catchupStreamId?.let { failedStreamIds += it }
+            backToLive(R.string.catchup_unavailable)
+        }
         return true
     }
 
     /** @return true when the recording chunk ended and we went back to live. */
     fun onEnded(): Boolean {
         if (!isLive || !inCatchup) return false
+        Log.i("PlayerActivity", "catch-up: recording ended after ${catchupPlayingSinceMs?.let { (System.currentTimeMillis() - it) / 1000 }}s")
         backToLive(R.string.catchup_back_to_live)
         return true
     }
@@ -219,6 +234,7 @@ internal class LiveCatchupController(
     private fun clearCatchup() {
         catchupUrl = null
         catchupStreamId = null
+        catchupPlayingSinceMs = null
         liveUrl = null
     }
 

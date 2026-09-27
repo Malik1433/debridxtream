@@ -14,6 +14,16 @@ internal object CatchupAvailability {
 
     const val MIN_OUTAGE_MS = 20_000L
     const val ARCHIVE_WINDOW_MS = 2 * 24 * 60 * 60_000L
+    /** A recording that already played this long and then errors has run out, not failed. */
+    const val NATURAL_END_AFTER_MS = 30_000L
+
+    /**
+     * C2-4 (Fire TV QA round 2): a recording asked for just after an outage only covers the minutes
+     * the provider had recorded by then, and the provider often ends it by dropping the connection
+     * rather than closing the file - ExoPlayer reports that as an error. After real playback it is
+     * the end of the recording, not a broken channel, so it must not hide catch-up for the sitting.
+     */
+    fun isNaturalEnd(playedMs: Long?): Boolean = playedMs != null && playedMs >= NATURAL_END_AFTER_MS
 
     fun canOfferResume(
         outageStartMs: Long,

@@ -33,4 +33,16 @@ class CatchupAvailabilityTest {
         assertFalse(offer(archive = null))
         assertFalse(offer(failed = true))
     }
+
+    @Test
+    fun `an error after real playback is the recording running out`() {
+        assertTrue(CatchupAvailability.isNaturalEnd(CatchupAvailability.NATURAL_END_AFTER_MS))
+        assertTrue(CatchupAvailability.isNaturalEnd(3 * 60_000L))
+    }
+
+    @Test
+    fun `an error before or soon after the first frame is a broken recording`() {
+        assertFalse(CatchupAvailability.isNaturalEnd(null))
+        assertFalse(CatchupAvailability.isNaturalEnd(5_000L))
+    }
 }
