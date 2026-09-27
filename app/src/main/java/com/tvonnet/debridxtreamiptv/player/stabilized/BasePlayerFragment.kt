@@ -700,6 +700,35 @@ open class BasePlayerFragment : Fragment(), PlayerRecoveryController.RecoveryHos
         liveTuner.performSeamlessSwitch(url)
     }
 
+    // Match mode: see LiveHoldOn. Reset by the first frame (PlayerEventListener).
+    internal val liveHoldOn = LiveHoldOn { SystemClock.elapsedRealtime() }
+
+    /**
+     * Retries and every alternate feed are spent: instead of the error, wait and try the channel
+     * again, feeds included. False = give up (the caller shows the error as before).
+     */
+    internal fun holdOnLiveChannel(reason: String): Boolean {
+        if (contentType != ContentType.LIVE_TV || !isResumed || isFinishing) return false
+        val url = currentUrl ?: return false
+        val notANetworkFailure = reason == getString(R.string.c_audio_route_wedged) || reason.startsWith("Init failed")
+        val delayMs = liveHoldOn.nextRetryDelayMs(PlaybackDiagnosticsRecorder.httpStatusCode(reason), notANetworkFailure)
+            ?: return false
+        Log.w("PlayerActivity", "Live match mode: channel overloaded, trying again in ${delayMs}ms")
+        PlaybackDiagnosticsRecorder.record(requireContext(), RecoveryScoreboard.LIVE_HOLD_RETRY)
+        showToast(getString(R.string.live_hold_retrying, (delayMs / 1000L).toInt()))
+        retryHandler.postDelayed({
+            // The viewer may have left, or zapped elsewhere, while we waited.
+            if (!isAdded || !isResumed || isFinishing) return@postDelayed
+            if (currentUrl != url) return@postDelayed
+            triedLiveStreamIds.clear() // the next round may walk every feed again
+            streamHealth.reset()
+            retryCount = 0
+            resetReconnectBudget()
+            if (player != null) liveTuner.performSeamlessSwitch(url) else initializePlayer(url)
+        }, delayMs)
+        return true
+    }
+
     /**
      * One pill, one sentence. It never appears while the reconnect pill is up — the rule returns
      * OK in that case, so the two cannot both speak.

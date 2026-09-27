@@ -294,6 +294,7 @@ internal class PlayerEventListener(
         // First rendered frame = the source is genuinely playing; clear the
         // unified reconnect budget (fix 2) and hide the banner (fix 3).
         resetReconnectBudget()
+        activity.liveHoldOn.onRecovered()
         hideReconnectingBanner()
         maybeRecordDirectAddonProxySuccess()
         PlaybackDiagnosticsRecorder.record(

@@ -660,6 +660,7 @@
     <string name="phone_search_no_results_body">Prova un titolo più corto o cambia il filtro qui sopra: i canali live si cercano separatamente dal catalogo degli add-on.</string>
     <string name="phone_search_try">PROVA UNO DI QUESTI</string>
     <string name="live_trying_another_source">Provo un\'altra fonte per questo canale…</string>
+    <string name="live_hold_retrying">Il server del canale è sovraccarico. Nuovo tentativo tra %1$d s…</string>
     <string name="health_channel_slow">Questo canale ha problemi in questo momento</string>
     <string name="health_channel_all_feeds">Tutte le fonti di questo canale hanno problemi</string>
     <string name="health_server_slow">Il server del provider non risponde</string>

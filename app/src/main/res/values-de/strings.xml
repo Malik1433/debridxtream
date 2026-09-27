@@ -661,6 +661,7 @@
     <string name="phone_search_no_results_body">Versuch einen kürzeren Titel oder wechsle den Filter oben – Live-Sender werden getrennt von deinem Add-on-Katalog durchsucht.</string>
     <string name="phone_search_try">PROBIER EINS DAVON</string>
     <string name="live_trying_another_source">Andere Quelle für diesen Sender wird versucht…</string>
+    <string name="live_hold_retrying">Der Server des Senders ist überlastet. Neuer Versuch in %1$d s…</string>
     <string name="health_channel_slow">Dieser Sender hat gerade Probleme</string>
     <string name="health_channel_all_feeds">Alle Quellen dieses Senders haben Probleme</string>
     <string name="health_server_slow">Anbieter-Server antwortet nicht</string>

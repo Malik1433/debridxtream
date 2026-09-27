@@ -660,6 +660,7 @@
     <string name="phone_search_no_results_body">Tenta um título mais curto ou muda o filtro acima: os canais em direto são pesquisados à parte do catálogo de add-ons.</string>
     <string name="phone_search_try">EXPERIMENTA UM DESTES</string>
     <string name="live_trying_another_source">A tentar outra fonte para este canal…</string>
+    <string name="live_hold_retrying">O servidor do canal está sobrecarregado. Nova tentativa em %1$d s…</string>
     <string name="health_channel_slow">Este canal está com dificuldades neste momento</string>
     <string name="health_channel_all_feeds">Todas as fontes deste canal estão com dificuldades</string>
     <string name="health_server_slow">O servidor do fornecedor não responde</string>

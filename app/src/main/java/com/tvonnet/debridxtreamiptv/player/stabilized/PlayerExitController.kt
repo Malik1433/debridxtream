@@ -104,11 +104,13 @@ internal class PlayerExitController(
         // provider carries the same channel several times, and the app is in a far better position
         // to find the next feed than someone holding a remote in front of a dead picture. It gives
         // up honestly — through the very error below — the moment there is nothing left to try.
+        // Match mode: when every feed is spent too, keep trying the channel rather than closing it.
         if (contentType == ContentType.LIVE_TV &&
-            activity.tryLiveAlternateSource { showTerminalError(reason) }
+            activity.tryLiveAlternateSource { if (!activity.holdOnLiveChannel(reason)) showTerminalError(reason) }
         ) {
             return
         }
+        if (contentType == ContentType.LIVE_TV && activity.holdOnLiveChannel(reason)) return
         showTerminalError(reason)
     }
 

@@ -660,6 +660,7 @@
     <string name="phone_search_no_results_body">Essayez un titre plus court ou changez le filtre ci-dessus : les chaînes en direct sont cherchées séparément du catalogue d\'add-ons.</string>
     <string name="phone_search_try">ESSAYEZ L\'UN DE CEUX-CI</string>
     <string name="live_trying_another_source">Essai d\'une autre source pour cette chaîne…</string>
+    <string name="live_hold_retrying">Le serveur de la chaîne est surchargé. Nouvel essai dans %1$d s…</string>
     <string name="health_channel_slow">Cette chaîne a des difficultés en ce moment</string>
     <string name="health_channel_all_feeds">Toutes les sources de cette chaîne ont des difficultés</string>
     <string name="health_server_slow">Le serveur du fournisseur ne répond pas</string>

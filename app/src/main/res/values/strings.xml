@@ -372,6 +372,7 @@
     <!-- Live failover: the provider carries the same channel more than once, so a dead feed is
          answered by trying the next one instead of asking the customer to go and find it. -->
     <string name="live_trying_another_source">Trying another source for this channel…</string>
+    <string name="live_hold_retrying">The channel\'s server is overloaded. Trying again in %1$d s…</string>
 
     <!--
       Why playback keeps stopping. "Buffering" is one symptom with several causes, and only the
