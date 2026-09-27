@@ -125,7 +125,10 @@ internal object AudioWedgeEscape {
             try {
                 val forced = isForcedByAdb(appContext)
                 if (forced) applyProbeVerdict(forced = true, primaryConsumes = false)
-                else probeDetectsWedge { wedged -> applyProbeVerdict(forced = false, primaryConsumes = !wedged) }
+                else probeDetectsWedge { wedged ->
+                    if (wedged) AudioCensus.logAsync(appContext, "probe_not_consuming")
+                    applyProbeVerdict(forced = false, primaryConsumes = !wedged)
+                }
             } finally {
                 probeRunning = false
             }
@@ -160,7 +163,10 @@ internal object AudioWedgeEscape {
         val main = android.os.Handler(android.os.Looper.getMainLooper())
         Thread({
             if (isForcedByAdb(appContext)) main.post { onResult(false) }
-            else probeDetectsWedge { wedged -> main.post { onResult(!wedged) } }
+            else probeDetectsWedge { wedged ->
+                if (wedged) AudioCensus.logAsync(appContext, "primary_probe_not_consuming")
+                main.post { onResult(!wedged) }
+            }
         }, "AudioWedgeProbe").apply { isDaemon = true }.start()
     }
 

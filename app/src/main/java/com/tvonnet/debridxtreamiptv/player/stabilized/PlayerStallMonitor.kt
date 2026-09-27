@@ -167,6 +167,7 @@ internal class PlayerStallMonitor(
                 "READY-stall with ${channels}ch audio — engaging 5.1 upmix escape (wedged primary HDMI mixer suspected)"
             )
             recordWedge("audio_wedge_escape", currentPos, channels)
+            AudioCensus.logAsync(activity.requireContext(), "ready_stall_escape")
             // Deliberately SILENT (owner decision 2026-08-30): the escape repairs audio in
             // ~1-2s, so a toast only advertises a problem the viewer barely experiences.
             // The log line + audio_wedge_escape diagnostic remain the audit trail.
@@ -196,6 +197,7 @@ internal class PlayerStallMonitor(
                 else -> {
                     Log.w("PlayerActivity", "READY-stall ON the 5.1 escape route and the primary mixer is not consuming either — both HDMI routes wedged")
                     recordWedge("audio_wedge_both_routes", currentPos, channels)
+                    AudioCensus.logAsync(activity.requireContext(), "both_routes_wedged")
                     player?.release(); player = null
                     activity.handleTerminalPlaybackFailure(activity.getString(R.string.c_audio_route_wedged))
                 }
