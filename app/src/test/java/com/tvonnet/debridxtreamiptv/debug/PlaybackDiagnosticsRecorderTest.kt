@@ -78,7 +78,11 @@ class PlaybackDiagnosticsRecorderTest {
             PlaybackDiagnosticsRecorder.record(context, "player_state_changed", bulk)
             writes++
         }
-        val files = sessionFiles()
+        // Both files are written inside the same second, so neither mtime nor the name orders them
+        // reliably (it flaked in full-suite runs): the rotated file is the one that says so.
+        val files = sessionFiles().sortedBy { file ->
+            if (events(file).any { it.getString("eventType") == "session_rotated" }) 0 else 1
+        }
         assertEquals("rotated into a second file", 2, files.size)
         val first = events(files[0])
         assertEquals("session_rotated", first.last().getString("eventType"))
