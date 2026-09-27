@@ -396,7 +396,7 @@ open class BasePlayerFragment : Fragment(), PlayerRecoveryController.RecoveryHos
     ) = viewModel.reResolveDebridUrl(infoHash, magnet, season, episode, title, allowDirectHttpPassthrough)
 
     // P10: thin delegators — the recovery subsystems that call these still live here.
-    override fun canAttemptReconnect(): Boolean = reconnectManager.canAttemptReconnect()
+    override fun canAttemptReconnect(): Boolean = reconnectManager.canAttemptReconnect().also { if (it) session.livePatience.expectRecoveryStart() }
     internal fun resetReconnectBudget() = reconnectManager.resetBudget()
     private fun showReconnectingBanner() = reconnectManager.showBanner()
     internal fun hideReconnectingBanner() = reconnectManager.hideBanner()

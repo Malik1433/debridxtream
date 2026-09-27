@@ -84,8 +84,10 @@ class LiveCushionPolicyTest {
         patience.onStream("a")
         assertTrue(patience.shouldStart(2_000L, rebuffering = false, baseSaysGo = true)) // first start
         now += 20_000L
+        patience.expectRecoveryStart()
         assertTrue(patience.shouldStart(2_000L, rebuffering = false, baseSaysGo = true)) // re-prepare: stall 1
         now += 40_000L
+        patience.expectRecoveryStart()
         assertFalse(patience.shouldStart(2_000L, rebuffering = false, baseSaysGo = true)) // stall 2: hold
         assertTrue(patience.shouldStart(5_000L, rebuffering = false, baseSaysGo = true))
     }
@@ -98,5 +100,14 @@ class LiveCushionPolicyTest {
         patience.shouldStart(2_000L, rebuffering = true, baseSaysGo = true)
         patience.onStream("b")
         assertTrue(patience.shouldStart(1_000L, rebuffering = false, baseSaysGo = true))
+    }
+
+    @Test
+    fun `the viewer opening the same channel again is not a stall`() {
+        patience.onStream("a")
+        repeat(4) {
+            assertTrue(patience.shouldStart(1_000L, rebuffering = false, baseSaysGo = true))
+            now += 10_000L
+        }
     }
 }

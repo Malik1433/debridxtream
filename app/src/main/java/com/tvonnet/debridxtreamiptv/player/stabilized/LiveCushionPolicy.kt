@@ -20,6 +20,7 @@ internal class LiveRebufferPatience(private val nowMs: () -> Long) {
     private var waitingSinceMs = NOT_WAITING
     private var streamKey: Any? = null
     private var startedOnce = false
+    @Volatile private var recoveryPending = false
 
     /** Called with the stall count and the buffer asked for, when a stall asks for more than usual. */
     @Volatile var onPatient: ((stallsInWindow: Int, targetMs: Long) -> Unit)? = null
@@ -37,24 +38,31 @@ internal class LiveRebufferPatience(private val nowMs: () -> Long) {
         stallTimesMs.clear()
         waitingSinceMs = NOT_WAITING
         startedOnce = false
+        recoveryPending = false
+    }
+
+    /** The app is about to rebuild or re-prepare the player to recover (one reconnect attempt). */
+    fun expectRecoveryStart() {
+        recoveryPending = true
     }
 
     /**
      * Any "may I start?" on a stream that already played once is a stall, not only Media3's own
      * rebuffer. Fire TV QA (2026-09-27): after a network drop the app's reconnect RE-PREPARES the
      * player, Media3 reports that start as a first load (rebuffering=false), and the stall count
-     * never moved. The very first start of a stream is the only one that is not a stall.
+     * never moved. So a start the app's own recovery asked for ([expectRecoveryStart]) is a stall
+     * too - but a start the viewer caused (opening the same channel again) is not.
      *
      * @param rebuffering Media3's own flag; [baseSaysGo] the player's own threshold answer.
      */
     @Synchronized
     fun shouldStart(bufferedMs: Long, rebuffering: Boolean, baseSaysGo: Boolean): Boolean {
-        if (!rebuffering && !startedOnce) {
+        if (!rebuffering && (!startedOnce || !recoveryPending)) {
             if (baseSaysGo) startedOnce = true
             return baseSaysGo
         }
         startedOnce = true
-        return shouldResume(bufferedMs, baseSaysGo)
+        return shouldResume(bufferedMs, baseSaysGo).also { if (it) recoveryPending = false }
     }
 
     /** True while a rebuffer is being held for more than the player's own threshold. */
