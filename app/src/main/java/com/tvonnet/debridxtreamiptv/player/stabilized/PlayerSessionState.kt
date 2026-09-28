@@ -91,6 +91,8 @@ internal class PlayerSessionState {
     var watchdogExtensions: Int = 0
     var watchdogBufferedPosAtArm: Long = -1L
     var networkAvailable: Boolean = true
+    /** When our own connection last dropped (elapsedRealtime), 0 = never in this sitting. */
+    var lastNetworkLossAtMs: Long = 0L
 
     // ── F1 Phase 0: the last key the player saw, so a pause can be told apart from the user's own ──
     var lastKeyCode: Int = 0
@@ -98,4 +100,7 @@ internal class PlayerSessionState {
 
     // ── Live cushion: this screen's stall memory (LiveRebufferPatience), kept across player rebuilds ──
     val livePatience: LiveRebufferPatience get() = LiveCushionState.patience
+
+    // Every stop the viewer did not ask for, across player rebuilds (PlaybackInterruptionMeter).
+    val interruptions = PlaybackInterruptionMeter { android.os.SystemClock.elapsedRealtime() }
 }

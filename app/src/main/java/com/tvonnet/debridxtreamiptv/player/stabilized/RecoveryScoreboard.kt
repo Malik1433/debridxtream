@@ -130,11 +130,26 @@ internal class RecoveryScoreboard(private val nowMs: () -> Long) {
  */
 internal object RecoveryScoreboardReporter {
 
-    fun flush(context: android.content.Context, scoreboard: RecoveryScoreboard, mode: String) {
+    fun flush(
+        context: android.content.Context,
+        scoreboard: RecoveryScoreboard,
+        mode: String,
+        interruptions: PlaybackInterruptionMeter? = null,
+    ) {
         scoreboard.close()
         android.util.Log.i("PlayerActivity", scoreboard.logLine(mode))
+        interruptions?.let { android.util.Log.i("PlayerActivity", it.logLine(mode)) }
         if (!com.tvonnet.debridxtreamiptv.util.DiagnosticsConsent.isEnabled(context)) return
         val analytics = com.google.firebase.analytics.FirebaseAnalytics.getInstance(context.applicationContext)
+        // The number that says whether live buffering got better in the field: stops per hour watched.
+        interruptions?.let { m ->
+            analytics.logEvent("playback_interruptions", android.os.Bundle().apply {
+                putString("mode", mode)
+                putInt("count", m.count)
+                putLong("stopped_ms", m.stoppedMs)
+                putLong("longest_ms", m.longestMs)
+            })
+        }
         scoreboard.tallies().forEach { (kind, t) ->
             analytics.logEvent("playback_recovery", android.os.Bundle().apply {
                 putString("kind", kind.key)

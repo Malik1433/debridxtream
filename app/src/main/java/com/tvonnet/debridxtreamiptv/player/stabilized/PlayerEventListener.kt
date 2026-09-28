@@ -283,6 +283,17 @@ internal class PlayerEventListener(
     // H6: one reliability observation per source attempt (this listener is per-init).
     private var hasRecordedReliabilitySuccess = false
 
+    // Every stop the viewer did not ask for, across player rebuilds (PlaybackInterruptionMeter).
+    override fun onIsPlayingChanged(isPlaying: Boolean) {
+        val p = player
+        if (isPlaying) session.interruptions.onPlaying()
+        else session.interruptions.onStopped(p?.playWhenReady == true && p.playbackState != Player.STATE_ENDED)
+    }
+
+    override fun onPositionDiscontinuity(oldPosition: Player.PositionInfo, newPosition: Player.PositionInfo, reason: Int) {
+        if (reason == Player.DISCONTINUITY_REASON_SEEK) session.interruptions.onUserChange()
+    }
+
     override fun onRenderedFirstFrame() {
         hasRenderedFirstFrameForCurrentSource = true
         if (!hasRecordedReliabilitySuccess) {

@@ -160,6 +160,7 @@ internal class PlayerLiveTuner(
         channelLogoUrl = target.logoUrl
         bindChannelMeta(target.name)
         zapLoading.show(target.name)
+        session.interruptions.onUserChange() // the stop this zap causes is the viewer's
         supportActionBar?.title = target.name
 
         val epgKey = target.epgChannelId?.takeIf { it.isNotBlank() } ?: target.streamId

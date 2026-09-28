@@ -185,6 +185,7 @@ class LivePlayerFragment : BasePlayerFragment() {
             adopted.addAnalyticsListener(t)
             t.attachMidPlayback(adopted.playbackState == Player.STATE_READY, adopted.isPlaying)
         }
+        if (adopted.isPlaying) session.interruptions.onPlaying()
         PlaybackDiagnosticsRecorder.record(
             requireContext(),
             "player_adopted_shared_tuned",

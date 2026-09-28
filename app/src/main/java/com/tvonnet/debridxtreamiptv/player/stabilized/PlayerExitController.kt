@@ -105,7 +105,8 @@ internal class PlayerExitController(
         // to find the next feed than someone holding a remote in front of a dead picture. It gives
         // up honestly — through the very error below — the moment there is nothing left to try.
         // Match mode: when every feed is spent too, keep trying the channel rather than closing it.
-        if (contentType == ContentType.LIVE_TV &&
+        // Not while our own connection just dropped: that is no verdict on the feed (NetworkGrace).
+        if (contentType == ContentType.LIVE_TV && !session.networkRecentlyLost() &&
             activity.tryLiveAlternateSource { if (!activity.holdOnLiveChannel(reason)) showTerminalError(reason) }
         ) {
             return

@@ -176,7 +176,7 @@ internal class PlayerRecoveryController(
         val manager = connectivityManager ?: return
         networkCallback = object : ConnectivityManager.NetworkCallback() {
             override fun onAvailable(network: android.net.Network) { networkAvailable = true; attemptNetworkRecovery("available") }
-            override fun onLost(network: android.net.Network) { networkAvailable = false }
+            override fun onLost(network: android.net.Network) { networkAvailable = false; session.lastNetworkLossAtMs = SystemClock.elapsedRealtime() }
         }
         manager.registerDefaultNetworkCallback(networkCallback!!)
     }

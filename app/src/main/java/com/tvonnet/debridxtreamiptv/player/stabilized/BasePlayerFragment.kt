@@ -135,7 +135,7 @@ open class BasePlayerFragment : Fragment(), PlayerRecoveryController.RecoveryHos
     internal val prefs by lazy { CredentialsPreferences(requireContext()) }
 
     /** S1: every mutable screen state lives here; the vars below just delegate. */
-    private val session = PlayerSessionState().apply { timeoutMs = TIMEOUT_MS }
+    internal val session = PlayerSessionState().apply { timeoutMs = TIMEOUT_MS }
 
 
     internal var isInPictureInPictureMode = false
@@ -616,7 +616,7 @@ open class BasePlayerFragment : Fragment(), PlayerRecoveryController.RecoveryHos
      */
     private fun actOnStreamHealth(verdict: StreamHealth) {
         if (verdict != StreamHealth.CHANNEL_SLOW) return
-        if (contentType != ContentType.LIVE_TV) return
+        if (contentType != ContentType.LIVE_TV || session.networkRecentlyLost()) return // our line dropped, not the feed
         liveFeedUnderLoad = true // from here on, failovers in this sitting try the lighter feeds first
         tryLiveAlternateSource {
             // Nothing left to switch to, and everything tried was just as bad: stop implying a
@@ -1569,7 +1569,7 @@ open class BasePlayerFragment : Fragment(), PlayerRecoveryController.RecoveryHos
 
     private fun flushRecoveryScoreboard() {
         if (PlaybackDiagnosticsRecorder.recoverySink === recoverySink) PlaybackDiagnosticsRecorder.recoverySink = null
-        RecoveryScoreboardReporter.flush(requireContext(), recoveryScoreboard, qoeMode(contentType, playbackSource))
+        RecoveryScoreboardReporter.flush(requireContext(), recoveryScoreboard, qoeMode(contentType, playbackSource), session.interruptions)
     }
 
     internal fun resolveTimeoutMs(url: String): Long = when {
