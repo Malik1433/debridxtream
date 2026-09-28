@@ -53,6 +53,17 @@ class PlaybackQoeTracker(
     private var playingSinceMs = 0L
     private var playingMs = 0L
 
+    /**
+     * For a player taken over while it already plays (fullscreen adopting the guide's preview):
+     * no TTFF to measure, but the playing time and rebuffers from here on belong to this session.
+     * Without it an adopted Live session never logged a `qoe session` line (QA 2026-09-28).
+     */
+    fun attachMidPlayback(isReady: Boolean, isPlaying: Boolean) {
+        reachedReady = isReady
+        firstFrameSeen = true
+        if (isPlaying) playingSinceMs = SystemClock.elapsedRealtime()
+    }
+
     /** Call right before prepare()/seamless-switch so TTFF measures this source. */
     fun markPrepareStart() {
         prepareStartedAtMs = SystemClock.elapsedRealtime()

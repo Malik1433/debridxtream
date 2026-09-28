@@ -5,6 +5,7 @@ import android.view.KeyEvent
 import android.view.MotionEvent
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
+import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import com.tvonnet.debridxtreamiptv.R
 import com.tvonnet.debridxtreamiptv.debug.PlaybackDiagnosticsRecorder
@@ -180,6 +181,10 @@ class LivePlayerFragment : BasePlayerFragment() {
                 /* handleAudioFocus= */ true
             )
         }
+        qoeTracker = PlaybackQoeTracker(requireContext()) { qoeMode(contentType, playbackSource) }.also { t ->
+            adopted.addAnalyticsListener(t)
+            t.attachMidPlayback(adopted.playbackState == Player.STATE_READY, adopted.isPlaying)
+        }
         PlaybackDiagnosticsRecorder.record(
             requireContext(),
             "player_adopted_shared_tuned",
@@ -197,6 +202,8 @@ class LivePlayerFragment : BasePlayerFragment() {
         playerListener = null
         debugListener?.let { p.removeListener(it) }
         debugListener = null
+        qoeTracker?.let { p.removeAnalyticsListener(it); it.flushSessionSummary() } // the guide keeps the player, not our numbers
+        qoeTracker = null
         stopStallMonitor()
         timeoutHandler.removeCallbacks(timeoutRunnable)
         mediaSession.unbind() // the guide's preview must not keep answering the remote
