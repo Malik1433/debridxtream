@@ -136,4 +136,17 @@ class LiveCushionPolicyTest {
         assertFalse(patience.shouldStart(5_000L, rebuffering = false, baseSaysGo = true)) // outage 3: 8 s
         assertTrue(patience.shouldStart(8_000L, rebuffering = false, baseSaysGo = true))
     }
+
+    @Test
+    fun `a failover to another feed of the channel keeps the count`() {
+        patience.onStream("feed-a")
+        stall(2_000L); now += 40_000L
+        stall(5_000L); now += 40_000L
+        patience.expectFeedSwitch()
+        patience.onStream("feed-b")
+        assertFalse(stall(6_000L)) // stall 3 on the new feed: 8 s
+        patience.onStream("another-channel")
+        now += 1_000L
+        assertTrue(stall(2_000L)) // a real channel change still starts afresh
+    }
 }

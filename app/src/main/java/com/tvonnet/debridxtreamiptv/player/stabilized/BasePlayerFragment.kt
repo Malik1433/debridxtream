@@ -690,7 +690,7 @@ open class BasePlayerFragment : Fragment(), PlayerRecoveryController.RecoveryHos
      */
     private fun switchToLiveAlternate(alternate: XtreamStream) {
         val url = buildLiveUrl(alternate) ?: return
-        Log.i("PlayerActivity", "Live failover: switching to ${alternate.stream_id}")
+        Log.i("PlayerActivity", "Live failover: switching to ${alternate.stream_id}"); session.livePatience.expectFeedSwitch()
         alternate.stream_id?.let { triedLiveStreamIds += it }
         showToast(getString(R.string.live_trying_another_source))
         streamHealth.reset()

@@ -20,6 +20,7 @@ internal class LiveRebufferPatience(private val nowMs: () -> Long) {
     private var waitingSinceMs = NOT_WAITING
     private var streamKey: Any? = null
     @Volatile private var recoveryPending = false
+    @Volatile private var feedSwitchPending = false
     // One outage is one stall: Media3's rebuffer and the reconnect's re-prepare that follows it are
     // the same interruption (QA round 3 saw both counted, so one drop read as "stall 2").
     private var playedSinceLastStall = true
@@ -32,7 +33,19 @@ internal class LiveRebufferPatience(private val nowMs: () -> Long) {
     fun onStream(key: Any?) {
         if (key == streamKey) return
         streamKey = key
+        if (feedSwitchPending) {
+            feedSwitchPending = false // same channel, another feed: its stalls still count
+            return
+        }
         reset()
+    }
+
+    /**
+     * Live failover is about to move the SAME channel to another feed (another URL). QA round 4:
+     * the new URL read as a new stream and wiped the count, so "stall 3" never came.
+     */
+    fun expectFeedSwitch() {
+        feedSwitchPending = true
     }
 
     @Synchronized
@@ -40,6 +53,7 @@ internal class LiveRebufferPatience(private val nowMs: () -> Long) {
         stallTimesMs.clear()
         waitingSinceMs = NOT_WAITING
         recoveryPending = false
+        feedSwitchPending = false
         playedSinceLastStall = true
     }
 
