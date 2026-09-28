@@ -19,7 +19,6 @@ internal class LiveRebufferPatience(private val nowMs: () -> Long) {
     private val stallTimesMs = ArrayDeque<Long>()
     private var waitingSinceMs = NOT_WAITING
     private var streamKey: Any? = null
-    private var startedOnce = false
     @Volatile private var recoveryPending = false
 
     /** Called with the stall count and the buffer asked for, when a stall asks for more than usual. */
@@ -37,7 +36,6 @@ internal class LiveRebufferPatience(private val nowMs: () -> Long) {
     fun reset() {
         stallTimesMs.clear()
         waitingSinceMs = NOT_WAITING
-        startedOnce = false
         recoveryPending = false
     }
 
@@ -47,21 +45,18 @@ internal class LiveRebufferPatience(private val nowMs: () -> Long) {
     }
 
     /**
-     * Any "may I start?" on a stream that already played once is a stall, not only Media3's own
-     * rebuffer. Fire TV QA (2026-09-27): after a network drop the app's reconnect RE-PREPARES the
+     * A start the app's own recovery asked for is a stall too, not only Media3's own rebuffer. Fire TV QA (2026-09-27): after a network drop the app's reconnect RE-PREPARES the
      * player, Media3 reports that start as a first load (rebuffering=false), and the stall count
      * never moved. So a start the app's own recovery asked for ([expectRecoveryStart]) is a stall
-     * too - but a start the viewer caused (opening the same channel again) is not.
+     * too - but a start the viewer caused (opening the same channel again) is not. That holds even
+     * when this screen never saw the first start: fullscreen adopts the guide's running player, so
+     * the first recovery is its first start (QA round 2: the count ran one stall behind).
      *
      * @param rebuffering Media3's own flag; [baseSaysGo] the player's own threshold answer.
      */
     @Synchronized
     fun shouldStart(bufferedMs: Long, rebuffering: Boolean, baseSaysGo: Boolean): Boolean {
-        if (!rebuffering && (!startedOnce || !recoveryPending)) {
-            if (baseSaysGo) startedOnce = true
-            return baseSaysGo
-        }
-        startedOnce = true
+        if (!rebuffering && !recoveryPending) return baseSaysGo
         return shouldResume(bufferedMs, baseSaysGo).also { if (it) recoveryPending = false }
     }
 

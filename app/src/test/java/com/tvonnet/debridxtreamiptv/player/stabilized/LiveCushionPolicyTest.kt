@@ -110,4 +110,14 @@ class LiveCushionPolicyTest {
             now += 10_000L
         }
     }
+
+    @Test
+    fun `an adopted player's first recovery already counts`() {
+        patience.onStream("a") // this screen never saw the first start: it adopted a running player
+        patience.expectRecoveryStart()
+        assertTrue(patience.shouldStart(2_000L, rebuffering = false, baseSaysGo = true)) // stall 1
+        now += 40_000L
+        patience.expectRecoveryStart()
+        assertFalse(patience.shouldStart(2_000L, rebuffering = false, baseSaysGo = true)) // stall 2: hold
+    }
 }
