@@ -71,7 +71,7 @@ class PreviewPlayerPanel(
     private val btnPreviewFavorite: View? = view.findViewById(R.id.btn_favorite)
     private val ivFavoriteIcon: ImageView? = view.findViewById(R.id.iv_favorite_icon)
     private val badgeQuality: TextView? = view.findViewById(R.id.badge_quality)
-    private val loading = PreviewLoadingIndicator(view)
+    private val loading = LiveLoadingIndicator(view)
 
     // State
     private var currentStream: XtreamStream? = null

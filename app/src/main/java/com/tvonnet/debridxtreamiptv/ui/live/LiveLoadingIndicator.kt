@@ -6,20 +6,24 @@ import androidx.core.view.isVisible
 import com.tvonnet.debridxtreamiptv.R
 
 /**
- * What the Live preview shows between a channel click and its first frame (owner, 2026-09-28).
+ * What a Live screen shows between a channel change and its first frame (owner, 2026-09-28): the
+ * guide's preview on a click, and the fullscreen player on a zap.
  *
  * Fire TV QA on a Fire TV Stick 4K: a click could take 2.6 s, 4.3 s, once over 18 s, and all that
  * time the panel still read "Preview a channel to get program details" with no spinner - the
- * viewer could not tell the click had landed. Now the channel's name and "Connecting…" appear on
- * the click itself, and if the provider is slow the line says so rather than looking stuck.
+ * viewer could not tell the click had landed. Fullscreen zapping had the same gap: the zap
+ * backdrop covers the player's own spinner. Now the channel's name and "Connecting…" appear at
+ * once, and if the provider is slow the line says so rather than looking stuck.
  *
- * Owns the layout's existing `preview_loading_container` (spinner + text); nothing else shows or
- * hides it.
+ * Owns one container (spinner + text); nothing else shows or hides it.
  */
-internal class PreviewLoadingIndicator(root: View) {
+internal class LiveLoadingIndicator(private val container: View?, private val text: TextView?) {
 
-    private val container: View? = root.findViewById(R.id.preview_loading_container)
-    private val text: TextView? = root.findViewById(R.id.preview_loading_text)
+    /** The guide preview's `preview_loading_container`. */
+    constructor(previewRoot: View) : this(
+        previewRoot.findViewById(R.id.preview_loading_container),
+        previewRoot.findViewById(R.id.preview_loading_text),
+    )
 
     private val slowLine = Runnable {
         text?.setText(R.string.live_preview_slow)

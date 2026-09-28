@@ -8,6 +8,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.media3.exoplayer.ExoPlayer
 import com.tvonnet.debridxtreamiptv.R
+import com.tvonnet.debridxtreamiptv.ui.live.LiveLoadingIndicator
 import com.tvonnet.debridxtreamiptv.util.SensitiveLogRedactor
 import kotlinx.coroutines.launch
 import java.util.Locale
@@ -87,6 +88,17 @@ internal class PlayerLiveTuner(
     private fun showToast(message: String) = activity.showToast(message)
     private fun getString(resId: Int): String = activity.getString(resId)
 
+    // Fullscreen zap: "Connecting to <channel>…" until the first frame (the zap backdrop hides
+    // the player's own spinner). Hidden by the first frame or an error (PlayerEventListener).
+    private val zapLoading by lazy {
+        LiveLoadingIndicator(
+            activity.findViewById<View>(R.id.live_zap_loading),
+            activity.findViewById<android.widget.TextView>(R.id.live_zap_loading_text),
+        )
+    }
+
+    fun hideZapLoading() = zapLoading.hide()
+
     fun zapChannel(direction: Int) {
         val target = viewModel.moveZap(direction) ?: run {
             val isReady = viewModel.zapState.value?.channels?.isNotEmpty() == true
@@ -147,6 +159,7 @@ internal class PlayerLiveTuner(
         currentUrl = target.streamUrl
         channelLogoUrl = target.logoUrl
         bindChannelMeta(target.name)
+        zapLoading.show(target.name)
         supportActionBar?.title = target.name
 
         val epgKey = target.epgChannelId?.takeIf { it.isNotBlank() } ?: target.streamId

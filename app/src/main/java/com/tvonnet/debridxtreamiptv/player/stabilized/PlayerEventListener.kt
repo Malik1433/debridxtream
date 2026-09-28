@@ -291,6 +291,7 @@ internal class PlayerEventListener(
         }
         timeoutHandler.removeCallbacks(blackVideoCheckRunnable)
         liveOsd?.hideZapBackdrop()
+        if (activity.contentType == ContentType.LIVE_TV) activity.liveTuner.hideZapLoading()
         // First rendered frame = the source is genuinely playing; clear the
         // unified reconnect budget (fix 2) and hide the banner (fix 3).
         resetReconnectBudget()
@@ -370,6 +371,7 @@ internal class PlayerEventListener(
         }
     }
     override fun onPlayerError(error: PlaybackException) {
+        if (activity.contentType == ContentType.LIVE_TV) activity.liveTuner.hideZapLoading() // the reconnect pill speaks now
         isSwitching = false
         timeoutHandler.removeCallbacks(timeoutRunnable)
         // What the provider actually SAID. A 429 or a 403 is a fact about this account, so the

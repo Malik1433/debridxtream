@@ -35,6 +35,40 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent" />
 
+    <!-- Zap loading pill (owner, 2026-09-28): "Connecting to <channel>…" from a fullscreen zap
+         until the first frame; the zap backdrop hides the player's own spinner. A statement, not
+         a control - never focusable, so it cannot take focus from the OSD. -->
+    <LinearLayout
+        android:id="@+id/live_zap_loading"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:background="@drawable/bg_live_toast"
+        android:elevation="11dp"
+        android:focusable="false"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingHorizontal="11dp"
+        android:paddingVertical="6.5dp"
+        android:visibility="gone">
+
+        <ProgressBar
+            android:layout_width="10dp"
+            android:layout_height="10dp"
+            style="?android:attr/progressBarStyleSmall"
+            android:indeterminateTint="@color/neon_cyan" />
+
+        <TextView
+            android:id="@+id/live_zap_loading_text"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:maxWidth="420dp"
+            android:textColor="@color/phone_text_primary"
+            android:textSize="@dimen/stream_health_text_size"
+            tools:text="Connecting to DD Sports…" />
+    </LinearLayout>
+
     <!-- Reconnecting pill (QA fix 3): persistent while any recovery subsystem is
          retrying; hidden on the first rendered frame / READY. Styled to match the
          live OSD toast/conn-chip. -->
