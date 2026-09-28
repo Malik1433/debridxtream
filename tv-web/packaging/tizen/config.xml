@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- DX Play for Samsung TVs (Tizen). W0 proof build - see docs/reports/WEB_TV_APP_DESIGN.md. -->
+<widget xmlns="http://www.w3.org/ns/widgets" xmlns:tizen="http://tizen.org/ns/widgets"
+        id="http://dxplay.tv/tizen" version="0.0.1" viewmodes="maximized">
+    <tizen:application id="DXPlayTvW0.DXPlay" package="DXPlayTvW0" required_version="4.0"/>
+    <name>DX Play</name>
+    <icon src="icon.png"/>
+    <content src="index.html"/>
+    <tizen:profile name="tv-samsung"/>
+    <feature name="http://tizen.org/feature/screen.size.all"/>
+
+    <!-- Xtream servers send no CORS headers: a packaged app may reach any origin it lists here. -->
+    <access origin="*" subdomains="true"/>
+    <tizen:allow-navigation>*</tizen:allow-navigation>
+    <tizen:content-security-policy>default-src * 'unsafe-inline' 'unsafe-eval' data: blob:</tizen:content-security-policy>
+
+    <tizen:privilege name="http://tizen.org/privilege/internet"/>
+    <tizen:privilege name="http://tizen.org/privilege/tv.inputdevice"/>
+    <tizen:privilege name="http://developer.samsung.com/privilege/productinfo"/>
+
+    <tizen:setting screen-orientation="landscape" context-menu="disable" background-support="disable"
+                   encryption="disable" install-location="auto" hwkey-event="enable"/>
+</widget>

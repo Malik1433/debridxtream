@@ -4,6 +4,11 @@
 **ek web TV app**, aur Apple TV ke liye baad mein alag native app. Yeh doc sirf web TV app ka hai.
 **Pehla qadam W0 hai** (neeche): asal TV par chhota sa proof. Us ke nateejay se pehle koi bada code nahi.
 
+**Owner ke faisle (2026-09-28):** naam **DX Play**; pehla store version **sirf IPTV**. Test ke liye ghar
+mein **Samsung** aur **VIDAA (Hisense)** TV hain, LG nahi. Is liye W0 Samsung + VIDAA par hoga, aur LG
+tab jab LG TV mile. VIDAA bhi web TV hai, to wahi code chalega; W0 mein woh PC se chalne wale page
+(`npm run vidaa`) ko TV ke browser mein khol kar test hota hai. Code: `tv-web/`.
+
 ---
 
 ## 1. Kya banana hai

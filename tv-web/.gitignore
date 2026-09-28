@@ -1,0 +1,7 @@
+node_modules/
+dist/
+*.wgt
+# W0 test credentials - created by hand on the test PC, never committed.
+w0.local.json
+public/w0.local.json
+build-tizen/

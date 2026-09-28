@@ -1,0 +1,6 @@
+{
+  "server": "http://your-provider-host:8080",
+  "username": "your-username",
+  "password": "your-password",
+  "streamIds": []
+}
