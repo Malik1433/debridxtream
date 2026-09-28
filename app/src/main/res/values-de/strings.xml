@@ -133,6 +133,8 @@
     <string name="live_preview_title_placeholder">Sender ansehen, um Programmdetails zu erhalten</string>
     <string name="live_preview_next_button">Nächste Sendung</string>
     <string name="live_preview_loading_state">Vorschau wird geladen&#8230;</string>
+    <string name="live_preview_connecting">Verbinde mit %1$s…</string>
+    <string name="live_preview_slow">Der Server ist langsam – wird weiter versucht…</string>
     <string name="live_preview_audio_unavailable">Kein Ton — bitte Fire TV neu starten (keine freien Audiokanäle mehr)</string>
     <string name="live_preview_playback_failed">Vorschau nicht verfügbar — Sender erneut auswählen</string>
     <string name="live_preview_label_now">Läuft gerade</string>

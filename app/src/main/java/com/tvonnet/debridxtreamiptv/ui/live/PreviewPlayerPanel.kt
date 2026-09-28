@@ -71,6 +71,7 @@ class PreviewPlayerPanel(
     private val btnPreviewFavorite: View? = view.findViewById(R.id.btn_favorite)
     private val ivFavoriteIcon: ImageView? = view.findViewById(R.id.iv_favorite_icon)
     private val badgeQuality: TextView? = view.findViewById(R.id.badge_quality)
+    private val loading = PreviewLoadingIndicator(view)
 
     // State
     private var currentStream: XtreamStream? = null
@@ -89,6 +90,8 @@ class PreviewPlayerPanel(
     private val playerListener = object : Player.Listener {
         override fun onPlayerError(error: PlaybackException) = handlePlaybackError(error)
 
+        override fun onRenderedFirstFrame() = loading.hide()
+
         override fun onIsPlayingChanged(isPlaying: Boolean) {
             // A channel that recovers has earned its retries back; otherwise one bad hour would
             // leave the panel permanently one failure away from giving up.
@@ -106,16 +109,17 @@ class PreviewPlayerPanel(
                 previewPlayer?.prepare()
             }
             PreviewPlaybackErrorPolicy.Action.RELEASE_AUDIO_EXHAUSTED -> {
+                loading.hide()
                 releasePlayer()
                 updatePlaceholder(context.getString(R.string.live_preview_audio_unavailable))
             }
             PreviewPlaybackErrorPolicy.Action.RELEASE_FAILED -> {
+                loading.hide()
                 releasePlayer()
                 updatePlaceholder(context.getString(R.string.live_preview_playback_failed))
             }
         }
     }
-
 
     // Formatters
     private val previewTimeFormatter = SimpleDateFormat("HH:mm", Locale.getDefault())
@@ -185,9 +189,33 @@ class PreviewPlayerPanel(
             return
         }
 
+        // A second click on the channel that is still connecting: it is already on its way.
+        if (currentStream?.stream_id == stream.stream_id && pendingStart != null && streamUrlOverride == null) return
+
         currentStream = stream
         playbackErrorRetries = 0   // a new channel starts with a full retry budget
+        // Answer the click first: name + "Connecting…" are drawn on the next frame, and only then
+        // does the slow part run (prefs, building the player - seconds on a Fire TV Stick).
+        updateStreamInfo(stream)
+        loading.show(stream.name)
+        cancelPendingStart()
+        val start = Runnable {
+            pendingStart = null
+            startPreview(stream, streamUrlOverride)
+        }
+        pendingStart = start
+        view.post(start)
+    }
 
+    private var pendingStart: Runnable? = null
+
+    /** A click that has not started its player yet must never start one after the panel let go. */
+    private fun cancelPendingStart() {
+        pendingStart?.let { view.removeCallbacks(it) }
+        pendingStart = null
+    }
+
+    private fun startPreview(stream: XtreamStream, streamUrlOverride: String?) {
         // Get Credentials. These used to be bare `?: return`s — a preview that could not start
         // said nothing at all, to the user or to the log, which is exactly what made the phone's
         // "first tap does nothing" so hard to pin down. Now a miss is at least visible.
@@ -201,6 +229,7 @@ class PreviewPlayerPanel(
                 "preview cannot start — missing credentials (server=${serverUrl != null} " +
                     "user=${username != null} pass=${password != null})"
             )
+            loading.hide()
             updatePlaceholder(context.getString(R.string.player_epg_syncing))
             return
         }
@@ -212,9 +241,8 @@ class PreviewPlayerPanel(
         player.prepare()
         player.playWhenReady = true
         player.play()
-        
-        // Update UI Text
-        updateStreamInfo(stream)
+        // Stream info went up on the click (play); repeating it here would re-disable the
+        // favourite button the caller has already set.
         updatePlaceholder(context.getString(R.string.player_epg_syncing))
     }
     
@@ -388,6 +416,8 @@ class PreviewPlayerPanel(
     private fun formatTime(timestamp: Long): String = previewTimeFormatter.format(Date(timestamp))
 
     fun releasePlayer() {
+        cancelPendingStart()
+        loading.hide()
         previewPlayer?.release()
         previewPlayer = null
         previewPlayerView?.player = null
@@ -411,6 +441,8 @@ class PreviewPlayerPanel(
         // Stop listening to a player we no longer own — otherwise a fullscreen error would make this
         // panel release a player that fullscreen is still using.
         p?.removeListener(playerListener)
+        cancelPendingStart()
+        loading.hide()
         previewPlayer = null
         previewPlayerView?.player = null
         return p
@@ -426,6 +458,7 @@ class PreviewPlayerPanel(
 
     /** Adopts an already-playing player (e.g. handed back from the fullscreen session). */
     fun adoptPlayer(p: ExoPlayer, stream: XtreamStream) {
+        cancelPendingStart()
         if (previewPlayer !== p) previewPlayer?.release()
         previewPlayer = p
         // Owned here again, so it gets the same error handling as one this panel built itself.
@@ -435,6 +468,7 @@ class PreviewPlayerPanel(
         previewPlayerView?.player = p
         currentStream = stream
         p.playWhenReady = true
+        loading.hide() // handed back already playing
         updateStreamInfo(stream)
     }
     

@@ -132,6 +132,8 @@
     <string name="live_preview_title_placeholder">Previsualiza un canal para ver la programación</string>
     <string name="live_preview_next_button">Siguiente programa</string>
     <string name="live_preview_loading_state">Cargando vista previa&#8230;</string>
+    <string name="live_preview_connecting">Conectando con %1$s…</string>
+    <string name="live_preview_slow">El servidor va lento; seguimos intentándolo…</string>
     <string name="live_preview_audio_unavailable">Audio no disponible — reinicia tu Fire TV (sin canales de audio libres)</string>
     <string name="live_preview_playback_failed">Vista previa no disponible — vuelve a seleccionar el canal</string>
     <string name="live_preview_label_now">En emisión</string>

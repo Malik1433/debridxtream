@@ -339,6 +339,7 @@
                             android:indeterminateTint="@color/stremio_cyan" />
 
                         <TextView
+                            android:id="@+id/preview_loading_text"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_gravity="center"
