@@ -32,7 +32,7 @@ import com.tvonnet.debridxtreamiptv.data.prefs.SettingsPreferences
 import com.tvonnet.debridxtreamiptv.player.stabilized.AudioWedgeEscape
 import com.tvonnet.debridxtreamiptv.player.stabilized.LivePatienceLoadControl
 import com.tvonnet.debridxtreamiptv.player.stabilized.LivePlaybackLoadErrorPolicy
-import com.tvonnet.debridxtreamiptv.player.stabilized.LiveRebufferPatience
+import com.tvonnet.debridxtreamiptv.player.stabilized.LiveCushionState
 import com.tvonnet.debridxtreamiptv.player.stabilized.PlayerBufferConfigFactory
 import com.tvonnet.debridxtreamiptv.player.stabilized.WedgeEscapeRenderersFactory
 import com.tvonnet.debridxtreamiptv.util.DeviceProfile
@@ -281,7 +281,7 @@ class PreviewPlayerPanel(
             .setPrioritizeTimeOverSizeThresholds(!DeviceProfile.isLowRamDevice(context))
             .setBackBuffer(0, /* retainBackBufferFromKeyframe= */ true)
             .build()
-            .let { LivePatienceLoadControl.wrap(it, LiveRebufferPatience { android.os.SystemClock.elapsedRealtime() }) }
+            .let { LivePatienceLoadControl.wrap(it, LiveCushionState.patience) }
         val mediaSourceFactory = DefaultMediaSourceFactory(dataSourceFactory)
             .setLoadErrorHandlingPolicy(LivePlaybackLoadErrorPolicy())
         val audioAttributes = AudioAttributes.Builder()

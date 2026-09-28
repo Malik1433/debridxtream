@@ -20,8 +20,11 @@ internal class LiveRebufferPatience(private val nowMs: () -> Long) {
     private var waitingSinceMs = NOT_WAITING
     private var streamKey: Any? = null
     @Volatile private var recoveryPending = false
+    // One outage is one stall: Media3's rebuffer and the reconnect's re-prepare that follows it are
+    // the same interruption (QA round 3 saw both counted, so one drop read as "stall 2").
+    private var playedSinceLastStall = true
 
-    /** Called with the stall count and the buffer asked for, when a stall asks for more than usual. */
+    /** Called for every counted stall, with the count and the buffer asked for (0 = the player's own). */
     @Volatile var onPatient: ((stallsInWindow: Int, targetMs: Long) -> Unit)? = null
 
     /** A different stream (a zap): the old channel's stalls say nothing about this one. */
@@ -37,6 +40,7 @@ internal class LiveRebufferPatience(private val nowMs: () -> Long) {
         stallTimesMs.clear()
         waitingSinceMs = NOT_WAITING
         recoveryPending = false
+        playedSinceLastStall = true
     }
 
     /** The app is about to rebuild or re-prepare the player to recover (one reconnect attempt). */
@@ -74,13 +78,19 @@ internal class LiveRebufferPatience(private val nowMs: () -> Long) {
         val now = nowMs()
         if (waitingSinceMs == NOT_WAITING) {
             waitingSinceMs = now
-            stallTimesMs.addLast(now)
-            while (stallTimesMs.isNotEmpty() && now - stallTimesMs.first() > STALL_WINDOW_MS) stallTimesMs.removeFirst()
-            targetMs().takeIf { it > 0 }?.let { onPatient?.invoke(stallTimesMs.size, it) }
+            if (playedSinceLastStall) {
+                playedSinceLastStall = false
+                stallTimesMs.addLast(now)
+                while (stallTimesMs.isNotEmpty() && now - stallTimesMs.first() > STALL_WINDOW_MS) stallTimesMs.removeFirst()
+                onPatient?.invoke(stallTimesMs.size, targetMs())
+            }
         }
         val target = targetMs()
         val go = if (target <= 0L || waitedTooLong(now)) baseSaysGo else baseSaysGo && bufferedMs >= target
-        if (go) waitingSinceMs = NOT_WAITING
+        if (go) {
+            waitingSinceMs = NOT_WAITING
+            playedSinceLastStall = true
+        }
         return go
     }
 

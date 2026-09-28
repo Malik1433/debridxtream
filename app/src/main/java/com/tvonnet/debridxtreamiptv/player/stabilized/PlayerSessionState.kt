@@ -97,5 +97,5 @@ internal class PlayerSessionState {
     var lastKeyAtMs: Long = 0L
 
     // ── Live cushion: this screen's stall memory (LiveRebufferPatience), kept across player rebuilds ──
-    val livePatience = LiveRebufferPatience { android.os.SystemClock.elapsedRealtime() }
+    val livePatience: LiveRebufferPatience get() = LiveCushionState.patience
 }

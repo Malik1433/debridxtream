@@ -120,4 +120,20 @@ class LiveCushionPolicyTest {
         patience.expectRecoveryStart()
         assertFalse(patience.shouldStart(2_000L, rebuffering = false, baseSaysGo = true)) // stall 2: hold
     }
+
+    @Test
+    fun `a rebuffer and the reconnect that follows it are one stall`() {
+        patience.onStream("a")
+        assertTrue(stall(2_000L)) // outage 1: stall 1
+        now += 40_000L
+        assertTrue(patience.shouldStart(0L, rebuffering = true, baseSaysGo = false).not()) // outage 2 opens: stall 2
+        patience.expectRecoveryStart() // player rebuilt without having played again
+        now += 5_000L
+        assertFalse(patience.shouldStart(3_000L, rebuffering = false, baseSaysGo = true)) // still stall 2: 5 s
+        assertTrue(patience.shouldStart(5_000L, rebuffering = false, baseSaysGo = true))
+        now += 40_000L
+        patience.expectRecoveryStart()
+        assertFalse(patience.shouldStart(5_000L, rebuffering = false, baseSaysGo = true)) // outage 3: 8 s
+        assertTrue(patience.shouldStart(8_000L, rebuffering = false, baseSaysGo = true))
+    }
 }

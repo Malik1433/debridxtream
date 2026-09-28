@@ -144,7 +144,7 @@ internal class PlayerEngineFactory(
             .let { base ->
                 if (isLive) {
                     LivePatienceLoadControl.wrap(
-                        base, config.livePatience ?: LiveRebufferPatience { android.os.SystemClock.elapsedRealtime() }
+                        base, config.livePatience ?: LiveCushionState.patience
                     )
                 } else {
                     base

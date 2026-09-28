@@ -64,11 +64,22 @@ internal class LivePatienceLoadControl(
         /** Wraps [delegate] and logs when a stall asks for a bigger cushion. */
         fun wrap(delegate: LoadControl, patience: LiveRebufferPatience): LoadControl {
             patience.onPatient = { stalls, targetMs ->
-                Log.i("PlayerActivity", "live cushion: stall $stalls in 3 min, waiting for ${targetMs / 1000}s of buffer")
+                val wait = if (targetMs > 0) "waiting for ${targetMs / 1000}s of buffer" else "usual threshold"
+                Log.i("PlayerActivity", "live cushion: stall $stalls in 3 min, $wait")
             }
             return LivePatienceLoadControl(delegate, patience)
         }
     }
+}
+
+/**
+ * The one stall memory every live player shares. The guide's preview and fullscreen hand the SAME
+ * player back and forth (adopt), and the reconnect path rebuilds it; with an instance each, one
+ * outage was split across two counts (QA round 3). One provider connection means one live stream
+ * at a time, and [LiveRebufferPatience.onStream] resets it when the stream changes.
+ */
+internal object LiveCushionState {
+    val patience = LiveRebufferPatience { android.os.SystemClock.elapsedRealtime() }
 }
 
 /**
