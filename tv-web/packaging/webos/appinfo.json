@@ -1,0 +1,12 @@
+{
+  "id": "tv.dxplay.app",
+  "version": "0.1.0",
+  "vendor": "DX Play",
+  "type": "web",
+  "main": "index.html",
+  "title": "DX Play",
+  "icon": "icon.png",
+  "largeIcon": "icon.png",
+  "resolution": "1920x1080",
+  "disableBackHistoryAPI": true
+}

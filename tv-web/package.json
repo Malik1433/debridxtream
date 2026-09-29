@@ -1,23 +1,30 @@
 {
   "name": "dxplay-tv-web",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "private": true,
-  "description": "DX Play for Samsung (Tizen) and VIDAA/LG TVs - web TV app. W0: proof on real TVs.",
+  "description": "DX Play for Samsung (Tizen), VIDAA and LG (webOS) TVs - web TV app. index.html = app, w0.html = W0 proof.",
   "type": "module",
   "scripts": {
     "dev": "vite --host",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview --host --port 4173",
     "test": "vitest run",
-    "tizen": "npm run build && node packaging/tizen/assemble.mjs",
-    "vidaa": "npm run build && node -e \"require('fs').existsSync('w0.local.json')&&require('fs').copyFileSync('w0.local.json','dist/w0.local.json')\" && vite preview --host --port 4173"
+    "tizen": "npm run build && node packaging/assemble.mjs tizen",
+    "vidaa": "npm run build && node -e \"require('fs').existsSync('w0.local.json')&&require('fs').copyFileSync('w0.local.json','dist/w0.local.json')\" && vite preview --host --port 4173",
+    "webos": "npm run build && node packaging/assemble.mjs webos"
   },
   "dependencies": {
+    "@noriginmedia/norigin-spatial-navigation": "^3.3.0",
     "firebase": "^12.19.0",
-    "mpegts.js": "^1.8.2"
+    "mpegts.js": "^1.8.2",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
   },
   "devDependencies": {
+    "@types/react": "^18.3.31",
+    "@types/react-dom": "^18.3.7",
     "@vitejs/plugin-legacy": "^6.1.1",
+    "@vitejs/plugin-react": "^4.7.0",
     "terser": "^5.51.2",
     "typescript": "^5.9.3",
     "vite": "^6.4.3",

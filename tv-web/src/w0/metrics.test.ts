@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { PlayMetrics } from './metrics'
-import { apiUrl, liveUrl, redact } from './xtream'
+import { apiUrl, liveUrl, redact } from '../xtream'
 
 describe('PlayMetrics', () => {
   it('counts the start as start, and a later buffering as a stop with its length', () => {

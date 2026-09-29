@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- DX Play for Samsung TVs (Tizen). W0 proof build - see docs/reports/WEB_TV_APP_DESIGN.md. -->
+<!-- DX Play for Samsung TVs (Tizen). index.html = the app, w0.html = the W0 proof page. -->
 <widget xmlns="http://www.w3.org/ns/widgets" xmlns:tizen="http://tizen.org/ns/widgets"
-        id="http://dxplay.tv/tizen" version="0.0.1" viewmodes="maximized">
-    <tizen:application id="DXPlayTvW0.DXPlay" package="DXPlayTvW0" required_version="4.0"/>
+        id="http://dxplay.tv/tizen" version="0.1.0" viewmodes="maximized">
+    <tizen:application id="DXPlayTVap.DXPlay" package="DXPlayTVap" required_version="4.0"/>
     <name>DX Play</name>
     <icon src="icon.png"/>
     <content src="index.html"/>

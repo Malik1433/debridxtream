@@ -5,3 +5,4 @@ dist/
 w0.local.json
 public/w0.local.json
 build-tizen/
+build-webos/

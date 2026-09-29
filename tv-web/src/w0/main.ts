@@ -1,7 +1,7 @@
-import { detectPlatform, deviceId, exitApp, registerKeys } from './platform'
+import { detectPlatform, deviceId, exitApp, registerKeys } from '../platform'
 import { PlayMetrics } from './metrics'
 import { MpegtsPlayer, nativePlayer, type TestPlayer } from './players'
-import { apiUrl, liveUrl, redact, type W0Config } from './xtream'
+import { apiUrl, liveUrl, redact, type W0Config } from '../xtream'
 
 /**
  * W0 (docs/reports/WEB_TV_APP_DESIGN.md §8): one page that answers, on the real TV, the questions

@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import mpegts from 'mpegts.js'
 import { PlayMetrics } from './metrics'
-import type { Platform } from './platform'
+import type { Platform } from '../platform'
 
 declare const webapis: any
 

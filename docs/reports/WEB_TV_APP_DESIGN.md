@@ -166,7 +166,7 @@ hai (3.4.1 ke baad). **Dono kaam ek saath hon**, rules ek hi dafa badlein.
 | Phase | Kya | Kaise pata chalega ke ho gaya |
 |---|---|---|
 | **W0** | Proof, asal TV par: ek `.ts` live channel AVPlay aur `<video>`/`mpegts.js` par, `player_api.php` ka CORS, Firebase anonymous login, device ID, Back/D-pad keys | Samsung aur LG dono par ek channel 10 min bina atke chale; CORS ka jawab saaf |
-| **W1** | Dhaancha: `tv-web/`, Vite build, platform layer, focus navigation, `.wgt` + `.ipk` packaging, CI mein build + tests | Dono TV par khali app khule, remote se chale, Back se nikle |
+| **W1** ✅ code (2026-09-29, TV QA baqi) | Dhaancha: `tv-web/`, Vite build, platform layer, focus navigation, `.wgt` + `.ipk` packaging, CI mein build + tests | Dono TV par khali app khule, remote se chale, Back se nikle |
 | **W2** | License + QR pairing + Xtream login + server-switch purge | Naya TV activation code dikhaye, panel se activate ho, phone se QR setup ho |
 | **W3** | Live TV: categories, virtual channel list, preview, fullscreen, zap, now/next EPG, favourites, "Connecting…", cushion, hold-on, interruption meter | 10 tez zaps mein 0 × 403; landmine jaisi checklist TV ke liye |
 | **W4** | VOD + series (Xtream), continue watching, audio/subtitle tracks | Movie resume ho, track badle |
