@@ -11,6 +11,31 @@ tab jab LG TV mile. VIDAA bhi web TV hai, to wahi code chalega; W0 mein woh PC s
 
 ---
 
+## 0. W0 ke nateeje (VIDAA, 2026-09-29) ⭐
+
+Samsung abhi baqi hai (Tizen Studio + owner ka Samsung certificate chahiye). VIDAA par, TV ke browser
+mein LAN se khule page par:
+
+| Sawal | Jawab |
+|---|---|
+| Browser | Chrome **111** (armv7l). 2018 wale Chromium 53–56 ka dar yahan nahi |
+| **CORS** (sab se bada khatra) | ✅ **Masla nahi:** `player_api.php` seedha HTTP 200 (164–465 ms) browser se. Yeh provider CORS allow karta hai. Doosre providers ke liye proxy ka plan wahi rahe, lekin pehle din zaroori nahi |
+| MSE | ✅ hai (`mpegts.js` chal sakta hai) |
+| Firebase anonymous login | ✅ |
+| **mpegts.js**, live `.ts`, 10 min | ✅ pehli picture 1.5 s, **0 rukawat**, 622 s chala. 5 zaps: 0.7–1.6 s. Awaz theek (DD SPORTS bhi) |
+| Slow-fill 0.97x → 1.0x | ✅ `playbackRate` se chalta hai |
+| TV ka apna `<video>` | Picture aur awaz chalte hain, **lekin us ke upar koi HTML overlay nazar nahi aata** |
+| Device ID (`Hisense_GetDeviceID`) | ❌ browser mein nahi. VIDAA **app** (store/partner) mein dobara dekhna |
+| Remote | Browser arrows aur CH+/− khud rakh leta hai, page ko sirf number keys milti hain. Asli VIDAA app mein keys app ko milni chahiyein, W1 mein dekhna |
+
+**Faisle is se:**
+1. **VIDAA (aur ghaliban LG) par player = `mpegts.js`.** TV ke `<video>` ke upar OSD, channel list aur
+   "Connecting…" pill dikhte hi nahi, jabke `mpegts.js` ke upar sab dikhta hai.
+2. **Samsung par AVPlay** abhi bhi pehla ummeedwar hai (woh video ko HTML ke *neeche* alag layer par
+   chalata hai, jo overlay ka aam tareeqa hai). Lekin Samsung W0 mein **dono** (AVPlay aur `mpegts.js`)
+   ke upar overlay dikhta hai ya nahi, yeh zaroor dekhna hai.
+3. CORS ka proxy **pehle din nahi.** Sirf tab jab koi provider block kare.
+
 ## 1. Kya banana hai
 
 Ek TypeScript web app jo Samsung aur LG ke store par **apne naam se** jaye, remote (D-pad) se chale,

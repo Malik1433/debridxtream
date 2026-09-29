@@ -71,7 +71,7 @@ export class VideoTagPlayer implements TestPlayer {
     this.v.style.display = 'block'
     this.m.load()
     this.v.src = url
-    this.v.play().catch((e) => this.report(`play() refused: ${String(e)}`))
+    this.v.play().catch((e) => ignoreAbort(e, this.report))
   }
 
   stop(): void {
@@ -111,7 +111,7 @@ export class MpegtsPlayer implements TestPlayer {
     p.on(mpegts.Events.ERROR, (type: string, detail: string) => this.report(`mpegts.js error: ${type} / ${detail}`))
     p.attachMediaElement(this.v)
     p.load()
-    Promise.resolve(p.play()).catch((e) => this.report(`play() refused: ${String(e)}`))
+    Promise.resolve(p.play()).catch((e) => ignoreAbort(e, this.report))
     this.p = p
   }
 
@@ -129,6 +129,15 @@ export class MpegtsPlayer implements TestPlayer {
     this.v.playbackRate = rate
     return `playbackRate now ${this.v.playbackRate}`
   }
+}
+
+/**
+ * A zap stops the old stream while its play() promise is still pending, which rejects it with an
+ * AbortError (VIDAA W0: on every zap). That is the zap working, not a failure.
+ */
+function ignoreAbort(e: unknown, report: Report): void {
+  if ((e as { name?: string })?.name === 'AbortError') return
+  report(`play() refused: ${String(e)}`)
 }
 
 function aheadMs(v: HTMLVideoElement): number | null {

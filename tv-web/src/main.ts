@@ -137,8 +137,9 @@ document.addEventListener('keydown', (e) => {
     case 50: case 404: start('mpegts'); break // 2 / green
     case 48: current?.stop(); current = null; break // 0
     case 57: panel.style.display = panel.style.display === 'none' ? 'block' : 'none'; break // 9
-    case 38: case 427: zap(1); break // up / channel up
-    case 40: case 428: zap(-1); break // down / channel down
+    // up / channel up / 6 - the VIDAA browser keeps the arrows and CH+/- for itself (W0)
+    case 38: case 427: case 54: zap(1); break
+    case 40: case 428: case 52: zap(-1); break // down / channel down / 4
     case 10009: case 461: case 8: // back: Samsung / LG / VIDAA
       if (current) { current.stop(); current = null } else exitApp(platform)
       e.preventDefault()
