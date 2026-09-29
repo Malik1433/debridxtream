@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { Router } from './router'
-import { appKey } from '../keys'
+import { appKey, spatialKeyMap } from '../keys'
 
 describe('Router', () => {
   it('goes up to home and then asks to leave', () => {
@@ -25,5 +25,10 @@ describe('appKey', () => {
     expect(appKey(38, 'tizen')).toBe('up')
     expect(appKey(13, 'vidaa')).toBe('enter')
     expect(appKey(427, 'tizen')).toBe('ch_up')
+  })
+  it('gives VIDAA a numpad D-pad, and nobody else', () => {
+    expect(spatialKeyMap('vidaa').up).toEqual([38, 50])
+    expect(spatialKeyMap('vidaa').enter).toEqual([13, 53])
+    expect(spatialKeyMap('tizen').up).toEqual([38])
   })
 })

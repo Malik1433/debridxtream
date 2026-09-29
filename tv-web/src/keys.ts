@@ -27,5 +27,14 @@ export function appKey(keyCode: number, platform: Platform): AppKey {
   }
 }
 
-/** The spatial-navigation key map (arrows + OK) the library uses; the same on every TV. */
-export const SPATIAL_KEY_MAP = { left: [37], up: [38], right: [39], down: [40], enter: [13] }
+/**
+ * The spatial-navigation key map (arrows + OK). VIDAA's browser keeps the arrows for itself and
+ * hands the page only digits (W0), so there 2/8/4/6/5 also move and select - a numpad D-pad.
+ */
+export function spatialKeyMap(platform: Platform) {
+  const map = { left: [37], up: [38], right: [39], down: [40], enter: [13] }
+  if (platform === 'vidaa') {
+    map.up.push(50); map.down.push(56); map.left.push(52); map.right.push(54); map.enter.push(53)
+  }
+  return map
+}
