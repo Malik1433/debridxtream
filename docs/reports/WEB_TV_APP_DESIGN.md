@@ -186,9 +186,21 @@ hain. TV par:
 - **LG:** `luna://com.webos.service.sm/deviceid/getIDs` (LGUDID).
 - deviceKey = `sha256(platform + ":" + id)`, taake Samsung/LG/Android ke ID kabhi takrayein nahi.
 
-⚠️ **Backend ka kaam:** `admin-panel/firestore.rules` aur `functions` ko naye platform ki pehchan
-qubool karni hogi (abhi sirf Android wala proof hai). Yeh wahi rules hain jin ka deploy abhi ruka hua
-hai (3.4.1 ke baad). **Dono kaam ek saath hon**, rules ek hi dafa badlein.
+✅ **Backend badalna nahi padega (2026-09-30, rules parh kar tasdeeq).** Pehle yahan likha tha ke rules
+ko naye platform ki pehchan sikhani hogi — woh ghalat tha:
+- `licenses/{installId}` kisi bhi doc id ko qubool karta hai; device khud `pending` register hota hai,
+  aur activation code `deriveActivationCode(installId)` se banta hai — Android (`LicenseManager`) aur
+  `functions/index.js` dono mein wahi formula, platform ka koi zikr nahi. TV app bhi wahi SHA-256
+  formula TypeScript mein chalayegi.
+- `device_identity/{installId}` ka `proof` sirf "64 hex characters" hona chahiye (`proofOk`), yani
+  `sha256("debridxtream-identity-proof-v1:" + tvId)` bilkul chalega.
+- `licenseTelemetryOk` ki sharten (activation code alphabet, `appVersionName`, `appVersionCode` int)
+  TV bhi poori karega.
+
+Is liye W2 ko rules ke deploy ka intezar nahi. Security wale rules ka deploy (3.4.1 ke baad ruka hua)
+alag, apne waqt par ho sakta hai. Sirf ek cheez baad mein chahiye ho sakti hai: admin panel mein
+"yeh Samsung hai / VIDAA hai" dikhana — us ke liye `platform` telemetry field aur rules ki chhoti si
+tabdeeli. W2 ke liye zaroori nahi.
 
 ## 7. Khatre (W0 inhi ko pehle pakdega)
 
