@@ -3,7 +3,7 @@ import type { PlayerAdapter, PlayerError, PlayerState } from './PlayerAdapter'
 
 declare const webapis: any
 
-/** Samsung's AVPlay, drawn on its own plane under the page (the <object type="application/avwindow">). */
+/** Samsung's AVPlay, drawn on its own plane under the page (the <object type="application/avplayer">). */
 export class AvplayAdapter implements PlayerAdapter {
   readonly name = 'AVPlay'
   private open = false

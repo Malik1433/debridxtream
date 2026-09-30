@@ -20,10 +20,21 @@ export interface PlayerAdapter {
 }
 
 /**
- * Which player a TV gets. W0 (VIDAA): the TV's own <video> shows no HTML over it, mpegts.js does,
- * so every web-video TV uses mpegts.js. Samsung's AVPlay draws under the page; it stays the Samsung
- * choice until the Samsung W0 says otherwise.
+ * Which player a TV gets: mpegts.js, on every TV, and the Samsung W0 said so.
+ *
+ * The reason AVPlay was the Samsung candidate was overlay - a player that draws under the page.
+ * It turned out mpegts.js takes HTML over it on Samsung too (unlike VIDAA's own <video>, which
+ * takes none), so that reason never existed. Measured on the same channel, same TV (2026-09-30):
+ *
+ *   AVPlay     first picture 0.4 s · played  13 s · 4 stops (94.8 s) · buffer ahead n/a
+ *   mpegts.js  first picture 0.6 s · played 664 s · 1 stop   (0.1 s) · buffer ahead 8.5 s
+ *
+ * `buffer ahead` is the deciding column, not the stops: LiveCushionPolicy, slow-fill and hold-on
+ * are all written against a cushion in milliseconds, and AVPlay reports none.
+ *
+ * This is not "AVPlay cannot work" - it ran on its defaults, with no live `.ts` buffering params
+ * set. AvplayAdapter stays for the day hardware decode or HEVC is worth that work.
  */
-export function playerKindFor(platform: Platform): 'avplay' | 'mpegts' {
-  return platform === 'tizen' ? 'avplay' : 'mpegts'
+export function playerKindFor(_platform: Platform): 'avplay' | 'mpegts' {
+  return 'mpegts'
 }

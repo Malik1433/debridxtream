@@ -33,7 +33,9 @@ export function appKey(keyCode: number, platform: Platform): AppKey {
  */
 export function spatialKeyMap(platform: Platform) {
   const map = { left: [37], up: [38], right: [39], down: [40], enter: [13] }
-  if (platform === 'vidaa') {
+  // W1 QA: the Hisense browser's UA identifies nothing, so it can arrive here as 'browser'.
+  // Digits cost nothing on a real PC browser and are the only keys that TV hands the page.
+  if (platform === 'vidaa' || platform === 'browser') {
     map.up.push(50); map.down.push(56); map.left.push(52); map.right.push(54); map.enter.push(53)
   }
   return map

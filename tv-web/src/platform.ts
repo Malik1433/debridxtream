@@ -7,6 +7,10 @@ export type Platform = 'tizen' | 'vidaa' | 'webos' | 'browser'
 export function detectPlatform(): Platform {
   if (typeof tizen !== 'undefined') return 'tizen'
   const ua = navigator.userAgent
+  // W1 QA: this Hisense's browser UA says only "X11; Linux armv7l ... Chrome/111" - no VIDAA,
+  // no Hisense - so the UA test alone made it 'browser' and the numpad D-pad never applied.
+  // The VIDAA-only global is the reliable tell.
+  if (typeof (window as any).Hisense_GetDeviceID === 'function') return 'vidaa'
   if (/VIDAA|Hisense/i.test(ua)) return 'vidaa'
   if (/Web0S|webOS/i.test(ua)) return 'webos'
   return 'browser'

@@ -10,6 +10,8 @@ export interface TestPlayer {
   play(url: string): void
   stop(): void
   bufferedAheadMs(): number | null
+  /** Where the picture actually is. The only honest stall signal on a player that fires no events. */
+  positionMs(): number | null
   /** Try a slow-fill speed; returns what the player reports afterwards (design §5). */
   trySpeed(rate: number): string
 }
@@ -45,6 +47,10 @@ export class AvplayPlayer implements TestPlayer {
   }
 
   bufferedAheadMs(): number | null { return null }
+
+  positionMs(): number | null {
+    try { return Number(webapis.avplay.getCurrentTime()) } catch { return null }
+  }
 
   trySpeed(rate: number): string {
     try {
@@ -82,6 +88,8 @@ export class VideoTagPlayer implements TestPlayer {
   }
 
   bufferedAheadMs(): number | null { return aheadMs(this.v) }
+
+  positionMs(): number | null { return Math.round(this.v.currentTime * 1000) }
 
   trySpeed(rate: number): string {
     this.v.playbackRate = rate
@@ -124,6 +132,8 @@ export class MpegtsPlayer implements TestPlayer {
   }
 
   bufferedAheadMs(): number | null { return aheadMs(this.v) }
+
+  positionMs(): number | null { return Math.round(this.v.currentTime * 1000) }
 
   trySpeed(rate: number): string {
     this.v.playbackRate = rate

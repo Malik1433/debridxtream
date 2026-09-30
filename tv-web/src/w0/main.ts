@@ -118,6 +118,7 @@ function zap(step: number): void {
 
 setInterval(() => {
   if (!current) { playerEl.textContent = 'Player: stopped'; return }
+  metrics.progress(current.positionMs())
   const ahead = current.bufferedAheadMs()
   playerEl.innerHTML = `<b>${current.name}</b> · channel ${index + 1}/${channels.length} (id ${channels[index]})<br>` +
     `${metrics.summary()} · buffer ahead ${ahead === null ? 'n/a' : `${(ahead / 1000).toFixed(1)} s`}`
