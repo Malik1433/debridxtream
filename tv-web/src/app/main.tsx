@@ -2,7 +2,8 @@ import { init, setKeyMap } from '@noriginmedia/norigin-spatial-navigation'
 import { createRoot } from 'react-dom/client'
 import { spatialKeyMap } from '../keys'
 import { detectPlatform, registerKeys } from '../platform'
-import { App } from './App'
+import { AppController } from './controller'
+import { Root } from './Root'
 import './styles.css'
 
 const platform = detectPlatform()
@@ -18,4 +19,6 @@ const fit = () => { stage.style.transform = `scale(${window.innerWidth / 1920}, 
 fit()
 window.addEventListener('resize', fit)
 
-createRoot(stage).render(<App platform={platform} />)
+const controller = new AppController(platform)
+controller.start()
+createRoot(stage).render(<Root platform={platform} controller={controller} />)

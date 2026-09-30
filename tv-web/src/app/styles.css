@@ -44,3 +44,20 @@ html, body { margin: 0; background: var(--bg); color: var(--text); overflow: hid
 .buttons { display: flex; gap: 24px; }
 .button { font-size: 30px; padding: 16px 44px; border-radius: 12px; background: var(--surface-2); }
 .button.focused { box-shadow: var(--focus-ring); color: var(--text); }
+
+/* W2 gate screens: activation, phone setup, first sync. */
+.center-screen { width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center;
+  justify-content: center; text-align: center; padding: 0 160px; box-sizing: border-box; }
+.center-screen h1 { font-size: 56px; margin: 24px 0 16px; }
+.center-screen p { font-size: 30px; color: var(--text-2); margin: 0 0 20px; max-width: 1300px; }
+.center-screen .muted, .muted { color: var(--muted); }
+.brand.big { font-size: 64px; margin: 0; }
+.code { font-size: 96px; font-weight: 800; letter-spacing: 12px; color: var(--accent);
+  font-family: 'Roboto Mono', 'Courier New', monospace; margin: 8px 0 28px; }
+.setup { flex-direction: row; gap: 96px; text-align: left; }
+.setup .code { font-size: 72px; }
+.qr { background: #fff; border-radius: 16px; padding: 12px; box-sizing: border-box; flex: none; }
+.qr svg { width: 100%; height: 100%; display: block; }
+.spinner { width: 72px; height: 72px; border-radius: 50%; border: 6px solid var(--surface-2);
+  border-top-color: var(--accent); animation: spin 0.9s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }

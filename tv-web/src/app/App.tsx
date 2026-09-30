@@ -2,6 +2,7 @@ import { FocusContext, setFocus, useFocusable } from '@noriginmedia/norigin-spat
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { appKey } from '../keys'
 import { exitApp, type Platform } from '../platform'
+import type { AppState } from './controller'
 import { ExitDialog } from './ExitDialog'
 import { Focusable } from './Focusable'
 import { Router, type Screen } from './router'
@@ -17,7 +18,7 @@ const NAV: Array<{ key: Screen; label: string }> = [
   { key: 'settings', label: 'Settings' },
 ]
 
-export function App({ platform }: { platform: Platform }) {
+export function App({ platform, state, onSyncNow }: { platform: Platform; state: AppState; onSyncNow: () => void }) {
   const router = useRef(new Router()).current
   const [screen, setScreen] = useState<Screen>('home')
   const [exitAsked, setExitAsked] = useState(false)
@@ -68,11 +69,11 @@ export function App({ platform }: { platform: Platform }) {
       </FocusContext.Provider>
       <FocusContext.Provider value={content.focusKey}>
         <div ref={content.ref} className="content">
-          {screen === 'home' && <Home onOpen={open} />}
+          {screen === 'home' && <Home onOpen={open} state={state} />}
           {screen === 'live' && <Placeholder title="Live TV" phase="W3" onHome={goHome} />}
           {screen === 'movies' && <Placeholder title="Movies" phase="W4" onHome={goHome} />}
           {screen === 'series' && <Placeholder title="Series" phase="W4" onHome={goHome} />}
-          {screen === 'settings' && <Settings platform={platform} onHome={goHome} />}
+          {screen === 'settings' && <Settings platform={platform} state={state} onSyncNow={onSyncNow} onHome={goHome} />}
         </div>
       </FocusContext.Provider>
       {exitAsked && (

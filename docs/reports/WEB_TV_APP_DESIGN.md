@@ -228,7 +228,7 @@ tabdeeli. W2 ke liye zaroori nahi.
 |---|---|---|
 | **W0** ✅ **DONE** (VIDAA 2026-09-29, Samsung 2026-09-30) | Proof, asal TV par: ek `.ts` live channel AVPlay aur `<video>`/`mpegts.js` par, `player_api.php` ka CORS, Firebase anonymous login, device ID, Back/D-pad keys | ✅ mpegts.js: VIDAA 622 s / 0 stops, Samsung 664 s / 1 stop (0.1 s). CORS saaf. Player ka faisla §0 |
 | **W1** ✅ **DONE** (2026-09-30, dono TV par QA) | Dhaancha: `tv-web/`, Vite build, platform layer, focus navigation, `.wgt` + `.ipk` packaging, CI mein build + tests | ✅ Dono TV par app khuli, remote se chali, Back se nikli, Settings ne sahi platform/player/device id dikhayi |
-| **W2** | License + QR pairing + Xtream login + server-switch purge | Naya TV activation code dikhaye, panel se activate ho, phone se QR setup ho |
+| **W2** ✅ code (2026-09-30, TV QA baqi) | License + QR pairing + Xtream login + server-switch purge | Naya TV activation code dikhaye, panel se activate ho, phone se QR setup ho |
 | **W3** | Live TV: categories, virtual channel list, preview, fullscreen, zap, now/next EPG, favourites, "Connecting…", cushion, hold-on, interruption meter | 10 tez zaps mein 0 × 403; landmine jaisi checklist TV ke liye |
 | **W4** | VOD + series (Xtream), continue watching, audio/subtitle tracks | Movie resume ho, track badle |
 | **W5** | Store submission (sirf IPTV version): icons, screenshots, privacy/terms, age rating | Dono store mein manzoor |
