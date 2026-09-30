@@ -1,0 +1,123 @@
+import { describe, expect, it } from 'vitest'
+import { LiveEngine, TICK_MS, type Clock, type LiveMedia, type LiveStatus } from './liveEngine'
+
+/** A clock we advance by hand, with real timers semantics (every/after). */
+class FakeClock implements Clock {
+  t = 0
+  private timers: Array<{ at: number; every: number | null; fn: () => void; dead: boolean }> = []
+  now = () => this.t
+  every = (ms: number, fn: () => void) => this.add(ms, ms, fn)
+  after = (ms: number, fn: () => void) => this.add(ms, null, fn)
+  private add(ms: number, every: number | null, fn: () => void) {
+    const t = { at: this.t + ms, every, fn, dead: false }
+    this.timers.push(t)
+    return () => { t.dead = true }
+  }
+  advance(ms: number): void {
+    const end = this.t + ms
+    for (;;) {
+      const next = this.timers.filter((x) => !x.dead).sort((a, b) => a.at - b.at)[0]
+      if (!next || next.at > end) break
+      this.t = next.at
+      if (next.every) next.at += next.every; else next.dead = true
+      next.fn()
+    }
+    this.t = end
+  }
+}
+
+/** A player whose position advances only while "flowing" and playing. */
+class FakeMedia implements LiveMedia {
+  pos = 0; ahead = 0; flowing = false; playing = false; speed = 1
+  loads: string[] = []; stops = 0
+  private err: (e: { http?: number; network: boolean; message: string }) => void = () => undefined
+  load(url: string) { this.loads.push(url); this.pos = 0; this.ahead = 0 }
+  play() { this.playing = true }
+  pause() { this.playing = false }
+  stop() { this.stops++; this.playing = false }
+  positionMs() { return this.pos }
+  bufferedAheadMs() { return this.ahead }
+  setSpeed(r: number) { this.speed = r; return true }
+  onError(cb: typeof this.err) { this.err = cb }
+  fail(e: { http?: number; network: boolean; message: string }) { this.err(e) }
+  /** Called by the test every tick: advance position if data flows. */
+  step(ms: number) { if (this.flowing && this.playing) { this.pos += ms } }
+}
+
+function rig() {
+  const clock = new FakeClock()
+  const media = new FakeMedia()
+  const logs: string[] = []
+  const engine = new LiveEngine(media, clock, (l) => logs.push(l))
+  const seen: LiveStatus['kind'][] = []
+  engine.onStatus((s) => { if (seen[seen.length - 1] !== s.kind) seen.push(s.kind) })
+  const run = (ms: number) => { for (let t = 0; t < ms; t += TICK_MS) { media.step(TICK_MS); clock.advance(TICK_MS) } }
+  return { clock, media, engine, seen, logs, run }
+}
+const ch = (id: string) => ({ id, name: `Ch ${id}`, url: `http://x/${id}.ts` })
+
+describe('LiveEngine', () => {
+  it('connects, says so when slow, then plays', () => {
+    const r = rig()
+    r.engine.play(ch('1')); r.run(7000)
+    expect(r.engine.current()).toMatchObject({ kind: 'connecting', slow: true })
+    r.media.flowing = true; r.media.ahead = 6000; r.run(1000)
+    expect(r.engine.current().kind).toBe('playing')
+  })
+
+  it('a still position is a stall: holds, then resumes; the 2nd stall waits for 5 s of buffer', () => {
+    const r = rig()
+    r.engine.play(ch('1')); r.media.flowing = true; r.media.ahead = 6000; r.run(3000)
+    r.media.flowing = false; r.media.ahead = 0; r.run(2500)
+    expect(r.engine.current().kind).toBe('buffering')
+    r.media.ahead = 2500; r.media.flowing = true; r.run(1500)
+    expect(r.engine.current().kind).toBe('playing') // stall 1: usual threshold
+    r.media.flowing = false; r.media.ahead = 0; r.run(2500)
+    r.media.ahead = 3000; r.run(1500)
+    expect(r.engine.current()).toMatchObject({ kind: 'buffering', waitingForMs: 5000 })
+    r.media.ahead = 5200; r.media.flowing = true; r.run(1500)
+    expect(r.engine.current().kind).toBe('playing')
+    expect(r.logs.filter((l) => l.startsWith('live cushion'))).toEqual([
+      'live cushion: stall 1 in 3 min, usual threshold', 'live cushion: stall 2 in 3 min, waiting for 5s of buffer'])
+    expect(r.engine.meter.count).toBe(2)
+  })
+
+  it('plays at 0.97x while the cushion is thin, 1x once full', () => {
+    const r = rig()
+    r.engine.play(ch('1')); r.media.flowing = true; r.media.ahead = 3000; r.run(4000)
+    expect(r.media.speed).toBe(0.97)
+    r.media.ahead = 9000; r.run(4000)
+    expect(r.media.speed).toBe(1)
+  })
+
+  it('an error retries twice quickly, then holds on; a dead channel gives up at once', () => {
+    const r = rig()
+    r.engine.play(ch('1')); r.media.flowing = true; r.media.ahead = 6000; r.run(2000)
+    r.media.flowing = false
+    r.media.fail({ network: true, message: 'net' })
+    expect(r.engine.current()).toMatchObject({ kind: 'reconnecting', inMs: 1000 })
+    r.run(1000); r.media.fail({ network: true, message: 'net' })
+    expect(r.engine.current()).toMatchObject({ kind: 'reconnecting', inMs: 2000 })
+    r.run(2000); r.media.fail({ network: true, message: 'net' })
+    expect(r.engine.current()).toMatchObject({ kind: 'reconnecting', inMs: 5000 })
+    expect(r.media.loads).toHaveLength(3)
+    r.media.fail({ http: 404, network: true, message: 'gone' })
+    expect(r.engine.current()).toMatchObject({ kind: 'failed', message: 'HTTP 404' })
+  })
+
+  it('a zap is not an interruption and resets the stall count', () => {
+    const r = rig()
+    r.engine.play(ch('1')); r.media.flowing = true; r.media.ahead = 6000; r.run(2000)
+    r.engine.play(ch('2')); r.run(2000)
+    expect(r.engine.meter.count).toBe(0)
+    expect(r.media.loads).toEqual(['http://x/1.ts', 'http://x/2.ts'])
+  })
+
+  it('a hold that gets no data for 15 s reconnects instead of waiting forever', () => {
+    const r = rig()
+    r.engine.play(ch('1')); r.media.flowing = true; r.media.ahead = 6000; r.run(2000)
+    r.media.flowing = false; r.media.ahead = 0; r.run(18_000)
+    expect(r.seen).toContain('reconnecting')
+    expect(r.media.loads).toHaveLength(2)
+  })
+})
