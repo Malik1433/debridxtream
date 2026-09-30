@@ -13,8 +13,10 @@ export function Home({ onOpen, state }: { onOpen: (s: Screen) => void; state: Ap
   return (
     <>
       <h1>Welcome to DX Play</h1>
-      <p>{state.sync.kind === 'done'
-        ? `${state.providerName ?? 'Your provider'} · ${state.sync.channels.toLocaleString()} channels in ${state.sync.categories} categories`
+      {/* The catalogue we hold, not the refresh in flight: a refresh must not blank the line. */}
+      <p>{state.catalogue
+        ? `${state.providerName ?? 'Your provider'} · ${state.catalogue.channels.toLocaleString()} channels in ${state.catalogue.categories} categories` +
+          (state.sync.kind === 'running' ? ' · refreshing…' : '')
         : state.sync.kind === 'running' ? `Refreshing ${state.sync.provider}…` : 'Pick a section with the arrows and press OK.'}</p>
       <div className="tiles">
         {TILES.map((t) => (

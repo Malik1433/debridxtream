@@ -17,6 +17,9 @@ export type SyncPhase =
   | { kind: 'done'; channels: number; categories: number; at: number }
   | { kind: 'error'; provider: string; message: string }
 
+/** The catalogue we already hold. Survives a refresh that is running, failing, or yet to start. */
+export interface Catalogue { channels: number; categories: number; at: number }
+
 export interface AppState {
   license: LicenseState
   registered: boolean
@@ -25,6 +28,14 @@ export interface AppState {
   claimed: boolean
   providerName: string | null
   hasAccount: boolean
+  /**
+   * What we can show RIGHT NOW, kept apart from `sync` on purpose. `sync` is the current attempt and
+   * goes back to 'running' on every refresh; if the gate read that, a refresh on a TV that already
+   * has 15,951 channels would look exactly like a first sync and take the screen away (W2 QA
+   * 2026-09-30: "Update channels" threw Settings back to Home, and every relaunch showed 30 s of
+   * "Loading channels"). Null only until the very first sync lands.
+   */
+  catalogue: Catalogue | null
   sync: SyncPhase
 }
 
@@ -56,6 +67,7 @@ export class AppController {
       claimed: false,
       providerName: localStorage.getItem('dx.providerName'),
       hasAccount: this.session.account() !== null,
+      catalogue: last,
       sync: last ? { kind: 'done', ...last } : { kind: 'idle' },
     }
   }
@@ -92,23 +104,51 @@ export class AppController {
     const moved = before !== null && serverFingerprint(before.server, before.username) !== serverFingerprint(a.server, a.username)
     const changed = this.session.setAccount(a)
     localStorage.setItem('dx.providerName', name)
-    this.set({ hasAccount: true, providerName: name })
-    if (changed || this.state.sync.kind === 'idle') void this.runSync(moved)
+    // A MOVE is not a refresh. The channels we hold are not stale, they are WRONG - the new
+    // provider numbers its streams from 1 too (CLAUDE.md, "One device, one provider"), so showing
+    // the new provider's name over the old list is the exact failure that contract exists to stop.
+    // Dropping the catalogue here puts the gate back on the sync screen, which is also the only
+    // place the customer is told "You were moved to <name>".
+    if (moved) this.providerGen++
+    this.set({ hasAccount: true, providerName: name, ...(moved ? { catalogue: null } : {}) })
+    if (changed || this.state.catalogue === null) void this.runSync(moved)
   }
 
   private running = false
+  private queued: boolean | null = null
+  /** Bumped on every move, so a sync that STARTED under the old provider cannot publish its count. */
+  private providerGen = 0
   private async runSync(moved: boolean): Promise<void> {
-    if (this.running) return
+    // Never drop a request. A switch arrives from Firestore while the launch refresh is still in
+    // flight, and dropping it left the TV on the new provider's NAME with the old provider's
+    // channels until someone pressed "Update channels" by hand (W2 QA, 2026-09-30).
+    if (this.running) { this.queued = (this.queued ?? false) || moved; return }
     this.running = true
-    const provider = this.state.providerName ?? 'your provider'
-    this.set({ sync: { kind: 'running', provider, moved } })
+    let run = moved
     try {
-      const r = await this.session.sync()
-      this.set({ sync: { kind: 'done', channels: r.channels, categories: r.categories, at: Date.now() } })
-    } catch (e) {
-      this.set({ sync: { kind: 'error', provider, message: e instanceof Error ? e.message : String(e) } })
+      do {
+        this.queued = null
+        const provider = this.state.providerName ?? 'your provider'
+        this.set({ sync: { kind: 'running', provider, moved: run } })
+        const gen = this.providerGen
+        try {
+          const r = await this.session.sync()
+          // Moved while this ran: these are the OLD provider's numbers, so they are not published.
+          if (gen !== this.providerGen) { run = true; this.queued ??= true; continue }
+          const at = Date.now()
+          this.set({
+            catalogue: { channels: r.channels, categories: r.categories, at },
+            sync: { kind: 'done', channels: r.channels, categories: r.categories, at },
+          })
+        } catch (e) {
+          if (gen !== this.providerGen) { run = true; this.queued ??= true; continue }
+          this.set({ sync: { kind: 'error', provider, message: e instanceof Error ? e.message : String(e) } })
+        }
+        run = this.queued ?? false
+      } while (this.queued !== null)
     } finally {
       this.running = false
+      this.queued = null
     }
   }
 

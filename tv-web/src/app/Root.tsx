@@ -3,6 +3,7 @@ import { appKey } from '../keys'
 import { exitApp, type Platform } from '../platform'
 import { App } from './App'
 import type { AppController } from './controller'
+import { gateFor } from './gate'
 import { Activation } from './screens/Activation'
 import { Setup } from './screens/Setup'
 import { Syncing } from './screens/Syncing'
@@ -13,8 +14,8 @@ import { Syncing } from './screens/Syncing'
  */
 export function Root({ platform, controller }: { platform: Platform; controller: AppController }) {
   const s = useSyncExternalStore(controller.subscribe, controller.snapshot)
-  const gated = s.license.kind === 'locked' || !s.hasAccount ||
-    (!(s.sync.kind === 'done' && s.sync.channels > 0) && (s.sync.kind === 'running' || s.sync.kind === 'error'))
+  const gate = gateFor(s)
+  const gated = gate.screen !== 'app'
 
   // The gate screens have nowhere to go "up" to: BACK leaves the app rather than doing nothing.
   useEffect(() => {
@@ -24,13 +25,10 @@ export function Root({ platform, controller }: { platform: Platform; controller:
     return () => window.removeEventListener('keydown', onKey)
   }, [gated, platform])
 
-  if (s.license.kind === 'locked') {
-    return <Activation reason={s.license.reason} code={s.activationCode} registered={s.registered} />
+  if (gate.screen === 'activation') {
+    return <Activation reason={gate.reason} code={s.activationCode} registered={s.registered} />
   }
-  if (!s.hasAccount) return <Setup code={s.activationCode} claimed={s.claimed} />
-  const hasCatalogue = s.sync.kind === 'done' && s.sync.channels > 0
-  if (!hasCatalogue && (s.sync.kind === 'running' || s.sync.kind === 'error')) {
-    return <Syncing sync={s.sync} onRetry={() => controller.retrySync()} />
-  }
+  if (gate.screen === 'setup') return <Setup code={s.activationCode} claimed={s.claimed} />
+  if (gate.screen === 'syncing') return <Syncing sync={gate.sync} onRetry={() => controller.retrySync()} />
   return <App platform={platform} state={s} onSyncNow={() => controller.retrySync()} />
 }

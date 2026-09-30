@@ -23,7 +23,9 @@ export function Settings({ platform, state, onSyncNow, onHome }:
         <div><b>Licence</b>{licenceText(state.license)}</div>
         <div><b>Account</b>{state.claimed ? 'linked to your phone' : 'not linked'}</div>
         <div><b>Provider</b>{state.providerName ?? '—'}</div>
-        <div><b>Channels</b>{sync.kind === 'done' ? `${sync.channels.toLocaleString()} (updated ${new Date(sync.at).toLocaleTimeString()})`
+        <div><b>Channels</b>{state.catalogue
+          ? `${state.catalogue.channels.toLocaleString()} (updated ${new Date(state.catalogue.at).toLocaleTimeString()})` +
+            (sync.kind === 'running' ? ' · updating…' : sync.kind === 'error' ? ` · update failed: ${sync.message}` : '')
           : sync.kind === 'running' ? 'updating…' : sync.kind === 'error' ? `update failed: ${sync.message}` : '—'}</div>
         <div><b>Version</b>{__APP_VERSION__} · {platform} · {playerKindFor(platform)} · device {id ? `${id.slice(0, 6)}…` : 'n/a'}</div>
       </div>
