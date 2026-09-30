@@ -10,7 +10,7 @@ const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 
 // (SystemJS, ES5) build is emitted, and every TV takes the same path.
 export default defineConfig({
   base: './',
-  define: { __APP_VERSION__: JSON.stringify(pkg.version) },
+  define: { __APP_VERSION__: JSON.stringify(pkg.version), __APP_VERSION_CODE__: String(pkg.dxVersionCode ?? 1) },
   plugins: [
     react(),
     legacy({ targets: ['chrome >= 47'], renderModernChunks: false }),
