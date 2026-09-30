@@ -10,6 +10,7 @@ import { publishIdentity } from '../license/identityPublisher'
 import { LicenseClient } from '../license/licenseClient'
 import type { LicenseState } from '../license/policy'
 import { deviceId, type Platform } from '../platform'
+import { SyncRunner } from './syncRunner'
 
 export type SyncPhase =
   | { kind: 'idle' }
@@ -109,48 +110,26 @@ export class AppController {
     // the new provider's name over the old list is the exact failure that contract exists to stop.
     // Dropping the catalogue here puts the gate back on the sync screen, which is also the only
     // place the customer is told "You were moved to <name>".
-    if (moved) this.providerGen++
+    if (moved) this.syncer.moved()
     this.set({ hasAccount: true, providerName: name, ...(moved ? { catalogue: null } : {}) })
     if (changed || this.state.catalogue === null) void this.runSync(moved)
   }
 
-  private running = false
-  private queued: boolean | null = null
-  /** Bumped on every move, so a sync that STARTED under the old provider cannot publish its count. */
-  private providerGen = 0
-  private async runSync(moved: boolean): Promise<void> {
-    // Never drop a request. A switch arrives from Firestore while the launch refresh is still in
-    // flight, and dropping it left the TV on the new provider's NAME with the old provider's
-    // channels until someone pressed "Update channels" by hand (W2 QA, 2026-09-30).
-    if (this.running) { this.queued = (this.queued ?? false) || moved; return }
-    this.running = true
-    let run = moved
-    try {
-      do {
-        this.queued = null
-        const provider = this.state.providerName ?? 'your provider'
-        this.set({ sync: { kind: 'running', provider, moved: run } })
-        const gen = this.providerGen
-        try {
-          const r = await this.session.sync()
-          // Moved while this ran: these are the OLD provider's numbers, so they are not published.
-          if (gen !== this.providerGen) { run = true; this.queued ??= true; continue }
-          const at = Date.now()
-          this.set({
-            catalogue: { channels: r.channels, categories: r.categories, at },
-            sync: { kind: 'done', channels: r.channels, categories: r.categories, at },
-          })
-        } catch (e) {
-          if (gen !== this.providerGen) { run = true; this.queued ??= true; continue }
-          this.set({ sync: { kind: 'error', provider, message: e instanceof Error ? e.message : String(e) } })
-        }
-        run = this.queued ?? false
-      } while (this.queued !== null)
-    } finally {
-      this.running = false
-      this.queued = null
-    }
-  }
+  private readonly syncer = new SyncRunner(() => this.session.sync(), {
+    started: (moved) => this.set({ sync: { kind: 'running', provider: this.state.providerName ?? 'your provider', moved } }),
+    succeeded: (r) => {
+      const at = Date.now()
+      this.set({
+        catalogue: { channels: r.channels, categories: r.categories, at },
+        sync: { kind: 'done', channels: r.channels, categories: r.categories, at },
+      })
+    },
+    failed: (e) => this.set({ sync: { kind: 'error', provider: this.state.providerName ?? 'your provider',
+      message: e instanceof Error ? e.message : String(e) } }),
+  })
+
+  /** Queued and generation-guarded: see SyncRunner (D2, D4). */
+  private runSync(moved: boolean): Promise<void> { return this.syncer.request(moved) }
 
   /**
    * Development and TV QA only: with no account on the cloud side yet, a `w0.local.json` packaged
