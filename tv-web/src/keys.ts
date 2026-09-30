@@ -1,7 +1,7 @@
 import type { Platform } from './platform'
 
 /** What a remote key means to the app, whichever TV sent it. */
-export type AppKey = 'up' | 'down' | 'left' | 'right' | 'enter' | 'back' | 'play_pause' | 'ch_up' | 'ch_down' | null
+export type AppKey = 'up' | 'down' | 'left' | 'right' | 'enter' | 'back' | 'play_pause' | 'ch_up' | 'ch_down' | 'favourite' | null
 
 /** Back differs per TV: Samsung 10009, LG 461, VIDAA 8 (and Escape on a PC browser). */
 const BACK: Record<Platform, number[]> = {
@@ -11,9 +11,16 @@ const BACK: Record<Platform, number[]> = {
   browser: [8, 27],
 }
 
+const NUMPAD: Record<number, AppKey> = { 50: 'up', 56: 'down', 52: 'left', 54: 'right', 53: 'enter' }
+
 /** Pure: keyCode (+ platform) -> meaning. Arrows/Enter are the same everywhere. */
 export function appKey(keyCode: number, platform: Platform): AppKey {
   if (BACK[platform].includes(keyCode)) return 'back'
+  // The VIDAA numpad D-pad (see spatialKeyMap), for the screens that read keys themselves.
+  if (platform === 'vidaa' || platform === 'browser') {
+    const pad = NUMPAD[keyCode]
+    if (pad) return pad
+  }
   switch (keyCode) {
     case 37: return 'left'
     case 38: return 'up'
@@ -23,6 +30,7 @@ export function appKey(keyCode: number, platform: Platform): AppKey {
     case 10252: case 415: case 19: case 179: return 'play_pause' // Samsung / LG play, pause, media
     case 427: case 33: return 'ch_up'
     case 428: case 34: return 'ch_down'
+    case 405: return 'favourite' // the yellow key (Samsung ColorF2Yellow, LG yellow)
     default: return null
   }
 }

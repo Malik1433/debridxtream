@@ -30,5 +30,5 @@ export function Root({ platform, controller }: { platform: Platform; controller:
   }
   if (gate.screen === 'setup') return <Setup code={s.activationCode} claimed={s.claimed} />
   if (gate.screen === 'syncing') return <Syncing sync={gate.sync} onRetry={() => controller.retrySync()} />
-  return <App platform={platform} state={s} onSyncNow={() => controller.retrySync()} />
+  return <App platform={platform} state={s} controller={controller} onSyncNow={() => controller.retrySync()} />
 }

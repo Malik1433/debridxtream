@@ -32,7 +32,7 @@ export function deviceId(p: Platform): string | null {
 export function registerKeys(p: Platform): string {
   if (p !== 'tizen') return 'not needed'
   const wanted = ['0', '1', '2', '9', 'MediaPlayPause', 'MediaPlay', 'MediaPause', 'MediaStop',
-    'ColorF0Red', 'ColorF1Green', 'ChannelUp', 'ChannelDown']
+    'ColorF0Red', 'ColorF1Green', 'ColorF2Yellow', 'ChannelUp', 'ChannelDown']
   const done: string[] = []
   for (const k of wanted) {
     try { tizen.tvinputdevice.registerKey(k); done.push(k) } catch { /* not on this model */ }

@@ -1,6 +1,6 @@
 import type { CatalogueStore } from './catalogueStore'
 import { NO_SERVER, serverFingerprint } from './serverIdentity'
-import { liveCatalogue, login, type AccountInfo, type XtreamAccount } from './xtreamApi'
+import { liveCatalogue, login, type AccountInfo, type LiveCategory, type LiveStream, type XtreamAccount } from './xtreamApi'
 
 /**
  * The provider this TV plays from, and the server-switch contract (CLAUDE.md, "One device, one
@@ -28,6 +28,15 @@ export class Session {
   }
 
   chosenPlaylistId(): string | null { return this.kv.getItem(CHOSEN_KEY) }
+
+  /** The stored Live catalogue, in the provider's own order. */
+  async liveCategories(): Promise<LiveCategory[]> {
+    return (await this.store.liveCategories()).sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+  }
+
+  async liveStreams(): Promise<LiveStream[]> {
+    return (await this.store.liveStreams()).sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+  }
   choosePlaylist(id: string): void { this.kv.setItem(CHOSEN_KEY, id) }
 
   lastSync(): { at: number; categories: number; channels: number } | null {

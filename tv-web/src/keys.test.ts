@@ -1,0 +1,24 @@
+import { describe, expect, it } from 'vitest'
+import { appKey } from './keys'
+
+describe('appKey', () => {
+  it('reads each TV\'s own BACK', () => {
+    expect(appKey(10009, 'tizen')).toBe('back')
+    expect(appKey(461, 'webos')).toBe('back')
+    expect(appKey(8, 'vidaa')).toBe('back')
+    expect(appKey(10009, 'webos')).toBeNull()
+  })
+
+  it('reads the VIDAA numpad D-pad, and only where the arrows are taken', () => {
+    expect(appKey(50, 'vidaa')).toBe('up')
+    expect(appKey(56, 'vidaa')).toBe('down')
+    expect(appKey(53, 'browser')).toBe('enter')
+    expect(appKey(56, 'tizen')).toBeNull()
+  })
+
+  it('reads the yellow key as favourite and the channel keys as zap', () => {
+    expect(appKey(405, 'tizen')).toBe('favourite')
+    expect(appKey(427, 'tizen')).toBe('ch_up')
+    expect(appKey(34, 'browser')).toBe('ch_down')
+  })
+})

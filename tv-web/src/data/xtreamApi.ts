@@ -3,8 +3,9 @@ import { apiUrl, type W0Config } from '../xtream'
 /** The account this TV plays from - the same shape the W0 config used. */
 export type XtreamAccount = W0Config
 
-export interface LiveCategory { id: string; name: string }
-export interface LiveStream { id: string; name: string; categoryId: string; icon: string; epgId: string; archive: boolean }
+/** `order` keeps the provider's own order: IndexedDB hands rows back sorted by id, not as served. */
+export interface LiveCategory { id: string; name: string; order?: number }
+export interface LiveStream { id: string; name: string; categoryId: string; icon: string; epgId: string; archive: boolean; order?: number }
 export interface AccountInfo { status: string; maxConnections: number; expiresAt: number | null; timezone: string | null }
 
 /** Every network call is bounded (CLAUDE.md): a timeout degrades, it never hangs the screen. */
@@ -40,7 +41,7 @@ export function parseAccount(body: unknown): AccountInfo {
 
 export function parseCategories(body: unknown): LiveCategory[] {
   if (!Array.isArray(body)) return []
-  return body.map((c) => ({ id: str(c?.category_id), name: str(c?.category_name) })).filter((c) => c.id && c.name)
+  return body.map((c, i) => ({ id: str(c?.category_id), name: str(c?.category_name), order: i })).filter((c) => c.id && c.name)
 }
 
 /** Only what the Live screen needs: 17,000+ channels must stay small in IndexedDB and in memory. */
@@ -57,6 +58,7 @@ export function parseStreams(body: unknown): LiveStream[] {
       icon: str(s?.stream_icon),
       epgId: str(s?.epg_channel_id),
       archive: s?.tv_archive === 1 || s?.tv_archive === '1',
+      order: out.length,
     })
   }
   return out

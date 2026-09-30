@@ -30,7 +30,9 @@ export class MpegtsAdapter implements PlayerAdapter {
     if (!this.p) return
     Promise.resolve(this.p.play()).catch((e: { name?: string }) => {
       // A zap stops the old stream while its play() is pending: AbortError is the zap working.
-      if (e?.name !== 'AbortError') this.errorCb({ network: false, message: `play(): ${String(e)}` })
+      // NotSupportedError is a load that failed; mpegts.js reports that itself, with the HTTP status
+      // the hold-on needs - reported here too it read as a hard failure and gave up (W3 smoke).
+      if (e?.name !== 'AbortError' && e?.name !== 'NotSupportedError') this.errorCb({ network: false, message: `play(): ${String(e)}` })
     })
   }
 
@@ -46,6 +48,8 @@ export class MpegtsAdapter implements PlayerAdapter {
 
   onState(cb: (s: PlayerState) => void): void { this.stateCb = cb }
   onError(cb: (e: PlayerError) => void): void { this.errorCb = cb }
+
+  positionMs(): number | null { return this.p ? Math.round(this.video.currentTime * 1000) : null }
 
   bufferedAheadMs(): number | null {
     const b = this.video.buffered

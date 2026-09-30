@@ -8,7 +8,8 @@ import './styles.css'
 
 const platform = detectPlatform()
 registerKeys(platform)
-init({ throttle: 80, throttleKeypresses: true })
+// The stage is CSS-scaled: measure what is on screen, not offsetTop (which ignores the transform).
+init({ throttle: 80, throttleKeypresses: true, useGetBoundingClientRect: true })
 setKeyMap(spatialKeyMap(platform))
 
 // One 1920x1080 design, scaled to whatever the TV reports (some report 1280x720).

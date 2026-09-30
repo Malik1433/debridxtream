@@ -1,12 +1,14 @@
 import { FocusContext, setFocus, useFocusable } from '@noriginmedia/norigin-spatial-navigation'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { appKey } from '../keys'
+import { handleBack } from './backStack'
 import { exitApp, type Platform } from '../platform'
-import type { AppState } from './controller'
+import type { AppController, AppState } from './controller'
 import { ExitDialog } from './ExitDialog'
 import { Focusable } from './Focusable'
 import { Router, type Screen } from './router'
 import { Home } from './screens/Home'
+import { LiveScreen } from './screens/live/LiveScreen'
 import { Placeholder } from './screens/Placeholder'
 import { Settings } from './screens/Settings'
 
@@ -18,7 +20,7 @@ const NAV: Array<{ key: Screen; label: string }> = [
   { key: 'settings', label: 'Settings' },
 ]
 
-export function App({ platform, state, onSyncNow }: { platform: Platform; state: AppState; onSyncNow: () => void }) {
+export function App({ platform, state, controller, onSyncNow }: { platform: Platform; state: AppState; controller: AppController; onSyncNow: () => void }) {
   const router = useRef(new Router()).current
   const [screen, setScreen] = useState<Screen>('home')
   const [exitAsked, setExitAsked] = useState(false)
@@ -41,6 +43,7 @@ export function App({ platform, state, onSyncNow }: { platform: Platform; state:
       if (appKey(e.keyCode, platform) !== 'back') return
       e.preventDefault()
       if (exitAsked) { setExitAsked(false); void setFocus('nav-home'); return }
+      if (handleBack()) return
       if (router.back()) {
         setScreen(router.current)
         void setFocus(`nav-${router.current}`)
@@ -70,7 +73,7 @@ export function App({ platform, state, onSyncNow }: { platform: Platform; state:
       <FocusContext.Provider value={content.focusKey}>
         <div ref={content.ref} className="content">
           {screen === 'home' && <Home onOpen={open} state={state} />}
-          {screen === 'live' && <Placeholder title="Live TV" phase="W3" onHome={goHome} />}
+          {screen === 'live' && <LiveScreen platform={platform} controller={controller} />}
           {screen === 'movies' && <Placeholder title="Movies" phase="W4" onHome={goHome} />}
           {screen === 'series' && <Placeholder title="Series" phase="W4" onHome={goHome} />}
           {screen === 'settings' && <Settings platform={platform} state={state} onSyncNow={onSyncNow} onHome={goHome} />}

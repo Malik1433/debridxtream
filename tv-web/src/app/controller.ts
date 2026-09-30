@@ -11,6 +11,10 @@ import { LicenseClient } from '../license/licenseClient'
 import type { LicenseState } from '../license/policy'
 import { deviceId, type Platform } from '../platform'
 import { SyncRunner } from './syncRunner'
+import { EpgCache } from '../data/epg'
+import { favourites, toggleFavourite } from '../data/favourites'
+import { liveUrl } from '../xtream'
+import type { LiveCategory, LiveStream } from '../data/xtreamApi'
 
 export type SyncPhase =
   | { kind: 'idle' }
@@ -86,6 +90,15 @@ export class AppController {
 
   subscribe = (cb: () => void): (() => void) => { this.listeners.add(cb); return () => this.listeners.delete(cb) }
   snapshot = (): AppState => this.state
+
+  // ── Live TV (W3) ──
+  readonly epg = new EpgCache(() => this.session.account())
+  liveCategories(): Promise<LiveCategory[]> { return this.session.liveCategories() }
+  liveStreams(): Promise<LiveStream[]> { return this.session.liveStreams() }
+  /** Built from the current session every time: an absolute stream URL is never stored (CLAUDE.md). */
+  liveUrl(streamId: string): string | null { const a = this.session.account(); return a ? liveUrl(a, streamId) : null }
+  favourites(): string[] { return favourites(localStorage) }
+  toggleFavourite(id: string): string[] { return toggleFavourite(localStorage, id) }
 
   retrySync(): void { void this.runSync(false) }
 
