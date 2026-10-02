@@ -26,6 +26,8 @@ export interface LiveMedia {
   tryAlternative?(): boolean
   /** Which player is carrying the picture right now (debug panel). */
   playerName?(): string
+  /** No picture yet, and what the stream carries points at the other player: try it early. */
+  prefersAlternative?(): boolean
 }
 
 /** Numbers for the on-screen debug panel. */
@@ -60,6 +62,12 @@ export const SLOW_LINE_AFTER_MS = 6_000
  * viewer had nothing to act on. Generous, because a good channel here takes 3-5 s.
  */
 export const CONNECT_TIMEOUT_MS = 25_000
+/**
+ * A channel whose audio is not AAC and that shows no picture after this long goes to the other
+ * player now, not at 25 s (W3d QA: the 4K/MP3 channel took 30-60 s to appear). A good AAC channel
+ * here starts in 3-5 s, and a non-AAC one that mpegts.js CAN play shows its picture well inside 6 s.
+ */
+export const EARLY_ALTERNATIVE_MS = 6_000
 export const SLOW_FILL_EVERY_MS = 3_000
 /** A hold whose buffer has not grown for this long is a dead connection: reconnect. */
 export const DEAD_HOLD_MS = 15_000
@@ -176,6 +184,7 @@ export class LiveEngine {
     }
     if (!this.started) {
       if (now - this.loadedAt >= CONNECT_TIMEOUT_MS) return this.failToStart(c)
+      if (now - this.loadedAt >= EARLY_ALTERNATIVE_MS && this.media.prefersAlternative?.()) return this.failToStart(c)
       const slow = now - this.loadedAt >= SLOW_LINE_AFTER_MS
       if (this.status.kind === 'connecting' && this.status.slow !== slow) this.set({ kind: 'connecting', channel: c, slow })
       return
@@ -228,7 +237,7 @@ export class LiveEngine {
   private failToStart(c: LiveChannel): void {
     const carries = this.media.mediaInfo?.() ?? null
     if (this.media.tryAlternative?.()) {
-      this.log(`live: no picture in ${CONNECT_TIMEOUT_MS} ms on ${c.name}${carries ? ` (${carries})` : ''} - trying ${this.media.playerName?.() ?? 'another player'}`)
+      this.log(`live: no picture in ${this.clock.now() - this.loadedAt} ms on ${c.name}${carries ? ` (${carries})` : ''} - trying ${this.media.playerName?.() ?? 'another player'}`)
       this.loadedAt = this.clock.now()
       this.lastPos = -1
       this.lastPosAt = -1

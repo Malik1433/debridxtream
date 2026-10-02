@@ -49,6 +49,8 @@ export class LiveMediaSwitch implements LiveMedia {
     private readonly canPlayAudio: (codec: string | undefined) => boolean,
     private readonly log: (line: string) => void,
     private readonly onPlayer: (name: string) => void = () => undefined,
+    /** Told the audio codec of a channel the primary could not start, so the next one switches at once. */
+    private readonly learn: (audioCodec: string | undefined) => void = () => undefined,
   ) {
     primary.onError((e) => { if (this.active === 'primary') this.errorCb(e) })
     fallback?.onError((e) => { if (this.active === 'fallback') this.errorCb(e) })
@@ -57,6 +59,7 @@ export class LiveMediaSwitch implements LiveMedia {
 
   load(url: string): void {
     this.url = url
+    this.audio = undefined
     this.primary.stop()
     this.fallback?.stop()
     if (this.fallback && this.needsFallback.has(url)) return this.useFallback(url)
@@ -77,14 +80,26 @@ export class LiveMediaSwitch implements LiveMedia {
 
   tryAlternative(): boolean {
     if (this.active !== 'primary' || !this.fallback || !this.url) return false
-    this.log(`player: ${this.primary.name} could not start this channel - moving it to ${this.fallback.name}`)
+    this.log(`player: ${this.primary.name} could not start this channel${this.audio ? ` (audio ${this.audio})` : ''} - moving it to ${this.fallback.name}`)
+    this.learn(this.audio)
     this.needsFallback.add(this.url)
     this.primary.stop()
     this.useFallback(this.url)
     return true
   }
 
+  /**
+   * The stream's audio is not AAC and still no picture: on Samsung that is the MP3 / AC-3 case even
+   * when MSE said it could take it. The engine asks this after a few seconds instead of 25.
+   */
+  prefersAlternative(): boolean {
+    return this.active === 'primary' && this.fallback !== null && Boolean(this.audio) && !/^mp4a\.40/i.test(this.audio ?? '')
+  }
+
+  private audio: string | undefined
+
   private onMediaInfo(i: { video?: string; audio?: string }): void {
+    this.audio = i.audio
     if (this.active !== 'primary' || !this.url || this.canPlayAudio(i.audio)) return
     if (!this.fallback) {
       this.primary.stop()

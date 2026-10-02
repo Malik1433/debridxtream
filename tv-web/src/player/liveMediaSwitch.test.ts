@@ -19,12 +19,12 @@ class Fake {
 
 const aacOnly = (c: string | undefined) => !c || c.startsWith('mp4a')
 
-function rig(withFallback = true) {
+function rig(withFallback = true, playable: (c: string | undefined) => boolean = aacOnly) {
   const mse = new Fake('mpegts.js'), av = new Fake('AVPlay')
-  const logs: string[] = [], players: string[] = [], errors: PlayerError[] = []
-  const sw = new LiveMediaSwitch(mse as PrimaryMedia, withFallback ? (av as FallbackMedia) : null, aacOnly, (l) => logs.push(l), (n) => players.push(n))
+  const logs: string[] = [], players: string[] = [], errors: PlayerError[] = [], learned: Array<string | undefined> = []
+  const sw = new LiveMediaSwitch(mse as PrimaryMedia, withFallback ? (av as FallbackMedia) : null, playable, (l) => logs.push(l), (n) => players.push(n), (c) => learned.push(c))
   sw.onError((e) => errors.push(e))
-  return { mse, av, sw, logs, players, errors }
+  return { mse, av, sw, logs, players, errors, learned }
 }
 
 describe('LiveMediaSwitch', () => {
@@ -73,5 +73,17 @@ describe('LiveMediaSwitch', () => {
     r.sw.load('u1'); r.mse.info({ audio: 'mp3' })
     expect(r.errors).toEqual([{ network: false, message: 'audio mp3 is not supported on this TV' }])
     expect(r.sw.tryAlternative()).toBe(false)
+  })
+
+  it('when MSE claimed it could take the audio and nothing played: prefer the other player, and learn the codec', () => {
+    const r = rig(true, () => true) // the Samsung answer for audio/mpeg
+    r.sw.load('u1'); r.mse.info({ video: 'avc1', audio: 'mp3' })
+    expect(r.sw.playerName()).toBe('mpegts.js')
+    expect(r.sw.prefersAlternative()).toBe(true)
+    expect(r.sw.tryAlternative()).toBe(true)
+    expect(r.learned).toEqual(['mp3'])
+    expect(r.sw.prefersAlternative()).toBe(false)
+    r.sw.load('u2'); r.mse.info({ video: 'avc1', audio: 'mp4a.40.2' })
+    expect(r.sw.prefersAlternative()).toBe(false) // AAC is never pushed off mpegts.js
   })
 })
