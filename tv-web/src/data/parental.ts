@@ -7,6 +7,9 @@ import type { KeyValue } from './session'
  *
  * - Xtream has no adult flag: the category NAME is the only signal, matched on whole tokens.
  * - Hidden means hidden everywhere (lists, search, Home rows).
+ * - TV app difference from Android (owner, 2026-10-02): adult categories are HIDDEN FROM THE FIRST
+ *   LAUNCH, with no PIN set. Seeing them means choosing a PIN first - a store reviewer, or a child
+ *   on a fresh install, never lands on them. Turning the protection off for good also needs the PIN.
  * - A correct PIN opens adult categories for 30 minutes of this session; a restart locks again.
  * - The PIN is never stored: a random salt and SHA-256(salt + ":" + pin).
  * Device-level, not server-scoped: the household's rule does not change with the provider.
@@ -59,18 +62,25 @@ export class Parental {
   }
 
   hasPin(): boolean { return this.stored() !== null }
-  /** On only with a PIN - the same rule as Android (ParentalControls.isEnabled). */
-  enabled(): boolean { return Boolean(this.stored()?.enabled) }
+  /** On by default: only an explicit "turn off" (with the PIN) makes it false. */
+  enabled(): boolean { const s = this.stored(); return s === null ? true : s.enabled !== false }
   unlocked(): boolean { return this.now() < this.unlockedUntil }
   hidesAdult(): boolean { return this.enabled() && !this.unlocked() }
 
-  /** Turn controls on with a new PIN. */
-  enable(pin: string): boolean {
+  /** Choose (or replace) the PIN. Protection stays on. */
+  setPin(pin: string): boolean {
     if (!isValidPin(pin)) return false
     const salt = newSalt()
     this.kv.setItem(KEY, JSON.stringify({ enabled: true, salt, hash: hashPin(salt, pin) }))
     this.unlockedUntil = 0
     return true
+  }
+
+  /** Protection back on after it was turned off. Making things safer needs no PIN. */
+  turnOn(): void {
+    const s = this.stored()
+    if (s) this.kv.setItem(KEY, JSON.stringify({ ...s, enabled: true }))
+    this.unlockedUntil = 0
   }
 
   matches(pin: string): boolean {
@@ -86,10 +96,11 @@ export class Parental {
 
   lockNow(): void { this.unlockedUntil = 0 }
 
-  /** Turning controls off needs the PIN, or it would be no lock at all. */
+  /** Turning protection off needs the PIN, or it would be no lock at all. The PIN is kept for "turn on". */
   disable(pin: string): boolean {
-    if (!this.matches(pin)) return false
-    this.kv.removeItem(KEY)
+    const s = this.stored()
+    if (!s || !this.matches(pin)) return false
+    this.kv.setItem(KEY, JSON.stringify({ ...s, enabled: false }))
     this.unlockedUntil = 0
     return true
   }

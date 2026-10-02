@@ -358,8 +358,10 @@ baar check."* Ye us research ka nichor hai. Har line ke peeche source hai (neech
 - **Progress:** 90% dekha = watched (Android `COMPLETION_THRESHOLD_RATIO = 0.90`). Resume tab hi jab
   30 s se zyada dekha ho. Sab server-scoped (`dx.srv.` / IndexedDB) — provider badle to sab jaye.
 - **Search:** Live, Movies, Series teeno mein naam se; TV ka IME.
-- **Parental:** adult categories (Android ka `AdultContentDetector` port) default chhupi; Settings
-  mein 4-digit PIN se session ke liye khulti hain (Android `ParentalPolicy`: salt + SHA-256, 30 min).
+- **Parental:** adult categories (Android ka `AdultContentDetector` port) **pehli launch se chhupi,
+  bina PIN ke** (owner 2026-10-02 — Android se farq: wahan PIN ke baghair band hai). Dikhane ke liye
+  pehle PIN chunna padta hai; phir 30 min ke liye khulti hain (salt + SHA-256). Hamesha ke liye band
+  karna bhi PIN se. Store reviewer ya naye install par bachcha kabhi un tak nahi pahunchta.
 
 ### 12.4 Xtream API jo istemal hogi
 
