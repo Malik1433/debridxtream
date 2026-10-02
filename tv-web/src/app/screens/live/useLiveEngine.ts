@@ -6,6 +6,7 @@ import { liveLog } from '../../../player/liveLog'
 import { LiveMediaSwitch } from '../../../player/liveMediaSwitch'
 import { MpegtsAdapter } from '../../../player/MpegtsAdapter'
 import { canPlayAudio } from '../../../player/mseTypes'
+import { learnBad, learnedBad } from '../../../player/learnedAudio'
 
 /** Where [el] is on screen, in the 1920x1080 coordinates AVPlay's setDisplayRect takes. */
 function rectIn1080p(el: HTMLElement | null): Rect | null {
@@ -44,7 +45,10 @@ export function useLiveEngine(video: RefObject<HTMLVideoElement | null>, box: Re
       document.documentElement.classList.toggle('avplay-on', name === av?.name)
       liveLog(`player: ${name}`)
     }
-    const media = new LiveMediaSwitch(mse, av, (c) => canPlayAudio(c), liveLog, onPlayer)
+    // What this TV has PROVED it cannot play wins over what MSE claims it can.
+    const playable = (c: string | undefined) => !(c && learnedBad(localStorage).has(c.trim().toLowerCase())) && canPlayAudio(c)
+    const learn = (c: string | undefined) => { if (learnBad(localStorage, c)) liveLog(`player: learned - audio ${c} does not play through mpegts.js on this TV`) }
+    const media = new LiveMediaSwitch(mse, av, playable, liveLog, onPlayer, learn)
     const engine = new LiveEngine(media, browserClock, liveLog)
     engineRef.current = engine
     const off = engine.onStatus(setStatus)

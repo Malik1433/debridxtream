@@ -30,6 +30,7 @@ class FakeClock implements Clock {
 class FakeMedia implements LiveMedia {
   reportsBuffer?: () => boolean
   tryAlternative?: () => boolean
+  prefersAlternative?: () => boolean
   pos = 0; ahead = 0; flowing = false; playing = false; speed = 1
   loads: string[] = []; stops = 0
   private err: (e: { http?: number; network: boolean; message: string }) => void = () => undefined
@@ -193,5 +194,19 @@ describe('LiveEngine', () => {
     r.run(1000)
     expect(r.engine.current().kind).toBe('playing')
     expect(r.engine.useAlternativePlayer()).toBe(false)
+  })
+
+  it('moves a non-AAC channel with no picture to the other player at 6 s, not 25 s', () => {
+    const r = rig()
+    let switched = false
+    r.media.prefersAlternative = () => !switched
+    r.media.tryAlternative = () => { if (switched) return false; switched = true; return true }
+    r.engine.play(ch('1'))
+    r.run(5_000)
+    expect(switched).toBe(false)
+    r.run(1_500)
+    expect(switched).toBe(true)
+    expect(r.logs.some((l) => /no picture in 6\d\d\d ms/.test(l))).toBe(true)
+    expect(r.engine.current()).toMatchObject({ kind: 'connecting' })
   })
 })
