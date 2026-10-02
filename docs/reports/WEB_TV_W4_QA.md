@@ -259,3 +259,72 @@ from N2.)
 
 Tests: 114. Headless: W4 walk-through unchanged; 70,000 films: second visit 39 ms; debounce: two
 fast ▼ load nothing until rest, and OK flushes and lands on the first poster of the new category.
+
+---
+
+# Round 3 — after `d695d003` (2026-10-03, same TV). **W4 script finished.**
+
+`.env.local` written with the Android `TMDB_API_KEY` (gitignored, never committed), **114 tests pass**,
+built and installed.
+
+| | Verdict |
+|---|---|
+| **N1** AC-3 wording | ✅ Playback line now says it honestly |
+| **N2** movie backdrop + TMDB details | ✅ backdrop, plot, cast, director all present; series page unchanged |
+| **N4** category debounce | ✅ focus is quick, the grid no longer rebuilds mid-scroll, OK lands on the first poster — Live too |
+| **8** film play, seek, OK pause, audio/subtitle menu | ✅ |
+| **9** DTS | no DTS title found — **unrun** |
+| **10** resume + Continue watching | ✅ "resume is right, at the time where it stopped, and play is instant" |
+| **11** series: Continue, seasons, episodes, next-episode prompt | ✅ |
+| **12** TV off → on | ✅ with a caveat, below |
+| **13** search | ❌ **the screen is squashed while the keyboard is open** |
+| **14** parental controls (on, hidden, show+PIN, off) | ✅ |
+| **15** BACK ladder | ✅ |
+
+**Step 12, as observed:** powering the TV off and on returns the TV to its own home screen and the app
+has to be opened again — that is Tizen's behaviour, not ours. Reopened, **the app came back on the
+screen it was on.** ⚠️ The Smart Hub half of step 12 (player must stop, land on the detail page) was
+not separately confirmed and should be re-checked.
+
+---
+
+## N5 — ⚠️ the whole UI is squashed while the TV keyboard is open
+
+Owner, with photos: *"when the keyboard opens for search its screen becomes very small and it looks
+like it is stuck together."* The screenshot shows the app compressed into the top of the screen with
+"Type at least two letters" riding over the input box. Search itself works and returns results.
+
+**Cause, and it is not in the search screen** — `src/app/main.tsx:19`:
+
+```js
+const fit = () => { stage.style.transform = `scale(${window.innerWidth / 1920}, ${window.innerHeight / 1080})` }
+window.addEventListener('resize', fit)
+```
+
+The scale is **non-uniform**. Samsung's IME takes the bottom of the screen, `window.innerHeight` halves,
+`resize` fires, and scaleY halves while scaleX does not — so the 1920x1080 design is flattened. **Any**
+screen that opens the keyboard will do this, not only Search.
+
+**Direction (not started):** scale uniformly (one factor, `min(w/1920, h/1080)`, letterboxed), and when
+the IME opens **move** the stage up rather than re-scaling it — the usual TV answer, and it keeps the
+focused field visible without touching the layout. Check against the Android app's search screen
+before choosing (CLAUDE.md: this app copies Android).
+
+## N6 — the TMDB key ships inside the package
+
+`VITE_TMDB_API_KEY` is baked into the built bundle (verified: the key string is present in
+`build-tizen/assets/index-legacy-*.js`). Fine for a test build; for a store build this is a key anyone
+unzipping the `.wgt` can read. Decide before W5 — the Android app has the same question answered
+somewhere, and the same answer should apply here.
+
+---
+
+## W4 close-out
+
+The script is **complete except step 9 (no DTS title available) and the Smart Hub half of step 12**.
+Two defects are open: **N5** (keyboard squash, affects every screen) and **N6** (key in the bundle).
+Everything else on the Samsung passes, including the four problems round 1 opened.
+
+Standing facts for whoever runs this next, unchanged: a retail Samsung TV gives no logs (the on-screen
+`[live]` panel is the only instrument), and none of the performance work in this report is visible on
+a desktop browser — measure on the TV.
