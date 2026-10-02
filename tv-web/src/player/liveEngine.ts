@@ -15,7 +15,21 @@ export interface LiveMedia {
   onError(cb: (e: { http?: number; network: boolean; message: string }) => void): void
   /** What the stream declares it carries, once known: names the cause when nothing can decode it. */
   mediaInfo?(): string | null
+  /**
+   * False while the player in use keeps its own buffer and tells us nothing about it (AVPlay). The
+   * cushion rules are written against buffered milliseconds, so on such a player they step aside:
+   * no hold, no patience, no slow-fill - its own buffering param is the cushion (owner, 2026-10-02).
+   * Stall counting, the dead-feed reconnect, hold-on and the connect timeout all still apply.
+   */
+  reportsBuffer?(): boolean
+  /** The channel could not start on this player: try another one for it. False = nothing left to try. */
+  tryAlternative?(): boolean
+  /** Which player is carrying the picture right now (debug panel). */
+  playerName?(): string
 }
+
+/** Numbers for the on-screen debug panel. */
+export interface LiveDebug { player: string; positionMs: number | null; aheadMs: number | null; speed: number; stalls: number; targetMs: number }
 
 export interface LiveChannel { id: string; name: string; url: string }
 
@@ -78,6 +92,7 @@ export class LiveEngine {
   private holdAheadAt = 0
   private lastSpeedAt = 0
   private quickRetry = 0
+  private speed = 1
 
   constructor(private readonly media: LiveMedia, private readonly clock: Clock, private readonly log: (line: string) => void = () => undefined) {
     this.patience = new RebufferPatience(clock.now)
@@ -89,6 +104,17 @@ export class LiveEngine {
 
   onStatus(cb: (s: LiveStatus) => void): () => void { this.listeners.add(cb); cb(this.status); return () => this.listeners.delete(cb) }
   current(): LiveStatus { return this.status }
+
+  debug(): LiveDebug {
+    return {
+      player: this.media.playerName?.() ?? '?',
+      positionMs: this.media.positionMs(),
+      aheadMs: this.media.bufferedAheadMs(),
+      speed: this.speed,
+      stalls: this.patience.stallsInWindow(),
+      targetMs: this.patience.targetMs(),
+    }
+  }
 
   /** The viewer chose [c] (open or zap). */
   play(c: LiveChannel): void {
@@ -114,7 +140,7 @@ export class LiveEngine {
     const c = this.channel
     if (!c) return
     this.cancelRetry?.(); this.cancelRetry = null
-    this.media.setSpeed(1)
+    this.setSpeed(1)
     this.loadedAt = this.clock.now()
     this.started = false
     this.holding = false
@@ -138,13 +164,13 @@ export class LiveEngine {
     if (pos !== null && (advancing || this.lastPos < 0)) { this.lastPos = pos; if (advancing) this.lastPosAt = now }
 
     if (this.holding) return this.tickHold(c, now, ahead)
+    const ownBuffer = this.media.reportsBuffer?.() === false
 
     if (advancing) {
       if (this.status.kind !== 'playing') this.becamePlaying(c)
-      if (now - this.lastSpeedAt >= SLOW_FILL_EVERY_MS) {
+      if (!ownBuffer && now - this.lastSpeedAt >= SLOW_FILL_EVERY_MS) {
         this.lastSpeedAt = now
-        const want = this.slowFill.speedFor(ahead)
-        this.media.setSpeed(want)
+        this.setSpeed(this.slowFill.speedFor(ahead))
       }
       return
     }
@@ -154,14 +180,43 @@ export class LiveEngine {
       if (this.status.kind === 'connecting' && this.status.slow !== slow) this.set({ kind: 'connecting', channel: c, slow })
       return
     }
-    if (this.lastPosAt >= 0 && now - this.lastPosAt >= STUCK_MS) this.startHold(c, now, ahead)
+    if (this.lastPosAt >= 0 && now - this.lastPosAt >= STUCK_MS) {
+      if (ownBuffer) this.ownBufferStall(c, now)
+      else this.startHold(c, now, ahead)
+    }
+  }
+
+  /** A still picture on a player that buffers by itself: count it, say so, reconnect if it is dead. */
+  private ownBufferStall(c: LiveChannel, now: number): void {
+    if (this.status.kind !== 'buffering') {
+      this.meter.onStopped(true)
+      this.log(`live: picture still on ${this.media.playerName?.() ?? 'player'} (it buffers by itself)`)
+      this.set({ kind: 'buffering', channel: c, waitingForMs: 0 })
+    }
+    if (now - this.lastPosAt >= DEAD_HOLD_MS) this.onError({ network: true, message: 'no picture while buffering' })
+  }
+
+  private setSpeed(rate: number): void {
+    if (rate === this.speed && rate !== 1) return
+    if (rate !== 1 && this.media.reportsBuffer?.() === false) return
+    const ok = this.media.setSpeed(rate)
+    if (rate !== this.speed) this.log(`live cushion: speed ${rate.toFixed(2)}${ok ? '' : ' (refused)'}`)
+    this.speed = ok ? rate : 1
   }
 
   /** No picture at all, and no error either: the provider simply never sent one. Say so and stop. */
   private failToStart(c: LiveChannel): void {
+    const carries = this.media.mediaInfo?.() ?? null
+    if (this.media.tryAlternative?.()) {
+      this.log(`live: no picture in ${CONNECT_TIMEOUT_MS} ms on ${c.name}${carries ? ` (${carries})` : ''} - trying ${this.media.playerName?.() ?? 'another player'}`)
+      this.loadedAt = this.clock.now()
+      this.lastPos = -1
+      this.lastPosAt = -1
+      this.set({ kind: 'connecting', channel: c, slow: false })
+      return
+    }
     this.stopTick?.(); this.stopTick = null
     this.media.stop()
-    const carries = this.media.mediaInfo?.() ?? null
     this.log(`live: no picture in ${CONNECT_TIMEOUT_MS} ms on ${c.name}${carries ? ` - stream carries ${carries}` : ' - nothing read from the stream'}`)
     this.set({
       kind: 'failed',

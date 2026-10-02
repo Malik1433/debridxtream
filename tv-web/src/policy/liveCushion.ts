@@ -74,6 +74,12 @@ export class RebufferPatience {
     return go
   }
 
+  /** Stalls counted in the last 3 minutes (the on-screen debug panel). */
+  stallsInWindow(): number {
+    const now = this.now()
+    return this.stallTimes.filter((t) => now - t <= STALL_WINDOW_MS).length
+  }
+
   targetMs(): number {
     if (this.stallTimes.length >= 3) return THIRD_STALL_TARGET_MS
     if (this.stallTimes.length === 2) return SECOND_STALL_TARGET_MS

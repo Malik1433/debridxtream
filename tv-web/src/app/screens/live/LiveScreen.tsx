@@ -1,5 +1,5 @@
 import { doesFocusableExist, getCurrentFocusKey, pause, resume, setFocus } from '@noriginmedia/norigin-spatial-navigation'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { Programme } from '../../../data/epg'
 import type { LiveCategory, LiveStream } from '../../../data/xtreamApi'
 import { appKey } from '../../../keys'
@@ -7,6 +7,7 @@ import type { Platform } from '../../../platform'
 import { pushBackHandler } from '../../backStack'
 import type { AppController } from '../../controller'
 import { Focusable } from '../../Focusable'
+import { LiveDebugPanel } from './LiveDebugPanel'
 import { LiveOsd } from './LiveOsd'
 import { categoryRows, channelsOf, clock, startCategory, zapIndex } from './liveModel'
 import { statusText } from './statusText'
@@ -36,7 +37,9 @@ export function LiveScreen({ platform, controller }: { platform: Platform; contr
   const [epg, setEpg] = useState<Programme[]>([])
   const [now, setNow] = useState(() => Date.now())
   const video = useRef<HTMLVideoElement>(null)
-  const { engine, status } = useLiveEngine(video)
+  const box = useRef<HTMLDivElement>(null)
+  const { engine, status, relayout } = useLiveEngine(video, box, platform)
+  const [debug, setDebug] = useState(false)
   const pendingFocus = useRef<string | null>(null)
 
   useEffect(() => {
@@ -91,6 +94,14 @@ export function LiveScreen({ platform, controller }: { platform: Platform; contr
     return () => { off(); resume() }
   }, [full])
 
+  // AVPlay draws under the page, so in fullscreen nothing else may be painted over it, and its
+  // picture has to follow the player box in and out of fullscreen.
+  useLayoutEffect(() => {
+    document.body.classList.toggle('player-full', full)
+    relayout()
+    return () => document.body.classList.remove('player-full')
+  }, [full, relayout])
+
   // Back from fullscreen lands on the channel now playing, even after zapping far from where we left.
   const wasFull = useRef(false)
   useEffect(() => {
@@ -104,6 +115,7 @@ export function LiveScreen({ platform, controller }: { platform: Platform; contr
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const k = appKey(e.keyCode, platform)
+      if (k === 'debug') { e.preventDefault(); setDebug((d) => !d); return }
       if (k === 'favourite') {
         e.preventDefault()
         const target = full ? current : channels[focusedChan.current]
@@ -185,7 +197,7 @@ export function LiveScreen({ platform, controller }: { platform: Platform; contr
         )}
       </div>
       <div className="live-col preview">
-        <div className={`live-player${full ? ' full' : ''}`}>
+        <div ref={box} className={`live-player${full ? ' full' : ''}`}>
           <video ref={video} playsInline />
           {!current && <div className="player-hint">Press OK on a channel to watch it here</div>}
           {pill && <div className="pill">{pill}</div>}
@@ -207,6 +219,7 @@ export function LiveScreen({ platform, controller }: { platform: Platform; contr
           </div>
         )}
       </div>
+      {debug && engine && <LiveDebugPanel engine={engine} status={status} />}
     </div>
   )
 }

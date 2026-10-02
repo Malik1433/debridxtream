@@ -1,5 +1,6 @@
 import type { LicenseState } from '../../license/policy'
-import { codecLine } from '../../player/codecSupport'
+import { thisTvCodecLine } from '../../player/codecSupport'
+import { avplayAvailable } from '../../player/AvplayAdapter'
 import { playerKindFor } from '../../player/PlayerAdapter'
 import { deviceId, type Platform } from '../../platform'
 import type { AppState } from '../controller'
@@ -28,8 +29,8 @@ export function Settings({ platform, state, onSyncNow, onHome }:
           ? `${state.catalogue.channels.toLocaleString()} (updated ${new Date(state.catalogue.at).toLocaleTimeString()})` +
             (sync.kind === 'running' ? ' · updating…' : sync.kind === 'error' ? ` · update failed: ${sync.message}` : '')
           : sync.kind === 'running' ? 'updating…' : sync.kind === 'error' ? `update failed: ${sync.message}` : '—'}</div>
-        <div><b>Playback</b>{codecLine()}</div>
-        <div><b>Version</b>{__APP_VERSION__} · {platform} · {playerKindFor(platform)} · device {id ? `${id.slice(0, 6)}…` : 'n/a'}</div>
+        <div><b>Playback</b>{thisTvCodecLine()}</div>
+        <div><b>Version</b>{__APP_VERSION__} · {platform} · {playerKindFor(platform)}{avplayAvailable() ? ' (+AVPlay)' : ''} · device {id ? `${id.slice(0, 6)}…` : 'n/a'}</div>
       </div>
       <div className="buttons" style={{ marginTop: 40 }}>
         <Focusable focusKey="settings-sync" className="button" onEnter={onSyncNow}>Update channels</Focusable>

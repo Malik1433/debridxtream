@@ -28,6 +28,8 @@ class FakeClock implements Clock {
 
 /** A player whose position advances only while "flowing" and playing. */
 class FakeMedia implements LiveMedia {
+  reportsBuffer?: () => boolean
+  tryAlternative?: () => boolean
   pos = 0; ahead = 0; flowing = false; playing = false; speed = 1
   loads: string[] = []; stops = 0
   private err: (e: { http?: number; network: boolean; message: string }) => void = () => undefined
@@ -103,7 +105,7 @@ describe('LiveEngine', () => {
     expect(r.engine.current()).toMatchObject({ kind: 'buffering', waitingForMs: 5000 })
     r.media.ahead = 5200; r.media.flowing = true; r.run(1500)
     expect(r.engine.current().kind).toBe('playing')
-    expect(r.logs.filter((l) => l.startsWith('live cushion'))).toEqual([
+    expect(r.logs.filter((l) => l.startsWith('live cushion: stall'))).toEqual([
       'live cushion: stall 1 in 3 min, usual threshold', 'live cushion: stall 2 in 3 min, waiting for 5s of buffer'])
     expect(r.engine.meter.count).toBe(2)
   })
@@ -145,5 +147,36 @@ describe('LiveEngine', () => {
     r.media.flowing = false; r.media.ahead = 0; r.run(18_000)
     expect(r.seen).toContain('reconnecting')
     expect(r.media.loads).toHaveLength(2)
+  })
+
+  it('on a player that buffers by itself: no hold, no slow-fill; a dead picture still reconnects', () => {
+    const r = rig()
+    let own = false
+    r.media.reportsBuffer = () => !own
+    own = true
+    r.engine.play(ch('1'))
+    r.media.flowing = true; r.media.ahead = 0; r.run(2000)
+    expect(r.engine.current().kind).toBe('playing')
+    expect(r.media.speed).toBe(1) // no 0.97x on a buffer we cannot see
+    r.media.flowing = false; r.run(3000)
+    expect(r.engine.current().kind).toBe('buffering')
+    expect(r.media.playing).toBe(true) // never paused: the player is filling its own buffer
+    r.media.flowing = true; r.run(1000)
+    expect(r.engine.current().kind).toBe('playing')
+    expect(r.engine.meter.count).toBe(1)
+    r.media.flowing = false; r.run(16_000)
+    expect(r.logs.some((l) => l.includes('no picture while buffering'))).toBe(true)
+    expect(r.seen.slice(-2)).toEqual(['reconnecting', 'connecting'])
+  })
+
+  it('a channel that cannot start tries the other player once before saying it is not available', () => {
+    const r = rig()
+    let left = 1
+    r.media.tryAlternative = () => left-- > 0
+    r.engine.play(ch('1'))
+    r.run(CONNECT_TIMEOUT_MS + 1000)
+    expect(r.engine.current()).toMatchObject({ kind: 'connecting', slow: false })
+    r.run(CONNECT_TIMEOUT_MS + 1000)
+    expect(r.engine.current().kind).toBe('failed')
   })
 })

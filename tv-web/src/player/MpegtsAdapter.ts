@@ -7,6 +7,7 @@ export class MpegtsAdapter implements PlayerAdapter {
   private p: mpegts.Player | null = null
   private stateCb: (s: PlayerState) => void = () => undefined
   private errorCb: (e: PlayerError) => void = () => undefined
+  private infoCb: (i: { video?: string; audio?: string }) => void = () => undefined
   /**
    * What the stream actually carries, as mpegts.js reads its PMT. The reason this is kept: a
    * channel whose codecs MSE cannot take produces no picture AND no error - mpegts.js simply stops
@@ -27,7 +28,7 @@ export class MpegtsAdapter implements PlayerAdapter {
     return video || audio ? `${video ?? '?'} / ${audio ?? '?'}` : null
   }
 
-  load(url: string, opts: { live: boolean }): void {
+  load(url: string, opts: { live: boolean } = { live: true }): void {
     this.stop()
     this.info = {}
     const p = mpegts.createPlayer({ type: 'mpegts', isLive: opts.live, url }, { enableWorker: false })
@@ -35,6 +36,7 @@ export class MpegtsAdapter implements PlayerAdapter {
       this.errorCb({ http: info?.code, network: type === mpegts.ErrorTypes.NETWORK_ERROR, message: `${type}/${detail}` }))
     p.on(mpegts.Events.MEDIA_INFO, (mi: { videoCodec?: string; audioCodec?: string }) => {
       this.info = { video: mi.videoCodec, audio: mi.audioCodec }
+      if (this.p === p) this.infoCb(this.info)
     })
     p.attachMediaElement(this.video)
     p.load()
@@ -65,6 +67,8 @@ export class MpegtsAdapter implements PlayerAdapter {
 
   onState(cb: (s: PlayerState) => void): void { this.stateCb = cb }
   onError(cb: (e: PlayerError) => void): void { this.errorCb = cb }
+  /** The stream's codecs, the moment mpegts.js has read them - before MSE has had a chance to refuse. */
+  onMediaInfo(cb: (i: { video?: string; audio?: string }) => void): void { this.infoCb = cb }
 
   positionMs(): number | null { return this.p ? Math.round(this.video.currentTime * 1000) : null }
 

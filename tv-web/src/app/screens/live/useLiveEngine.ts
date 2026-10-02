@@ -1,44 +1,66 @@
-import { useEffect, useRef, useState, type RefObject } from 'react'
-import { LiveEngine, browserClock, type LiveMedia, type LiveStatus } from '../../../player/liveEngine'
+import { useCallback, useEffect, useRef, useState, type RefObject } from 'react'
+import type { Platform } from '../../../platform'
+import { AvplayAdapter, avplayAvailable, type Rect } from '../../../player/AvplayAdapter'
+import { LiveEngine, browserClock, type LiveStatus } from '../../../player/liveEngine'
+import { liveLog } from '../../../player/liveLog'
+import { LiveMediaSwitch } from '../../../player/liveMediaSwitch'
 import { MpegtsAdapter } from '../../../player/MpegtsAdapter'
+import { canPlayAudio } from '../../../player/mseTypes'
+
+/** Where [el] is on screen, in the 1920x1080 coordinates AVPlay's setDisplayRect takes. */
+function rectIn1080p(el: HTMLElement | null): Rect | null {
+  if (!el) return null
+  const r = el.getBoundingClientRect()
+  const sx = 1920 / window.innerWidth, sy = 1080 / window.innerHeight
+  return { x: r.left * sx, y: r.top * sy, w: r.width * sx, h: r.height * sy }
+}
 
 /**
- * One LiveEngine over one <video> for the life of the Live screen. Preview and fullscreen are the
- * SAME element and the same engine (Android lesson: a player per view split one outage into two
- * stall counts). Leaving the screen stops the stream - one provider connection, never a leftover.
+ * One LiveEngine for the life of the Live screen, over mpegts.js on the page's <video> - and, on a
+ * Samsung, AVPlay for the channels mpegts.js cannot carry. Preview and fullscreen are the SAME
+ * engine (Android lesson: a player per view split one outage into two stall counts). Leaving the
+ * screen stops the stream - one provider connection, never a leftover.
  */
-export function useLiveEngine(video: RefObject<HTMLVideoElement | null>): { engine: LiveEngine | null; status: LiveStatus } {
+export function useLiveEngine(video: RefObject<HTMLVideoElement | null>, box: RefObject<HTMLElement | null>, platform: Platform): {
+  engine: LiveEngine | null
+  status: LiveStatus
+  /** The player box moved (fullscreen in or out): AVPlay's picture must follow it. */
+  relayout: () => void
+} {
   const [status, setStatus] = useState<LiveStatus>({ kind: 'idle' })
   const engineRef = useRef<LiveEngine | null>(null)
+  const avRef = useRef<AvplayAdapter | null>(null)
   const [, setReady] = useState(false)
 
   useEffect(() => {
     const el = video.current
     if (!el) return
-    const adapter = new MpegtsAdapter(el)
-    const media: LiveMedia = {
-      load: (url) => adapter.load(url, { live: true }),
-      play: () => adapter.play(),
-      pause: () => adapter.pause(),
-      stop: () => adapter.stop(),
-      positionMs: () => adapter.positionMs(),
-      bufferedAheadMs: () => adapter.bufferedAheadMs(),
-      setSpeed: (r) => adapter.setSpeed(r),
-      onError: (cb) => adapter.onError(cb),
-      mediaInfo: () => adapter.mediaInfo(),
+    const mse = new MpegtsAdapter(el)
+    const plane = document.getElementById('av-plane')
+    const av = platform === 'tizen' && plane && avplayAvailable() ? new AvplayAdapter(plane, () => rectIn1080p(box.current), liveLog) : null
+    avRef.current = av
+    // AVPlay draws UNDER the page: while it carries the picture the page must be see-through there.
+    const onPlayer = (name: string) => {
+      document.documentElement.classList.toggle('avplay-on', name === av?.name)
+      liveLog(`player: ${name}`)
     }
-    const engine = new LiveEngine(media, browserClock, (line) => console.info(`[live] ${line}`))
+    const media = new LiveMediaSwitch(mse, av, (c) => canPlayAudio(c), liveLog, onPlayer)
+    const engine = new LiveEngine(media, browserClock, liveLog)
     engineRef.current = engine
     const off = engine.onStatus(setStatus)
     setReady(true)
     return () => {
-      console.info(`[live] ${engine.meter.logLine('live')}`)
+      liveLog(engine.meter.logLine('live'))
       off()
       engine.stop()
-      adapter.destroy()
+      mse.destroy()
+      av?.destroy()
+      document.documentElement.classList.remove('avplay-on')
       engineRef.current = null
+      avRef.current = null
     }
-  }, [video])
+  }, [video, box, platform])
 
-  return { engine: engineRef.current, status }
+  const relayout = useCallback(() => avRef.current?.relayout(), [])
+  return { engine: engineRef.current, status, relayout }
 }

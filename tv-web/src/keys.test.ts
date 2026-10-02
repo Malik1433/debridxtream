@@ -21,4 +21,10 @@ describe('appKey', () => {
     expect(appKey(427, 'tizen')).toBe('ch_up')
     expect(appKey(34, 'browser')).toBe('ch_down')
   })
+
+  it('opens the debug panel on green, and on 0 where the TV hands the page only digits', () => {
+    expect(appKey(404, 'tizen')).toBe('debug')
+    expect(appKey(48, 'vidaa')).toBe('debug')
+    expect(appKey(48, 'tizen')).toBeNull()
+  })
 })
