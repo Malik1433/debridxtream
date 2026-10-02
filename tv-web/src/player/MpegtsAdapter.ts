@@ -83,5 +83,23 @@ export class MpegtsAdapter implements PlayerAdapter {
     return Math.abs(this.video.playbackRate - rate) < 0.001
   }
 
+  /**
+   * Why there is no picture, in numbers (W4 QA P2: the TV accepts this channel's codecs, yet
+   * mpegts.js shows nothing and nobody knows why). Data arriving? Buffered? Frames decoded? Media
+   * error? One line for the [live] panel - the retail TV gives no other way to ask.
+   */
+  diagnose(): string {
+    const v = this.video
+    const b = v.buffered
+    const q = (v as HTMLVideoElement & { getVideoPlaybackQuality?: () => { totalVideoFrames: number; droppedVideoFrames: number } }).getVideoPlaybackQuality?.()
+    let stats = ''
+    try {
+      const s = (this.p as unknown as { statisticsInfo?: { speed?: number; decodedFrames?: number; droppedFrames?: number } } | null)?.statisticsInfo
+      if (s) stats = ` · net ${Math.round(s.speed ?? 0)} KB/s · lib frames ${s.decodedFrames ?? 0}`
+    } catch { /* no stats */ }
+    return `ready ${v.readyState} net ${v.networkState} · buffered ${b.length ? `${b.start(0).toFixed(1)}-${b.end(b.length - 1).toFixed(1)}s` : 'none'}` +
+      ` · frames ${q ? `${q.totalVideoFrames}/${q.droppedVideoFrames} dropped` : 'n/a'} · err ${v.error ? v.error.code : '-'}${stats}`
+  }
+
   destroy(): void { this.stop() }
 }

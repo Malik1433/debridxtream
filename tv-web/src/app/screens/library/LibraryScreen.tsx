@@ -5,6 +5,7 @@ import type { Movie, Show, VodCategory } from '../../../data/vodApi'
 import type { AppController, AppState } from '../../controller'
 import { VirtualList } from '../live/VirtualList'
 import { FAV_ID, itemsOf, libraryRows, startRow } from './libraryModel'
+import { indexCatalogue } from '../live/liveModel'
 import { Poster } from './Poster'
 import { VirtualGrid } from './VirtualGrid'
 import { recall, remember, takeReturn } from './focusMemory'
@@ -15,7 +16,11 @@ type Load<T> = { kind: 'loading' } | { kind: 'ready'; cats: VodCategory[]; items
 export function LibraryScreen<T extends Movie | Show>({ kind, controller, state, onOpen }: {
   kind: LibraryKind; controller: AppController; state: AppState; onOpen: (item: T) => void
 }) {
-  const [load, setLoad] = useState<Load<T>>({ kind: 'loading' })
+  // Warm cache = the list on the first frame; "loading" only on a genuine cold start (W4 QA P1).
+  const [load, setLoad] = useState<Load<T>>(() => {
+    const cats = controller.peek<VodCategory[]>(`lib-cats-${kind}`), items = controller.peek<T[]>(`lib-items-${kind}`)
+    return cats && items ? { kind: 'ready', cats, items } : { kind: 'loading' }
+  })
   const favKind = kind
   const [favs] = useState(() => controller.favourites(favKind))
   const memKey = `lib:${kind}`
@@ -25,16 +30,20 @@ export function LibraryScreen<T extends Movie | Show>({ kind, controller, state,
   useEffect(() => {
     let live = true
     Promise.all([controller.libraryCategories(kind), controller.libraryItems<T>(kind)])
-      .then(([cats, items]) => { if (live) setLoad({ kind: 'ready', cats, items }) })
+      .then(([cats, items]) => { if (live) setLoad((l) => (l.kind === 'ready' && l.items === items && l.cats === cats ? l : { kind: 'ready', cats, items })) })
       .catch((e: unknown) => { if (live) setLoad({ kind: 'error', message: e instanceof Error ? e.message : String(e) }) })
     return () => { live = false }
   }, [controller, kind, libraryAt])
 
   const items = load.kind === 'ready' ? load.items : []
-  const rows = useMemo(() => (load.kind === 'ready' ? libraryRows(load.cats, load.items, favs) : []), [load, favs])
+  const favKey = favs.join(',')
+  const rows = useMemo(() => (load.kind === 'ready' ? controller.memo(`lib-rows-${kind}:${favKey}`, () => libraryRows(load.cats, load.items, favs)) : []),
+    [load, favs, favKey, controller, kind])
+  const index = useMemo(() => (load.kind === 'ready' ? controller.memo(`lib-index-${kind}`, () => indexCatalogue(load.items)) : undefined), [load, controller, kind])
   useEffect(() => { if (row < 0 && rows.length) setRow(startRow(rows)) }, [rows, row])
   const rowId = rows[row]?.id ?? ''
-  const shown = useMemo(() => itemsOf(rowId, items, favs), [rowId, items, favs])
+  const shown = useMemo(() => (rowId === FAV_ID ? itemsOf(rowId, items, favs, index)
+    : controller.memo(`lib-shown-${kind}-${rowId}`, () => itemsOf(rowId, items, favs, index))), [rowId, items, favs, index, controller, kind])
   const favSet = useMemo(() => new Set(favs), [favs])
   const gridKey = `${memKey}:${rowId}`
   const watch = useMemo(() => controller.continueWatching(), [controller])

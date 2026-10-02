@@ -9,7 +9,7 @@ import type { AppController } from '../../controller'
 import { Focusable } from '../../Focusable'
 import { LiveDebugPanel } from './LiveDebugPanel'
 import { LiveOsd } from './LiveOsd'
-import { ALL_ID, categoryRows, channelsOf, clock, startCategory, zapIndex } from './liveModel'
+import { ALL_ID, categoryRows, channelsOf, clock, indexCatalogue, startCategory, zapIndex } from './liveModel'
 import { statusText } from './statusText'
 import { useLiveEngine } from './useLiveEngine'
 import { VirtualList } from './VirtualList'
@@ -33,7 +33,11 @@ export function LiveScreen({ platform, controller, startChannelId = null, onStar
   startChannelId?: string | null
   onStarted?: () => void
 }) {
-  const [load, setLoad] = useState<Load>({ kind: 'loading' })
+  // Warm cache = the list on the first frame; "loading" only on a genuine cold start (W4 QA P1).
+  const [load, setLoad] = useState<Load>(() => {
+    const cats = controller.peek<LiveCategory[]>('live-cats'), streams = controller.peek<LiveStream[]>('live-streams')
+    return cats && streams ? { kind: 'ready', cats, streams } : { kind: 'loading' }
+  })
   const [favs, setFavs] = useState<string[]>(() => controller.favourites())
   const [cat, setCat] = useState(-1)
   const [chanStart, setChanStart] = useState(0)
@@ -54,13 +58,16 @@ export function LiveScreen({ platform, controller, startChannelId = null, onStar
   useEffect(() => {
     let live = true
     Promise.all([controller.liveCategories(), controller.liveStreams()])
-      .then(([cats, streams]) => { if (live) setLoad({ kind: 'ready', cats, streams }) })
+      .then(([cats, streams]) => { if (live) setLoad((l) => (l.kind === 'ready' && l.streams === streams && l.cats === cats ? l : { kind: 'ready', cats, streams })) })
       .catch((e: unknown) => { if (live) setLoad({ kind: 'error', message: e instanceof Error ? e.message : String(e) }) })
     return () => { live = false }
   }, [controller])
 
   const streams = load.kind === 'ready' ? load.streams : []
-  const rows = useMemo(() => (load.kind === 'ready' ? categoryRows(load.cats, load.streams, favs) : []), [load, favs])
+  const favKey = favs.join(',')
+  const rows = useMemo(() => (load.kind === 'ready' ? controller.memo(`live-rows:${favKey}`, () => categoryRows(load.cats, load.streams, favs)) : []),
+    [load, favs, favKey, controller])
+  const index = useMemo(() => (load.kind === 'ready' ? controller.memo('live-index', () => indexCatalogue(load.streams)) : undefined), [load, controller])
   // Where the viewer left off (category and channel), unless Search asked for a channel.
   useEffect(() => {
     if (cat >= 0 || !rows.length) return
@@ -69,14 +76,14 @@ export function LiveScreen({ platform, controller, startChannelId = null, onStar
     const want = startChannelId ? ALL_ID : last.cat
     const ci = want ? rows.findIndex((r) => r.id === want) : -1
     const c = ci >= 0 ? ci : startCategory(rows)
-    const list = channelsOf(rows[c].id, streams, favs)
+    const list = channelsOf(rows[c].id, streams, favs, index)
     const chId = startChannelId ?? last.ch
     const idx = chId ? list.findIndex((x) => x.id === chId) : -1
     setCat(c)
     if (idx >= 0) { setChanStart(idx); pendingFocus.current = `live-chans-${idx}` }
-  }, [rows, cat, startChannelId, streams, favs])
+  }, [rows, cat, startChannelId, streams, favs, index])
   const catId = rows[cat]?.id ?? ''
-  const channels = useMemo(() => channelsOf(catId, streams, favs), [catId, streams, favs])
+  const channels = useMemo(() => channelsOf(catId, streams, favs, index), [catId, streams, favs, index])
   const favSet = useMemo(() => new Set(favs), [favs])
   const current = playing ? playing.list[playing.index] : null
 
@@ -94,6 +101,7 @@ export function LiveScreen({ platform, controller, startChannelId = null, onStar
     if (!s || !url || !engine) return
     engine.play({ id: s.id, name: s.name, url })
     setPlaying({ list, index })
+    controller.recordChannel({ id: s.id, name: s.name, icon: s.icon })
     try { localStorage.setItem(LAST_KEY, JSON.stringify({ cat: rows[cat]?.id, ch: s.id })) } catch { /* storage blocked */ }
   }, [controller, engine, rows, cat])
 

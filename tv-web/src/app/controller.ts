@@ -17,6 +17,7 @@ import type { LibraryKind } from '../data/catalogueStore'
 import { Parental } from '../data/parental'
 import type { LibrarySync } from '../data/session'
 import { episodeUrl, movieInfo, movieUrl, showInfo, type Movie, type MovieInfo, type Show, type ShowInfo, type VodCategory } from '../data/vodApi'
+import { recentChannels, recordChannel, type RecentChannel } from '../data/recentLive'
 import { continueWatching, recordProgress, watchEntry, watchedEpisodes, type WatchEntry } from '../data/watchState'
 import { liveUrl } from '../xtream'
 import type { LiveCategory, LiveStream } from '../data/xtreamApi'
@@ -143,17 +144,45 @@ export class AppController {
    * entry instead of a stale one; a sync clears the lot (`forgetFiltered`).
    */
   private filteredMemo = new Map<string, Promise<unknown>>()
+  /** The same entries once resolved, readable WITHOUT a promise - see peek(). */
+  private filteredReady = new Map<string, unknown>()
+  private derivedMemo = new Map<string, unknown>()
+
+  private mode(): string { return this.parental.hidesAdult() ? 'hide' : 'show' }
 
   private filtered<T>(key: string, work: () => Promise<T>): Promise<T> {
-    const k = `${key}|${this.parental.hidesAdult() ? 'hide' : 'show'}`
+    const k = `${key}|${this.mode()}`
     const hit = this.filteredMemo.get(k) as Promise<T> | undefined
     if (hit) return hit
-    const p = work().catch((e: unknown) => { this.filteredMemo.delete(k); throw e })
+    const p = work().then((v) => { if (this.filteredMemo.get(k) === p) this.filteredReady.set(k, v); return v })
+      .catch((e: unknown) => { this.filteredMemo.delete(k); throw e })
     this.filteredMemo.set(k, p)
     return p
   }
 
-  private forgetFiltered(): void { this.filteredMemo.clear() }
+  /**
+   * The cached list RIGHT NOW, or undefined on a cold start. W4 QA P1: even a resolved promise costs
+   * a microtask and a second render, and every mount began in "loading" - visible on the TV each time
+   * the viewer went Series → Movies → Live. A screen that peeks first paints its list on frame one.
+   */
+  peek<T>(key: 'live-cats' | 'live-streams' | `lib-cats-${LibraryKind}` | `lib-items-${LibraryKind}`): T | undefined {
+    return this.filteredReady.get(`${key}|${this.mode()}`) as T | undefined
+  }
+
+  /**
+   * Work derived from the cached lists (category rows, the by-category index), kept across screen
+   * changes: a screen's own useMemo dies with the screen, and rebuilding these walks 69,536 movies on
+   * the main thread - the "focus goes slow while it loads" half of P1. Cleared with the lists.
+   */
+  memo<T>(key: string, compute: () => T): T {
+    const k = `${key}|${this.mode()}`
+    if (this.derivedMemo.has(k)) return this.derivedMemo.get(k) as T
+    const v = compute()
+    this.derivedMemo.set(k, v)
+    return v
+  }
+
+  private forgetFiltered(): void { this.filteredMemo.clear(); this.filteredReady.clear(); this.derivedMemo.clear() }
   movieInfo(id: string, ext: string): Promise<MovieInfo> { return this.withAccount((a) => movieInfo(a, id, ext)) }
   showInfo(id: string): Promise<ShowInfo> { return this.withAccount((a) => showInfo(a, id)) }
   movieUrl(id: string, ext: string): string | null { const a = this.session.account(); return a ? movieUrl(a, id, ext) : null }
@@ -161,6 +190,8 @@ export class AppController {
   watchEntry(kind: WatchEntry['kind'], id: string): WatchEntry | null { return watchEntry(localStorage, kind, id) }
   recordProgress(e: Omit<WatchEntry, 'watched' | 'updatedAt'>): WatchEntry { return recordProgress(localStorage, e) }
   continueWatching(): WatchEntry[] { return continueWatching(localStorage) }
+  recentChannels(): RecentChannel[] { return recentChannels(localStorage) }
+  recordChannel(c: RecentChannel): void { recordChannel(localStorage, c) }
   watchedEpisodes(seriesId: string): Map<string, WatchEntry> { return watchedEpisodes(localStorage, seriesId) }
   retryLibrary(): void { void this.runLibrarySync() }
 

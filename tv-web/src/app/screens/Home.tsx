@@ -13,10 +13,11 @@ const TILES: Array<{ key: Screen; title: string; sub: string }> = [
 ]
 
 /** Sections first (always reachable), then "Continue watching" - the row a returning viewer wants. */
-export function Home({ onOpen, onContinue, state, controller }: {
-  onOpen: (s: Screen) => void; onContinue: (e: WatchEntry) => void; state: AppState; controller: AppController
+export function Home({ onOpen, onContinue, onChannel, state, controller }: {
+  onOpen: (s: Screen) => void; onContinue: (e: WatchEntry) => void; onChannel: (id: string) => void; state: AppState; controller: AppController
 }) {
   const cont = useMemo(() => controller.continueWatching(), [controller])
+  const recent = useMemo(() => controller.recentChannels(), [controller])
   const lib = state.library
   return (
     <>
@@ -35,6 +36,18 @@ export function Home({ onOpen, onContinue, state, controller }: {
           </Focusable>
         ))}
       </div>
+      {recent.length > 0 && (
+        <>
+          <h2 className="home-row-title">Recently watched channels</h2>
+          <div className="sr-row">
+            {recent.slice(0, 8).map((c, i) => (
+              <Focusable key={c.id} focusKey={`recent-${i}`} className="sr-chan" onEnter={() => onChannel(c.id)}>
+                {c.icon ? <img src={c.icon} alt="" onError={(e) => { e.currentTarget.style.visibility = 'hidden' }} /> : null}<span>{c.name}</span>
+              </Focusable>
+            ))}
+          </div>
+        </>
+      )}
       {cont.length > 0 && (
         <>
           <h2 className="home-row-title">Continue watching</h2>

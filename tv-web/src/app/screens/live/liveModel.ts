@@ -18,14 +18,30 @@ export function categoryRows(cats: LiveCategory[], streams: LiveStream[], favs: 
   ]
 }
 
+/**
+ * Every list by category and by id, built ONCE per catalogue (kept in the controller's memo). W4 QA
+ * P1: picking a category filtered all 15,951 channels / 69,536 films on every focus move.
+ */
+export interface CatalogueIndex<T> { byCat: Map<string, T[]>; byId: Map<string, T> }
+export function indexCatalogue<T extends { id: string; categoryId: string }>(items: T[]): CatalogueIndex<T> {
+  const byCat = new Map<string, T[]>()
+  const byId = new Map<string, T>()
+  for (const it of items) {
+    byId.set(it.id, it)
+    const list = byCat.get(it.categoryId)
+    if (list) list.push(it); else byCat.set(it.categoryId, [it])
+  }
+  return { byCat, byId }
+}
+
 /** The channels of one category, in the provider's order (session sorts them). Favourites keep the order they were added in. */
-export function channelsOf(categoryId: string, streams: LiveStream[], favs: string[]): LiveStream[] {
+export function channelsOf(categoryId: string, streams: LiveStream[], favs: string[], index?: CatalogueIndex<LiveStream>): LiveStream[] {
   if (categoryId === ALL_ID) return streams
   if (categoryId === FAVOURITES_ID) {
-    const byId = new Map(streams.map((s) => [s.id, s]))
+    const byId = index?.byId ?? new Map(streams.map((s) => [s.id, s]))
     return favs.map((id) => byId.get(id)).filter((s): s is LiveStream => s !== undefined)
   }
-  return streams.filter((s) => s.categoryId === categoryId)
+  return index ? index.byCat.get(categoryId) ?? [] : streams.filter((s) => s.categoryId === categoryId)
 }
 
 /** Where the viewer starts: their favourites if they have any, else the provider's first category. */

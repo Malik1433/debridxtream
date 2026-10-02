@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { LiveStream } from '../../../data/xtreamApi'
-import { ALL_ID, FAVOURITES_ID, categoryRows, channelsOf, progress, startCategory, zapIndex } from './liveModel'
+import { ALL_ID, FAVOURITES_ID, categoryRows, channelsOf, indexCatalogue, progress, startCategory, zapIndex } from './liveModel'
 
 const s = (id: string, categoryId: string): LiveStream => ({ id, name: `ch${id}`, categoryId, icon: '', epgId: '', archive: false })
 const streams = [s('1', 'a'), s('2', 'b'), s('3', 'a')]
@@ -36,5 +36,12 @@ describe('liveModel', () => {
     expect(progress(0, 100, 50)).toBe(0.5)
     expect(progress(0, 100, 500)).toBe(1)
     expect(progress(100, 100, 50)).toBe(0)
+  })
+
+  it('indexes by category and id once, and lists from the index', () => {
+    const idx = indexCatalogue(streams)
+    expect(channelsOf('a', streams, [], idx).map((x) => x.id)).toEqual(['1', '3'])
+    expect(channelsOf('zz', streams, [], idx)).toEqual([])
+    expect(channelsOf(FAVOURITES_ID, streams, ['3', 'gone'], idx).map((x) => x.id)).toEqual(['3'])
   })
 })

@@ -26,6 +26,8 @@ export interface LiveMedia {
   tryAlternative?(): boolean
   /** Which player is carrying the picture right now (debug panel). */
   playerName?(): string
+  /** Numbers on why nothing plays yet (buffer, frames, errors) - written to the log on a failed start. */
+  diagnose?(): string
   /** No picture yet, and what the stream carries points at the other player: try it early. */
   prefersAlternative?(): boolean
 }
@@ -101,6 +103,8 @@ export class LiveEngine {
   private lastSpeedAt = 0
   private quickRetry = 0
   private speed = 1
+  /** When the viewer asked for this channel - not reset by a fallback, so the log shows the whole wait. */
+  private openedAt = 0
 
   constructor(private readonly media: LiveMedia, private readonly clock: Clock, private readonly log: (line: string) => void = () => undefined) {
     this.patience = new RebufferPatience(clock.now)
@@ -132,6 +136,7 @@ export class LiveEngine {
     this.holdOn.onRecovered()
     this.quickRetry = 0
     this.channel = c
+    this.openedAt = this.clock.now()
     this.open()
   }
 
@@ -236,6 +241,8 @@ export class LiveEngine {
   /** No picture at all, and no error either: the provider simply never sent one. Say so and stop. */
   private failToStart(c: LiveChannel): void {
     const carries = this.media.mediaInfo?.() ?? null
+    const why = this.media.diagnose?.()
+    if (why) this.log(`live: ${this.media.playerName?.() ?? 'player'} state - ${why}`)
     if (this.media.tryAlternative?.()) {
       this.log(`live: no picture in ${this.clock.now() - this.loadedAt} ms on ${c.name}${carries ? ` (${carries})` : ''} - trying ${this.media.playerName?.() ?? 'another player'}`)
       this.loadedAt = this.clock.now()
@@ -279,6 +286,7 @@ export class LiveEngine {
   }
 
   private becamePlaying(c: LiveChannel): void {
+    if (!this.started) this.log(`live: first picture on ${c.name} after ${this.clock.now() - this.openedAt} ms (${this.media.playerName?.() ?? 'player'})`)
     this.started = true
     this.meter.onPlaying()
     this.holdOn.onRecovered()

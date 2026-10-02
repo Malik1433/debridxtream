@@ -18,9 +18,14 @@ export type LibraryKind = 'movies' | 'shows'
 const LIB_STORES: Record<LibraryKind, [string, string]> = { movies: ['movie_categories', 'movies'], shows: ['show_categories', 'shows'] }
 
 const DB = 'dxplay'
-/** v2 (W4) ADDS the library stores; an upgrade never drops one (CLAUDE.md: no destructive migrations). */
-const VERSION = 2
-const STORES = ['live_categories', 'live_streams', 'movie_categories', 'movies', 'show_categories', 'shows'] as const
+/**
+ * v2 (W4) added the per-record library stores; v3 adds `library`, where each half lives as ONE
+ * record. An upgrade never drops a store (CLAUDE.md: no destructive migrations) - the v2 stores
+ * are still read as a fallback until the first v3 write replaces them.
+ */
+const VERSION = 3
+const STORES = ['live_categories', 'live_streams', 'movie_categories', 'movies', 'show_categories', 'shows', 'library'] as const
+interface LibraryBlob { id: LibraryKind; categories: VodCategory[]; items: Array<Movie | Show> }
 
 function open(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
@@ -65,20 +70,40 @@ export class IdbCatalogueStore implements CatalogueStore {
     await done(tx)
   }
 
+  /**
+   * One put of one record. W4 QA P3: 69,536 films + 7,443 series as ~77,000 puts in one transaction
+   * ended in "Transaction timed out due to inactivity" on the Samsung - the TV could not finish the
+   * write in time and the update was lost. The screens only ever read a whole half at once, so one
+   * structured-clone record is both the fast write and the fast read, and still all or nothing.
+   */
   async replaceLibrary(kind: LibraryKind, categories: VodCategory[], items: Array<Movie | Show>): Promise<void> {
     const [catStore, itemStore] = LIB_STORES[kind]
     const db = await this.conn()
-    const tx = db.transaction([catStore, itemStore], 'readwrite')
-    const cats = tx.objectStore(catStore)
-    const rows = tx.objectStore(itemStore)
-    cats.clear(); rows.clear()
-    categories.forEach((c) => cats.put(c))
-    items.forEach((i) => rows.put(i))
+    const tx = db.transaction(['library', catStore, itemStore], 'readwrite')
+    tx.objectStore('library').put({ id: kind, categories, items } satisfies LibraryBlob)
+    // The v2 copy is superseded: clearing a store is one request, not one per row.
+    tx.objectStore(catStore).clear(); tx.objectStore(itemStore).clear()
     await done(tx)
   }
 
-  async libraryCategories(kind: LibraryKind): Promise<VodCategory[]> { return all(await this.conn(), LIB_STORES[kind][0]) }
-  async libraryItems<T extends Movie | Show>(kind: LibraryKind): Promise<T[]> { return all<T>(await this.conn(), LIB_STORES[kind][1]) }
+  private async blob(kind: LibraryKind): Promise<LibraryBlob | null> {
+    const db = await this.conn()
+    return new Promise((resolve, reject) => {
+      const req = db.transaction('library', 'readonly').objectStore('library').get(kind)
+      req.onsuccess = () => resolve((req.result as LibraryBlob | undefined) ?? null)
+      req.onerror = () => reject(req.error)
+    })
+  }
+
+  async libraryCategories(kind: LibraryKind): Promise<VodCategory[]> {
+    const b = await this.blob(kind)
+    return b ? b.categories : all(await this.conn(), LIB_STORES[kind][0])
+  }
+
+  async libraryItems<T extends Movie | Show>(kind: LibraryKind): Promise<T[]> {
+    const b = await this.blob(kind)
+    return b ? (b.items as T[]) : all<T>(await this.conn(), LIB_STORES[kind][1])
+  }
 
   async liveCategories(): Promise<LiveCategory[]> { return all(await this.conn(), 'live_categories') }
   async liveStreams(): Promise<LiveStream[]> { return all(await this.conn(), 'live_streams') }

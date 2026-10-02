@@ -1,4 +1,5 @@
 import type { VodCategory } from '../../../data/vodApi'
+import type { CatalogueIndex } from '../live/liveModel'
 
 export const FAV_ID = '__fav'
 export const RECENT_ID = '__recent'
@@ -21,14 +22,14 @@ export function libraryRows(cats: VodCategory[], items: Item[], favs: string[]):
   ]
 }
 
-export function itemsOf<T extends Item>(rowId: string, items: T[], favs: string[]): T[] {
+export function itemsOf<T extends Item>(rowId: string, items: T[], favs: string[], index?: CatalogueIndex<T>): T[] {
   if (rowId === ALL_ID) return items
   if (rowId === RECENT_ID) return [...items].sort((a, b) => b.added - a.added).slice(0, RECENT_LIMIT)
   if (rowId === FAV_ID) {
-    const byId = new Map(items.map((i) => [i.id, i]))
+    const byId = index?.byId ?? new Map(items.map((i) => [i.id, i]))
     return favs.map((id) => byId.get(id)).filter((i): i is T => i !== undefined)
   }
-  return items.filter((i) => i.categoryId === rowId)
+  return index ? index.byCat.get(rowId) ?? [] : items.filter((i) => i.categoryId === rowId)
 }
 
 /** Start on Favourites when there are some, else Recently added - what a returning viewer looks for. */

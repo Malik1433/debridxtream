@@ -14,6 +14,7 @@ export interface PrimaryMedia {
   onError(cb: (e: PlayerError) => void): void
   onMediaInfo(cb: (i: { video?: string; audio?: string }) => void): void
   mediaInfo(): string | null
+  diagnose?(): string
 }
 
 /** The player for what the primary cannot carry (Samsung: AVPlay). It keeps its own buffer. */
@@ -76,6 +77,7 @@ export class LiveMediaSwitch implements LiveMedia {
   onError(cb: (e: PlayerError) => void): void { this.errorCb = cb }
   mediaInfo(): string | null { return this.primary.mediaInfo() }
   reportsBuffer(): boolean { return this.active === 'primary' }
+  diagnose(): string { return this.active === 'primary' ? this.primary.diagnose?.() ?? '' : '' }
   playerName(): string { return this.current().name }
 
   tryAlternative(): boolean {

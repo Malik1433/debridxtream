@@ -160,7 +160,7 @@ export function App({ platform, state, controller, onSyncNow }: { platform: Plat
         <div ref={content.ref} className="content">
           {detail?.kind === 'movie' && <MovieDetail key={detail.item.id} movie={detail.item} controller={controller} onPlay={setPlay} />}
           {detail?.kind === 'show' && <ShowDetail key={detail.item.id} show={detail.item} controller={controller} onPlay={setPlay} />}
-          {!detail && screen === 'home' && <Home onOpen={open} onContinue={onContinue} state={state} controller={controller} />}
+          {!detail && screen === 'home' && <Home onOpen={open} onContinue={onContinue} onChannel={(id) => { setLiveStart(id); open('live') }} state={state} controller={controller} />}
           {!detail && screen === 'live' && <LiveScreen platform={platform} controller={controller} startChannelId={liveStart} onStarted={() => setLiveStart(null)} />}
           {!detail && screen === 'movies' && <LibraryScreen<Movie> kind="movies" controller={controller} state={state} onOpen={(m) => setDetail({ kind: 'movie', item: m })} />}
           {!detail && screen === 'series' && <LibraryScreen<Show> kind="shows" controller={controller} state={state} onOpen={(m) => setDetail({ kind: 'show', item: m })} />}
