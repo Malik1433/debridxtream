@@ -108,7 +108,10 @@ export class LiveMediaSwitch implements LiveMedia {
       this.errorCb({ network: false, message: `audio ${i.audio} is not supported on this TV` })
       return
     }
-    this.log(`player: audio ${i.audio} cannot reach this TV's MSE - playing it on ${this.fallback.name}`)
+    // Not "the TV cannot decode it": the TV may well (W4 QA N1 - it reports AC-3 through MSE). What
+    // is known is narrower: it does not play through mpegts.js here, by MSE's answer or by a
+    // channel that already failed.
+    this.log(`player: audio ${i.audio} does not play through ${this.primary.name} on this TV - playing it on ${this.fallback.name}`)
     this.needsFallback.add(this.url)
     this.primary.stop()
     this.useFallback(this.url)

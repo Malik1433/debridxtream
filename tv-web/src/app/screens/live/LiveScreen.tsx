@@ -12,6 +12,7 @@ import { LiveOsd } from './LiveOsd'
 import { ALL_ID, categoryRows, channelsOf, clock, indexCatalogue, startCategory, zapIndex } from './liveModel'
 import { statusText } from './statusText'
 import { useLiveEngine } from './useLiveEngine'
+import { useDebounced } from '../../useDebounced'
 import { VirtualList } from './VirtualList'
 
 const OSD_MS = 5_000
@@ -225,6 +226,7 @@ export function LiveScreen({ platform, controller, startChannelId = null, onStar
     return () => clearTimeout(t)
   }, [osdUntil])
 
+  const pickCat = useDebounced((i: number) => { if (i !== cat) { setCat(i); setChanStart(0); focusedChan.current = 0 } })
   const pill = statusText(status)
   const osdShown = full && osdUntil > Date.now()
 
@@ -236,8 +238,8 @@ export function LiveScreen({ platform, controller, startChannelId = null, onStar
         {load.kind === 'error' && <p className="muted">Could not read the channel list ({load.message}).</p>}
         {cat >= 0 && (
           <VirtualList focusKey="live-cats" count={rows.length} rowHeight={66} visibleRows={12} startIndex={cat}
-            onFocusIndex={(i) => { if (i !== cat) { setCat(i); setChanStart(0); focusedChan.current = 0 } }}
-            onEnter={() => { if (channels.length) void setFocus(`live-chans-0`) }}
+            onFocusIndex={pickCat.call}
+            onEnter={() => { pickCat.flush(); pendingFocus.current = 'live-chans-0' }}
             render={(i) => (
               <div className={`cat-row${i === cat ? ' selected' : ''}`}>
                 <span className="name">{rows[i].name}</span><span className="count">{rows[i].count}</span>

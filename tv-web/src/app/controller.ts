@@ -17,6 +17,7 @@ import type { LibraryKind } from '../data/catalogueStore'
 import { Parental } from '../data/parental'
 import type { LibrarySync } from '../data/session'
 import { episodeUrl, movieInfo, movieUrl, showInfo, type Movie, type MovieInfo, type Show, type ShowInfo, type VodCategory } from '../data/vodApi'
+import { enrich, type Enrichment } from '../data/tmdb'
 import { recentChannels, recordChannel, type RecentChannel } from '../data/recentLive'
 import { continueWatching, recordProgress, watchEntry, watchedEpisodes, type WatchEntry } from '../data/watchState'
 import { liveUrl } from '../xtream'
@@ -185,6 +186,8 @@ export class AppController {
   private forgetFiltered(): void { this.filteredMemo.clear(); this.filteredReady.clear(); this.derivedMemo.clear() }
   movieInfo(id: string, ext: string): Promise<MovieInfo> { return this.withAccount((a) => movieInfo(a, id, ext)) }
   showInfo(id: string): Promise<ShowInfo> { return this.withAccount((a) => showInfo(a, id)) }
+  /** TMDB, as the Android detail pages use it (plot, backdrop, cast...). Null without a key or a match. */
+  enrich(kind: 'movie' | 'tv', title: string, year: string): Promise<Enrichment | null> { return enrich(kind, title, year) }
   movieUrl(id: string, ext: string): string | null { const a = this.session.account(); return a ? movieUrl(a, id, ext) : null }
   episodeUrl(id: string, ext: string): string | null { const a = this.session.account(); return a ? episodeUrl(a, id, ext) : null }
   watchEntry(kind: WatchEntry['kind'], id: string): WatchEntry | null { return watchEntry(localStorage, kind, id) }

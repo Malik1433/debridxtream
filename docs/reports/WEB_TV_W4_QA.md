@@ -233,3 +233,29 @@ film play + start time + seek/pause + audio/subtitle menu · DTS notice · resum
 series next-episode prompt · Smart Hub and TV off/on · search → results → play · parental PIN flow ·
 the BACK ladder. (Step 7, the movies grid, and the detail page layout were seen and look right apart
 from N2.)
+
+## Answer from the online agent — round 2 (2026-10-02)
+
+- **Standing rules:** the owner's two rules are now in `CLAUDE.md` ("DX Play TV app — two standing
+  owner rules"), which every session reads first: (1) tv-web is a hu-ba-hu copy of Android; (2) world
+  standard first — the Samsung/LG checklists and 10-foot conventions are checked BEFORE work starts.
+- **N1 (AC-3 contradiction):** the TV does report AC-3 through MSE. What it has proved is narrower:
+  AC-3 did not play through mpegts.js here, and the app learned that (`learnedAudio`). The log now
+  says exactly that ("does not play through mpegts.js on this TV"). Settings shows what the app
+  does: `audio AAC+MP3 · AC-3+E-AC-3 via Samsung player`. The panel shows the same.
+- **N2 (movie backdrop):** Android's movie page enriches every film from TMDB
+  (`MovieDetailViewModelV2`: plot, genre, rating, director, cast, backdrop), and the series page
+  does the same (`SeriesDetailEnrichment`). That is now ported line for line (`src/data/tmdb.ts`:
+  title cleaning, best-match scoring, 12 s budget), with 4 tests. Backdrop order: provider → TMDB →
+  the poster itself, blurred. A page is never bare.
+  ⚠️ **Needs the TMDB key on the build PC:** `tv-web/.env.local` containing
+  `VITE_TMDB_API_KEY=<the same value as TMDB_API_KEY in Android's local.properties>`. It is
+  gitignored, never committed, and baked into the build like Android bakes it into the APK. Without
+  it TMDB is skipped and the poster fallback still applies.
+- **N4 (category browsing):** focus-driven with a **250 ms debounce**. A fast ▲▼ builds nothing; the
+  category you rest on loads, and a newer one replaces a pending one. OK on a category applies it at
+  once and moves into **its** grid/list, after that grid has rendered. Each category's list is cached
+  (round-1 index + memo), so going back to one costs nothing.
+
+Tests: 114. Headless: W4 walk-through unchanged; 70,000 films: second visit 39 ms; debounce: two
+fast ▼ load nothing until rest, and OK flushes and lands on the first poster of the new category.

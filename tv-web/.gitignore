@@ -6,3 +6,7 @@ w0.local.json
 public/w0.local.json
 build-tizen/
 build-webos/
+
+# TMDB key (VITE_TMDB_API_KEY) for detail-page enrichment - same key as Android local.properties, never committed.
+.env.local
+.env.*.local

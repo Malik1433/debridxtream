@@ -1,5 +1,6 @@
 import { setFocus } from '@noriginmedia/norigin-spatial-navigation'
 import { useEffect, useMemo, useState } from 'react'
+import type { Enrichment } from '../../../data/tmdb'
 import type { Show, ShowInfo } from '../../../data/vodApi'
 import { resumePointMs } from '../../../data/watchState'
 import { clockOf } from '../../../player/vod/vodTypes'
@@ -15,6 +16,7 @@ import { episodeRequest, type PlayRequest } from '../vod/playRequest'
 export function ShowDetail({ show, controller, onPlay }: { show: Show; controller: AppController; onPlay: (r: PlayRequest) => void }) {
   const [info, setInfo] = useState<ShowInfo | null>(null)
   const [failed, setFailed] = useState(false)
+  const [tmdb, setTmdb] = useState<Enrichment | null>(null)
   const [season, setSeason] = useState<number | null>(null)
   const [fav, setFav] = useState(() => controller.favourites('shows').includes(show.id))
   const watched = useMemo(() => controller.watchedEpisodes(show.id), [controller, show.id])
@@ -22,6 +24,8 @@ export function ShowDetail({ show, controller, onPlay }: { show: Show; controlle
   useEffect(() => {
     let live = true
     controller.showInfo(show.id).then((i) => { if (live) setInfo(i) }).catch(() => { if (live) setFailed(true) })
+    // Android SeriesDetailEnrichment: TMDB TV details for the same page.
+    controller.enrich('tv', show.name, show.year).then((t) => { if (live) setTmdb(t) }).catch(() => undefined)
     return () => { live = false }
   }, [controller, show.id])
 
@@ -45,18 +49,23 @@ export function ShowDetail({ show, controller, onPlay }: { show: Show; controlle
     if (e) onPlay(episodeRequest(e, ref, episodes, resumePointMs(watched.get(e.id) ?? null)))
   }
   const resumeMs = resumeEp ? resumePointMs(watched.get(resumeEp.id) ?? null) : 0
-  const facts = [info?.year || show.year, info?.genre, (info?.rating || show.rating) ? `★ ${(info?.rating || show.rating).toFixed(1)}` : '',
+  const backdrop = info?.backdrop || tmdb?.backdrop || ''
+  const posterBg = !backdrop ? (tmdb?.poster || info?.poster || show.poster || '') : ''
+  const plot = info?.plot || tmdb?.plot
+  const sRating = info?.rating || show.rating || tmdb?.rating || 0
+  const facts = [info?.year || show.year || tmdb?.year, info?.genre || tmdb?.genre, sRating ? `★ ${sRating.toFixed(1)}` : '',
     info ? `${info.seasons.length} season${info.seasons.length === 1 ? '' : 's'}` : ''].filter(Boolean).join(' · ')
 
   return (
     <div className="detail">
-      {info?.backdrop && <img className="detail-backdrop" src={info.backdrop} alt="" onError={(e) => { e.currentTarget.style.display = 'none' }} />}
+      {backdrop && <img className="detail-backdrop" src={backdrop} alt="" onError={(e) => { e.currentTarget.style.display = 'none' }} />}
+      {posterBg && <img className="detail-backdrop poster-bg" src={posterBg} alt="" onError={(e) => { e.currentTarget.style.display = 'none' }} />}
       <div className="detail-shade" />
       <div className="detail-body show">
         <div className="detail-text">
           <h1>{show.name}</h1>
           <div className="detail-facts">{facts || (failed ? 'No details from the provider' : 'Loading episodes…')}</div>
-          {info?.plot && <p className="detail-plot short">{info.plot}</p>}
+          {plot && <p className="detail-plot short">{plot}</p>}
           <div className="buttons detail-buttons">
             {resumeEp && (
               <Focusable focusKey="detail-play" className="button primary"

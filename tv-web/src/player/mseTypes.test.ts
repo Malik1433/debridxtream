@@ -21,4 +21,10 @@ describe('codecSupport', () => {
     expect(codecLine(probeCodecs(samsung, false))).toBe('HD only (no HEVC) · audio AAC')
     expect(codecLine({ h264: true, hevc: false, aac: true, mp3: true, ac3: true, eac3: false })).toBe('HD only (no HEVC) · audio AAC+MP3+AC-3')
   })
+
+  it('says which audio goes to the other player, so Settings promises only what the app does', () => {
+    const all = { h264: true, hevc: true, aac: true, mp3: true, ac3: true, eac3: true }
+    expect(codecLine(all, new Set(['ac-3', 'ec-3']), 'Samsung player')).toBe('HD and 4K (HEVC) · audio AAC+MP3 · AC-3+E-AC-3 via Samsung player')
+    expect(codecLine(all, new Set(['ac-3']), null)).toBe('HD and 4K (HEVC) · audio AAC+MP3+E-AC-3')
+  })
 })

@@ -43,10 +43,17 @@ export function probeCodecs(can: CanPlay, hevcViaLib: boolean): CodecSupport {
   }
 }
 
-/** One short line for Settings, so the viewer and a QA run can both see the answer. */
-export function codecLine(c: CodecSupport): string {
+/**
+ * One short line for Settings, so the viewer and a QA run can both see the answer - and it must
+ * match what the app DOES (W4 QA N1: the line promised AC-3 while the player moved AC-3 channels to
+ * AVPlay). [learnedBad] = codecs this TV proved mpegts.js cannot play (learnedAudio.ts);
+ * [fallbackName] = the player that carries them instead, if this TV has one.
+ */
+export function codecLine(c: CodecSupport, learnedBad: Set<string> = new Set(), fallbackName: string | null = null): string {
   const v = c.hevc ? 'HD and 4K (HEVC)' : c.h264 ? 'HD only (no HEVC)' : 'no video'
-  const a = [c.aac ? 'AAC' : null, c.mp3 ? 'MP3' : null, c.ac3 ? 'AC-3' : null, c.eac3 ? 'E-AC-3' : null]
-    .filter(Boolean).join('+') || 'none'
+  const all: Array<[boolean, string, string]> = [[c.aac, 'AAC', 'mp4a.40.2'], [c.mp3, 'MP3', 'mp3'], [c.ac3, 'AC-3', 'ac-3'], [c.eac3, 'E-AC-3', 'ec-3']]
+  const direct = all.filter(([ok, , codec]) => ok && !learnedBad.has(codec)).map(([, name]) => name)
+  const viaFallback = all.filter(([, , codec]) => learnedBad.has(codec)).map(([, name]) => name)
+  const a = (direct.join('+') || 'none') + (viaFallback.length && fallbackName ? ` · ${viaFallback.join('+')} via ${fallbackName}` : '')
   return `${v} · audio ${a}`
 }

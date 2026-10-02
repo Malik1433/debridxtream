@@ -234,3 +234,5 @@ html.avplay-on .vod-player video { visibility: hidden; }
 /* In the grid the poster height is fixed so the title and year fit under it inside the cell. */
 .vcell .poster-img { aspect-ratio: auto; height: 220px; }
 .ep-row .name { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* W4 QA N2: no backdrop from the provider or TMDB - the poster fills the space, softened so the text stays readable. */
+.detail-backdrop.poster-bg { filter: blur(18px) saturate(1.2); opacity: 0.45; transform: scale(1.1); }

@@ -160,6 +160,33 @@ to either without knowing which it got. Only genuinely behavioural differences g
 **Before calling any UI batch done, state which rulebook it was checked against and on which device.**
 A TV smoke does not certify the phone, and a phone QA does not certify the TV.
 
+## DX Play TV app (`tv-web/`) — two standing owner rules (2026-10-02)
+
+These apply to EVERY change in `tv-web/` (Samsung Tizen, LG webOS, VIDAA), before work starts —
+not as a review afterwards.
+
+1. **It is a COPY of the Android app — look and function, hu-ba-hu.** Owner: *"look-wise,
+   functions-wise it should be the same as our Android app — the graphics, everything."* A screen,
+   control or behaviour the Android app has and `tv-web` lacks is a **defect**, not a backlog idea.
+   Before building or changing a screen, open the Android screen it mirrors (layouts, Kotlin,
+   strings) and carry over layout, spacing, colours, poster shapes, row order, button wording and
+   focus behaviour. Where a TV platform genuinely forbids something, say so out loud instead of
+   quietly simplifying. (Detail: `docs/reports/WEB_TV_APP_DESIGN.md` §0b.)
+2. **World standard first — follow the published rules for TV apps, from the start.** Owner: *"jo
+   bhi kaam karna hai woh world standard ke hisaab se karna hai, un rules ko follow karna hai jo in
+   apps ke liye tay hain — pehle se hi, har kaam se pehle."* Before writing code, check the rules
+   that govern it and design to them:
+   - Samsung TV development checklist (Return/Exit keys, exit popup, multitasking hide/resume,
+     network-loss message, loading indicators, media/colour/number keys, screensaver during
+     playback, AVPlay suspend/restore) and the AVPlay / IME / subtitle guides;
+   - LG webOS guidelines (back button, `disableBackHistoryAPI`, media formats);
+   - 10-foot UX conventions (Netflix / YouTube TV / Android TV Leanback): focus-driven browsing
+     with a debounce, never "focus then OK" to browse, focus always visible, BACK never traps;
+   - the TV rulebook in "Two platforms, two rulebooks" above.
+   Android sets the SHAPE (rule 1); these standards decide only what Android leaves open, and
+   never change Android's shape. Research first, implement once, verify on the TV once — record the
+   sources in the design doc (§11/§12).
+
 ## World-class gaps this project has NOT closed yet (audited 2026-08-09)
 
 The three rulebooks above cover code structure, runtime correctness and the two UI platforms. These

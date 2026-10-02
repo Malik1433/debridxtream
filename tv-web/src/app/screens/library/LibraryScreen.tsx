@@ -9,6 +9,7 @@ import { indexCatalogue } from '../live/liveModel'
 import { Poster } from './Poster'
 import { VirtualGrid } from './VirtualGrid'
 import { recall, remember, takeReturn } from './focusMemory'
+import { useDebounced } from '../../useDebounced'
 
 type Load<T> = { kind: 'loading' } | { kind: 'ready'; cats: VodCategory[]; items: T[] } | { kind: 'error'; message: string }
 
@@ -49,6 +50,14 @@ export function LibraryScreen<T extends Movie | Show>({ kind, controller, state,
   const watch = useMemo(() => controller.continueWatching(), [controller])
   const progressOf = (id: string) => { const e = watch.find((w) => (kind === 'movies' ? w.kind === 'movie' && w.id === id : w.seriesId === id)); return e && e.durationMs ? e.progressMs / e.durationMs : 0 }
 
+  // OK on a category: into ITS grid - after the grid for that category has rendered, not the old one.
+  const toGrid = useRef(false)
+  useEffect(() => {
+    if (!toGrid.current || !shown.length || !doesFocusableExist('lib-grid-0')) return
+    toGrid.current = false
+    void setFocus('lib-grid-0')
+  })
+
   // Back from a detail page: the poster it was opened from, once the grid is there again.
   const returning = useRef(takeReturn())
   useEffect(() => {
@@ -65,6 +74,7 @@ export function LibraryScreen<T extends Movie | Show>({ kind, controller, state,
     void setFocus(shown.length ? `lib-grid-${Math.min(recall(gridKey), shown.length - 1)}` : `lib-cats-${row}`)
   })
 
+  const pick = useDebounced((i: number) => { if (i !== row) { setRow(i); remember(`${memKey}:row`, i + 1) } })
   const syncing = state.librarySyncing && !state.library
   const title = kind === 'movies' ? 'Movies' : 'Series'
   return (
@@ -78,8 +88,8 @@ export function LibraryScreen<T extends Movie | Show>({ kind, controller, state,
         )}
         {row >= 0 && items.length > 0 && (
           <VirtualList focusKey="lib-cats" count={rows.length} rowHeight={66} visibleRows={12} startIndex={row}
-            onFocusIndex={(i) => { if (i !== row) { setRow(i); remember(`${memKey}:row`, i + 1) } }}
-            onEnter={() => { if (shown.length) void setFocus('lib-grid-0') }}
+            onFocusIndex={pick.call}
+            onEnter={() => { pick.flush(); toGrid.current = true }}
             render={(i) => <div className={`cat-row${i === row ? ' selected' : ''}`}><span className="name">{rows[i].name}</span><span className="count">{rows[i].count}</span></div>} />
         )}
       </div>

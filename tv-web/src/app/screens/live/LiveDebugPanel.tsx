@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import type { LiveEngine, LiveStatus } from '../../../player/liveEngine'
 import { liveLogLines, onLiveLog } from '../../../player/liveLog'
 import { thisTvCodecLine } from '../../../player/codecSupport'
+import { learnedBad } from '../../../player/learnedAudio'
 
 const sec = (ms: number | null) => (ms === null ? 'n/a' : `${(ms / 1000).toFixed(1)} s`)
 
@@ -24,7 +25,7 @@ export function LiveDebugPanel({ engine, status }: { engine: LiveEngine; status:
         <b>{d.player}</b> · {status.kind} · pos {sec(d.positionMs)} · buffer {sec(d.aheadMs)} · speed {d.speed.toFixed(2)}x
         · stalls {d.stalls}/3 min{d.targetMs > 0 ? ` (wants ${sec(d.targetMs)})` : ''} · stops {engine.meter.count}
       </div>
-      <div className="dbg-head">{thisTvCodecLine()} · red = this channel on the other player</div>
+      <div className="dbg-head">{thisTvCodecLine(learnedBad(localStorage), 'AVPlay')} · red = this channel on the other player</div>
       {liveLogLines().slice(-14).map((l, i) => <div key={i} className="dbg-line">{l}</div>)}
     </div>
   )

@@ -8,4 +8,6 @@ export function codecSupport(): CodecSupport {
   return probeCodecs(mseCanPlay(), viaLib)
 }
 
-export function thisTvCodecLine(): string { return codecLine(codecSupport()) }
+export function thisTvCodecLine(learnedBad?: Set<string>, fallbackName?: string | null): string {
+  return codecLine(codecSupport(), learnedBad, fallbackName ?? null)
+}

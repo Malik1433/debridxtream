@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type { LicenseState } from '../../license/policy'
 import { thisTvCodecLine } from '../../player/codecSupport'
+import { learnedBad } from '../../player/learnedAudio'
 import { avplayAvailable } from '../../player/AvplayAdapter'
 import { playerKindFor } from '../../player/PlayerAdapter'
 import { deviceId, type Platform } from '../../platform'
@@ -52,7 +53,7 @@ export function Settings({ platform, state, controller, onSyncNow, onHome }:
           : sync.kind === 'running' ? 'updating…' : sync.kind === 'error' ? `update failed: ${sync.message}` : '—'}</div>
         <div><b>Movies / series</b>{lib ? `${lib.movies.toLocaleString()} / ${lib.shows.toLocaleString()}${lib.error ? ` · last update failed: ${lib.error}` : ''}` : '—'}{state.librarySyncing ? ' · updating…' : ''}</div>
         <div><b>Parental controls</b>{parentalText}</div>
-        <div><b>Playback</b>{thisTvCodecLine()}</div>
+        <div><b>Playback</b>{thisTvCodecLine(learnedBad(localStorage), avplayAvailable() ? 'Samsung player' : null)}</div>
         <div><b>Version</b>{__APP_VERSION__} · {platform} · {playerKindFor(platform)}{avplayAvailable() ? ' (+AVPlay)' : ''} · device {id ? `${id.slice(0, 6)}…` : 'n/a'}</div>
       </div>
       <div className="buttons" style={{ marginTop: 40 }}>
