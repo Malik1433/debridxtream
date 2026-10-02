@@ -13,13 +13,14 @@ export function menuRows(tracks: Track[], audio: number | null, text: number | n
   ]
 }
 
-export function TrackMenu({ rows, focus }: { rows: MenuRow[]; focus: number }) {
+export function TrackMenu({ rows, focus, title }: { rows: MenuRow[]; focus: number; title?: string }) {
   return (
     <div className="track-menu">
-      {rows.length === 0 && <div className="tm-empty">This video has one audio track and no subtitles</div>}
+      {title && <div className="tm-head">{title}</div>}
+      {rows.length === 0 && <div className="tm-empty">{title === 'SUBTITLES' ? 'This video has no subtitles' : 'Nothing to choose here'}</div>}
       {rows.map((r, i) => (
-        <div key={`${r.kind}-${r.index}`}>
-          {(i === 0 || rows[i - 1].kind !== r.kind) && <div className="tm-head">{r.kind === 'audio' ? 'Audio' : 'Subtitles'}</div>}
+        <div key={`${r.kind}-${r.index}-${i}`}>
+          {!title && (i === 0 || rows[i - 1].kind !== r.kind) && <div className="tm-head">{r.kind === 'audio' ? 'Audio' : 'Subtitles'}</div>}
           <div className={`tm-row${i === focus ? ' focused' : ''}${r.on ? ' on' : ''}`}>{r.on ? '● ' : '○ '}{r.label}</div>
         </div>
       ))}

@@ -18,7 +18,19 @@ setKeyMap(spatialKeyMap(platform))
 const stage = document.createElement('div')
 stage.id = 'stage'
 document.getElementById('root')!.appendChild(stage)
-const fit = () => { stage.style.transform = `scale(${window.innerWidth / 1920}, ${window.innerHeight / 1080})` }
+/**
+ * ONE scale factor, never a squash (W4 QA N5: Samsung's keyboard takes the bottom of the screen,
+ * innerHeight halves, and a separate Y scale flattened the whole app). A resize that only shrinks the
+ * height - the keyboard opening - keeps the current scale; the keyboard covers the bottom instead.
+ */
+let fitted = { w: 0, h: 0 }
+const fit = () => {
+  const w = window.innerWidth, h = window.innerHeight
+  if (fitted.w === w && h < fitted.h) return
+  fitted = { w, h }
+  const s = Math.min(w / 1920, h / 1080)
+  stage.style.transform = `translate(${(w - 1920 * s) / 2}px, ${(h - 1080 * s) / 2}px) scale(${s})`
+}
 fit()
 window.addEventListener('resize', fit)
 

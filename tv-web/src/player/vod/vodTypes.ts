@@ -26,6 +26,8 @@ export interface VodPlayer {
   selectTrack(kind: Track['kind'], index: number | null): void
   selected(kind: Track['kind']): number | null
   onEvent(cb: (e: VodEvent) => void): void
+  /** ASPECT button: fill the screen (crop) or fit the whole picture. */
+  setFill?(fill: boolean): void
   destroy(): void
 }
 

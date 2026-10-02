@@ -128,6 +128,9 @@ export class AvplayVod implements VodPlayer {
 
   selected(kind: Track['kind']): number | null { return kind === 'audio' ? this.currentAudio() : this.text }
   onEvent(cb: (e: VodEvent) => void): void { this.cb = cb }
+  setFill(fill: boolean): void {
+    try { webapis.avplay.setDisplayMethod(fill ? 'PLAYER_DISPLAY_MODE_FULL_SCREEN' : 'PLAYER_DISPLAY_MODE_LETTER_BOX') } catch { /* not open */ }
+  }
   destroy(): void { this.stop() }
 }
 

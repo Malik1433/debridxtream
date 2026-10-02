@@ -11,9 +11,11 @@ import { learnBad, learnedBad } from '../../../player/learnedAudio'
 /** Where [el] is on screen, in the 1920x1080 coordinates AVPlay's setDisplayRect takes. */
 function rectIn1080p(el: HTMLElement | null): Rect | null {
   if (!el) return null
+  // Relative to the stage (the 1920x1080 design), so the scale and any letterbox offset drop out.
+  const st = document.getElementById('stage')?.getBoundingClientRect()
   const r = el.getBoundingClientRect()
-  const sx = 1920 / window.innerWidth, sy = 1080 / window.innerHeight
-  return { x: r.left * sx, y: r.top * sy, w: r.width * sx, h: r.height * sy }
+  const k = st && st.width ? 1920 / st.width : 1920 / window.innerWidth
+  return { x: (r.left - (st?.left ?? 0)) * k, y: (r.top - (st?.top ?? 0)) * k, w: r.width * k, h: r.height * k }
 }
 
 /**

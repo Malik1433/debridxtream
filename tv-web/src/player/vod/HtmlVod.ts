@@ -90,6 +90,7 @@ export class HtmlVod implements VodPlayer {
   }
 
   onEvent(cb: (e: VodEvent) => void): void { this.cb = cb }
+  setFill(fill: boolean): void { this.video.style.objectFit = fill ? 'cover' : 'contain' }
 
   destroy(): void {
     this.stop()

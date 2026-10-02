@@ -462,3 +462,41 @@ html.avplay-on .vod-player video { visibility: hidden; }
 .trailer-overlay { position: fixed; left: 0; top: 0; width: 1920px; height: 1080px; z-index: 75; background: #000; }
 .trailer-overlay iframe { width: 100%; height: 100%; border: 0; pointer-events: none; }
 .trailer-hint { position: absolute; right: 64px; top: 40px; font-size: 20px; color: #94A3B8; background: rgba(0, 0, 0, 0.6); padding: 8px 18px; border-radius: 8px; }
+
+/* ── Parity: VOD player overlay (custom_player_control_view) ── */
+.vp-overlay { position: absolute; left: 0; top: 0; right: 0; bottom: 0; pointer-events: none;
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.75), transparent 22%, transparent 55%, rgba(0, 0, 0, 0.92)); }
+.vp-top { position: absolute; left: 56px; right: 56px; top: 40px; display: flex; align-items: flex-start; gap: 28px; }
+.vp-back { height: 48px; box-sizing: border-box; display: flex; align-items: center; gap: 6px; padding: 0 20px 0 14px; border-radius: 999px;
+  font-size: 20px; color: #94A3B8; background: rgba(12, 17, 27, 0.7); border: 1px solid rgba(255, 255, 255, 0.08); }
+.vp-titles { flex: 1; min-width: 0; }
+.vp-title { font-size: 34px; font-weight: 800; color: #F1F5F9; display: flex; align-items: center; gap: 16px; white-space: nowrap; overflow: hidden; }
+.vp-pill { font-size: 18px; font-weight: 800; color: #00F0FF; padding: 4px 14px; border-radius: 999px; background: rgba(0, 240, 255, 0.1); border: 1px solid rgba(0, 240, 255, 0.35); }
+.vp-sub { font-size: 20px; color: #64748B; margin-top: 6px; }
+.vp-clock { font-size: 24px; color: #94A3B8; }
+.vp-bottom { position: absolute; left: 56px; right: 56px; bottom: 40px; display: flex; align-items: flex-end; gap: 26px; }
+.vp-poster { position: relative; width: 116px; height: 166px; border-radius: 12px; overflow: hidden; background: #16202c; flex: none; }
+.vp-poster img { position: absolute; left: 0; top: 0; width: 100%; height: 100%; object-fit: cover; }
+.vp-poster-text { position: absolute; left: 0; right: 0; bottom: 0; padding: 8px 10px; background: linear-gradient(transparent, rgba(0, 0, 0, 0.9)); }
+.vp-poster-text b { display: block; font-size: 13px; color: #F1F5F9; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.vp-poster-text small { display: block; font-size: 11px; color: #00F0FF; margin-top: 2px; }
+.vp-controls { flex: 1; min-width: 0; }
+.vp-status { display: flex; justify-content: space-between; font-size: 18px; font-weight: 800; letter-spacing: 2px; color: #00F0FF; }
+.vp-remaining { color: #475569; letter-spacing: 0; }
+.vp-seek { position: relative; height: 8px; border-radius: 4px; background: rgba(255, 255, 255, 0.15); margin-top: 14px; }
+.vp-seek-fill { height: 100%; border-radius: 4px; background: linear-gradient(90deg, #0077FF, #00F0FF); }
+.vp-seek-knob { position: absolute; top: 50%; width: 18px; height: 18px; margin: -9px 0 0 -9px; border-radius: 50%; background: #fff; opacity: 0; }
+.vp-seek.focused { height: 12px; box-shadow: 0 0 18px rgba(0, 240, 255, 0.5); }
+.vp-seek.focused .vp-seek-knob { opacity: 1; width: 26px; height: 26px; margin: -13px 0 0 -13px; box-shadow: 0 0 0 4px #00F0FF; }
+.vp-times { display: flex; justify-content: space-between; font-size: 20px; color: #CBD5E1; margin-top: 8px; }
+.vp-times span:last-child { color: #475569; }
+.vp-card { display: flex; align-items: center; gap: 14px; margin-top: 16px; padding: 14px 22px; border-radius: 18px; width: fit-content;
+  background: rgba(12, 17, 27, 0.75); border: 1px solid rgba(255, 255, 255, 0.07); }
+.vp-ctl { display: flex; flex-direction: column; align-items: center; gap: 6px; min-width: 76px; }
+.vp-ctl-btn { width: 64px; height: 64px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #CBD5E1;
+  background: rgba(255, 255, 255, 0.06); border: 2px solid transparent; box-sizing: border-box; }
+.vp-ctl.big .vp-ctl-btn { width: 96px; height: 96px; color: #041014; background: linear-gradient(315deg, #0077FF, #00F0FF); }
+.vp-ctl small { font-size: 14px; font-weight: 700; color: #64748B; letter-spacing: 1px; }
+.vp-ctl.focused .vp-ctl-btn { border-color: #00F0FF; color: #F1F5F9; box-shadow: 0 0 22px rgba(0, 240, 255, 0.5); transform: scale(1.08); }
+.vp-ctl.big.focused .vp-ctl-btn { color: #041014; border-color: rgba(255, 255, 255, 0.7); }
+.vp-ctl.focused small { color: #F1F5F9; }
