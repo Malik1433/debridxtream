@@ -5,9 +5,10 @@ import { handleBack, pushBackHandler } from './backStack'
 import { exitApp, type Platform } from '../platform'
 import type { AppController, AppState } from './controller'
 import { ExitDialog } from './ExitDialog'
-import { Focusable } from './Focusable'
+import { NavRail } from './NavRail'
 import { Router, type Screen } from './router'
-import { Home } from './screens/Home'
+import { HomeScreen } from './screens/home/HomeScreen'
+import { resumePointMs } from '../data/watchState'
 import { LiveScreen } from './screens/live/LiveScreen'
 import { Settings } from './screens/Settings'
 import { MovieDetail } from './screens/detail/MovieDetail'
@@ -20,14 +21,6 @@ import { episodeRequest, type PlayRequest } from './screens/vod/playRequest'
 import type { Movie, Show } from '../data/vodApi'
 import type { WatchEntry } from '../data/watchState'
 
-const NAV: Array<{ key: Screen; label: string }> = [
-  { key: 'home', label: 'Home' },
-  { key: 'live', label: 'Live TV' },
-  { key: 'movies', label: 'Movies' },
-  { key: 'series', label: 'Series' },
-  { key: 'search', label: 'Search' },
-  { key: 'settings', label: 'Settings' },
-]
 
 type Detail = { kind: 'movie'; item: Movie } | { kind: 'show'; item: Show } | null
 const LAST_SCREEN = 'dx.lastScreen'
@@ -46,7 +39,8 @@ export function App({ platform, state, controller, onSyncNow }: { platform: Plat
   const [play, setPlay] = useState<PlayRequest | null>(null)
   const [liveStart, setLiveStart] = useState<string | null>(null)
   const online = useOnline()
-  const sidebar = useFocusable({ focusKey: 'sidebar', saveLastFocusedChild: true, trackChildren: true })
+  // Android: Movies and Series carry their own sidebar, and detail pages are full-bleed - no rail there.
+  const showRail = !detail && screen !== 'movies' && screen !== 'series'
   const content = useFocusable({ focusKey: 'content', saveLastFocusedChild: false })
 
   const open = useCallback((s: Screen) => {
@@ -54,6 +48,11 @@ export function App({ platform, state, controller, onSyncNow }: { platform: Plat
     setScreen(router.current)
     setDetail(null)
     try { localStorage.setItem(LAST_SCREEN, router.current) } catch { /* storage full or blocked */ }
+  }, [router])
+
+  const openSearchOver = useCallback(() => {
+    router.push('search')
+    setScreen(router.current)
   }, [router])
 
   // A detail page is one level under its list: BACK closes it and the list puts focus back.
@@ -103,8 +102,8 @@ export function App({ platform, state, controller, onSyncNow }: { platform: Plat
 
   useEffect(() => {
     const s = lastScreen()
-    if (s !== 'home') open(s)
-    void setFocus(`nav-${s}`)
+    if (s !== 'home') { open(s); void setFocus(`nav-${s}`) }
+    // Home puts focus on the hero's Play Now itself, as Android does.
   }, [open])
 
   // Samsung multitasking guide: hidden during playback = what Return does - the film saves its
@@ -136,7 +135,9 @@ export function App({ platform, state, controller, onSyncNow }: { platform: Plat
       setTimeout(() => {
         if (real(getCurrentFocusKey())) return
         const back = lastGoodFocus.current
-        void setFocus(real(back) ? back : `nav-${router.current}`)
+        // Movies/Series/detail have no rail: fall back into the content, which always has a focusable.
+        const nav = `nav-${router.current}`
+        void setFocus(real(back) ? back : doesFocusableExist(nav) ? nav : 'content')
       }, 0)
     }
     window.addEventListener('keydown', onKey)
@@ -144,26 +145,22 @@ export function App({ platform, state, controller, onSyncNow }: { platform: Plat
   }, [router])
 
   return (
-    <div className="app">
-      <FocusContext.Provider value={sidebar.focusKey}>
-        <div ref={sidebar.ref} className="sidebar">
-          <div className="brand">DX <span>Play</span></div>
-          {NAV.map((n) => (
-            <Focusable key={n.key} focusKey={`nav-${n.key}`}
-              className={`nav-item${screen === n.key ? ' active' : ''}`} onEnter={() => open(n.key)}>
-              {n.label}
-            </Focusable>
-          ))}
-        </div>
-      </FocusContext.Provider>
+    <div className={`app${showRail ? ' with-rail' : ''}`}>
+      {showRail && <NavRail screen={screen} onOpen={open} />}
       <FocusContext.Provider value={content.focusKey}>
-        <div ref={content.ref} className="content">
+        <div ref={content.ref} className={`content screen-${detail ? 'detail' : screen}`}>
           {detail?.kind === 'movie' && <MovieDetail key={detail.item.id} movie={detail.item} controller={controller} onPlay={setPlay} />}
           {detail?.kind === 'show' && <ShowDetail key={detail.item.id} show={detail.item} controller={controller} onPlay={setPlay} />}
-          {!detail && screen === 'home' && <Home onOpen={open} onContinue={onContinue} onChannel={(id) => { setLiveStart(id); open('live') }} state={state} controller={controller} />}
+          {!detail && screen === 'home' && (
+            <HomeScreen state={state} controller={controller} onContinue={onContinue}
+              onChannel={(id) => { setLiveStart(id || null); open('live') }}
+              onMovie={(m) => setDetail({ kind: 'movie', item: m })} onShow={(m) => setDetail({ kind: 'show', item: m })}
+              onPlayMovie={(m) => setPlay({ kind: 'movie', id: m.id, ext: m.ext, title: m.name, subtitle: '', poster: m.poster,
+                startMs: resumePointMs(controller.watchEntry('movie', m.id)) })} />
+          )}
           {!detail && screen === 'live' && <LiveScreen platform={platform} controller={controller} startChannelId={liveStart} onStarted={() => setLiveStart(null)} />}
-          {!detail && screen === 'movies' && <LibraryScreen<Movie> kind="movies" controller={controller} state={state} onOpen={(m) => setDetail({ kind: 'movie', item: m })} />}
-          {!detail && screen === 'series' && <LibraryScreen<Show> kind="shows" controller={controller} state={state} onOpen={(m) => setDetail({ kind: 'show', item: m })} />}
+          {!detail && screen === 'movies' && <LibraryScreen<Movie> kind="movies" controller={controller} state={state} onOpen={(m) => setDetail({ kind: 'movie', item: m })} onSearch={openSearchOver} />}
+          {!detail && screen === 'series' && <LibraryScreen<Show> kind="shows" controller={controller} state={state} onOpen={(m) => setDetail({ kind: 'show', item: m })} onSearch={openSearchOver} />}
           {!detail && screen === 'search' && (
             <SearchScreen controller={controller} onChannel={(c) => { setLiveStart(c.id); open('live') }}
               onMovie={(m) => setDetail({ kind: 'movie', item: m })} onShow={(m) => setDetail({ kind: 'show', item: m })} />

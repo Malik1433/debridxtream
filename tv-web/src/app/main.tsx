@@ -1,4 +1,4 @@
-import { init, setKeyMap } from '@noriginmedia/norigin-spatial-navigation'
+import { getCurrentFocusKey, init, setKeyMap } from '@noriginmedia/norigin-spatial-navigation'
 import { createRoot } from 'react-dom/client'
 import { spatialKeyMap } from '../keys'
 import { detectPlatform, registerKeys } from '../platform'
@@ -11,6 +11,8 @@ registerKeys(platform)
 // The stage is CSS-scaled: measure what is on screen, not offsetTop (which ignores the transform).
 init({ throttle: 80, throttleKeypresses: true, useGetBoundingClientRect: true })
 setKeyMap(spatialKeyMap(platform))
+// QA aid: the focus key, readable from a remote inspector / headless smoke. Holds no data.
+;(window as unknown as { __dxFocus: () => string }).__dxFocus = getCurrentFocusKey
 
 // One 1920x1080 design, scaled to whatever the TV reports (some report 1280x720).
 const stage = document.createElement('div')
