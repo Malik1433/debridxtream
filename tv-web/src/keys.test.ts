@@ -27,4 +27,8 @@ describe('appKey', () => {
     expect(appKey(48, 'vidaa')).toBe('debug')
     expect(appKey(48, 'tizen')).toBeNull()
   })
+
+  it('reads red as the A/B switch', () => {
+    expect(appKey(403, 'tizen')).toBe('red')
+  })
 })

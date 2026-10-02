@@ -283,3 +283,34 @@ progress** par honi chahiye, player ke apne dawe par nahi (§0).
 
 **Ye certificate sirf UN TVs par install karne deta hai jin ka DUID uske distributor certificate mein
 hai.** Naya test TV = us ka DUID bhi profile mein daalna. Store par jane wali app par ye pabandi nahi.
+
+## 11. Doosre TV IPTV apps se kya seekha (research 2026-10-02)
+
+Owner ka sawal: "itne software hain, un se seekh kar kyun nahi chalte?" Jo mila:
+
+- **Samsung par IPTV apps AVPlay hi chalate hain.** Open-source misaalein
+  ([Dead96/iptvplayer-tizen-tv](https://github.com/Dead96/iptvplayer-tizen-tv),
+  [streamvault](https://github.com/christopherklint97/streamvault)) aur commercial apps ka "native
+  player" sab AVPlay hai. Kai apps viewer ko **TS ya m3u8** aur **native ya HTML player** chunne dete
+  hain. Matlab koi ek raasta har channel par nahi chalta: hamara "mpegts.js pehle, AVPlay fallback"
+  isi tajurbe ki shakal hai.
+- **LG par native `<video>`** ([lennylxx/webos-iptv-player](https://github.com/lennylxx/webos-iptv-player)):
+  TS aur HLS seedha TV ke decoder ko. Unki naap: hls.js ke barabar smooth, kam CPU/memory; 4K Dolby
+  Vision sirf native par. LG aane par native `<video>` pehle aazmana hai.
+- **AVPlay ke gotchas** (Dead96 `docs/ARCHITECTURE.md`, Samsung AVPlay guide):
+  1. `setDisplayMethod('PLAYER_DISPLAY_MODE_FULL_SCREEN')` ke baghair tasveer apne size par upar-baayen
+     baithti hai — **W3d mein laga diya**.
+  2. Video plane ke upar `<html>` tak koi bhi background (kaala bhi) tasveer chhupa deta hai — W3d ka
+     `avplay-on` class isi liye.
+  3. `setDisplayRect` hamesha 1920x1080 coordinates mein. `setBufferingParam` sirf IDLE state mein,
+     kam se kam 4 s.
+  4. HLS par AVPlay ka khud bitrate badalna awaaz gira deta hai, bina error ke. m3u8 aazmayein to ek
+     fixed variant kholna.
+  5. Purane Tizen par CSS `inset` kaam nahi karta. Purane TVs ke liye `top/left/right/bottom` likhna.
+- **Samsung MSE ki audio** model ke hisaab se badalti hai (2017 par AC-3 nahi chalta, 2018+ par chalta
+  hai). Is liye har TV se `isTypeSupported` poochhte hain, andaza nahi lagate.
+
+**Is se agla faisla:** Samsung par primary player ka faisla A/B se, ek hi channel par: mpegts.js vs
+AVPlay (tuned TS). Debug panel mein red key yahi karti hai. Agar AVPlay-TS mpegts.js ke barabar
+nikle to AVPlay ko primary banana (jaisa market karta hai) ek alag, naapa hua faisla hoga. m3u8 tab
+aazmana hai jab TS par AVPlay kamzor rahe.

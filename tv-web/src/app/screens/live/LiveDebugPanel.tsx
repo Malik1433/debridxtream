@@ -24,7 +24,7 @@ export function LiveDebugPanel({ engine, status }: { engine: LiveEngine; status:
         <b>{d.player}</b> · {status.kind} · pos {sec(d.positionMs)} · buffer {sec(d.aheadMs)} · speed {d.speed.toFixed(2)}x
         · stalls {d.stalls}/3 min{d.targetMs > 0 ? ` (wants ${sec(d.targetMs)})` : ''} · stops {engine.meter.count}
       </div>
-      <div className="dbg-head">{thisTvCodecLine()}</div>
+      <div className="dbg-head">{thisTvCodecLine()} · red = this channel on the other player</div>
       {liveLogLines().slice(-14).map((l, i) => <div key={i} className="dbg-line">{l}</div>)}
     </div>
   )

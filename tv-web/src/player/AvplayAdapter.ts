@@ -49,6 +49,9 @@ export class AvplayAdapter {
     }
     this.open = true
     this.prepared = false
+    // Without this AVPlay draws the stream at its own size, anchored top-left, not scaled into the
+    // rect (Dead96/iptvplayer-tizen-tv docs/ARCHITECTURE.md - found before our TV had to show us).
+    try { av.setDisplayMethod('PLAYER_DISPLAY_MODE_FULL_SCREEN') } catch (e) { this.log(`AVPlay: display method refused (${errName(e)})`) }
     this.relayout()
     for (const [kind, s] of [['PLAYER_BUFFER_FOR_PLAY', AVPLAY_BUFFER_FOR_PLAY_S], ['PLAYER_BUFFER_FOR_RESUME', AVPLAY_BUFFER_FOR_RESUME_S]] as const) {
       try { av.setBufferingParam(kind, 'PLAYER_BUFFER_SIZE_IN_SECOND', s) } catch (e) { this.log(`AVPlay: ${kind} ${s}s refused (${errName(e)})`) }
@@ -85,7 +88,7 @@ export class AvplayAdapter {
     this.plane.style.display = 'none'
   }
 
-  /** Put the picture where the page's player box is (preview or fullscreen). */
+  /** Put the picture where the page's player box is (preview or fullscreen). Always 1920x1080 coordinates (Samsung's AVPlay guide). */
   relayout(): void {
     if (!this.open) return
     const r = this.rect() ?? { x: 0, y: 0, w: 1920, h: 1080 }

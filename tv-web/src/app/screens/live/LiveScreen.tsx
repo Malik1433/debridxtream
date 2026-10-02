@@ -116,6 +116,7 @@ export function LiveScreen({ platform, controller }: { platform: Platform; contr
     const onKey = (e: KeyboardEvent) => {
       const k = appKey(e.keyCode, platform)
       if (k === 'debug') { e.preventDefault(); setDebug((d) => !d); return }
+      if (k === 'red' && debug && engine) { e.preventDefault(); engine.useAlternativePlayer(); return }
       if (k === 'favourite') {
         e.preventDefault()
         const target = full ? current : channels[focusedChan.current]
@@ -135,7 +136,7 @@ export function LiveScreen({ platform, controller }: { platform: Platform; contr
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [platform, full, playing, current, channels, play, toggleFav])
+  }, [platform, full, playing, current, channels, play, toggleFav, debug, engine])
 
   // Now/next for the playing channel, refreshed while it plays.
   useEffect(() => {

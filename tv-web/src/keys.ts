@@ -1,7 +1,7 @@
 import type { Platform } from './platform'
 
 /** What a remote key means to the app, whichever TV sent it. */
-export type AppKey = 'up' | 'down' | 'left' | 'right' | 'enter' | 'back' | 'play_pause' | 'ch_up' | 'ch_down' | 'favourite' | 'debug' | null
+export type AppKey = 'up' | 'down' | 'left' | 'right' | 'enter' | 'back' | 'play_pause' | 'ch_up' | 'ch_down' | 'favourite' | 'debug' | 'red' | null
 
 /** Back differs per TV: Samsung 10009, LG 461, VIDAA 8 (and Escape on a PC browser). */
 const BACK: Record<Platform, number[]> = {
@@ -31,6 +31,7 @@ export function appKey(keyCode: number, platform: Platform): AppKey {
     case 427: case 33: return 'ch_up'
     case 428: case 34: return 'ch_down'
     case 405: return 'favourite' // the yellow key (Samsung ColorF2Yellow, LG yellow)
+    case 403: return 'red' // with the debug panel open: play this channel on the other player (A/B)
     case 404: return 'debug' // the green key: the player's on-screen log (a retail TV gives no other)
     default: return null
   }

@@ -179,4 +179,19 @@ describe('LiveEngine', () => {
     r.run(CONNECT_TIMEOUT_MS + 1000)
     expect(r.engine.current().kind).toBe('failed')
   })
+
+  it('moves the channel now playing to the other player by hand (QA A/B)', () => {
+    const r = rig()
+    let left = 1
+    r.media.tryAlternative = () => left-- > 0
+    expect(r.engine.useAlternativePlayer()).toBe(false) // nothing playing
+    r.engine.play(ch('1'))
+    r.media.flowing = true; r.run(1000)
+    expect(r.engine.current().kind).toBe('playing')
+    expect(r.engine.useAlternativePlayer()).toBe(true)
+    expect(r.engine.current().kind).toBe('connecting')
+    r.run(1000)
+    expect(r.engine.current().kind).toBe('playing')
+    expect(r.engine.useAlternativePlayer()).toBe(false)
+  })
 })

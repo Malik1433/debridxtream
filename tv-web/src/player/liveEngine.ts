@@ -204,6 +204,26 @@ export class LiveEngine {
     this.speed = ok ? rate : 1
   }
 
+  /**
+   * QA's A/B switch: carry the channel now playing on the other player (debug panel, red key),
+   * so both players can be judged on the SAME channel. False when there is no other player.
+   */
+  useAlternativePlayer(): boolean {
+    const c = this.channel
+    if (!c || !this.media.tryAlternative?.()) return false
+    this.log(`live: ${c.name} moved to ${this.media.playerName?.() ?? 'the other player'} by hand`)
+    this.meter.onUserChange()
+    this.stopTick?.()
+    this.loadedAt = this.clock.now()
+    this.started = false
+    this.holding = false
+    this.lastPos = -1
+    this.lastPosAt = -1
+    this.set({ kind: 'connecting', channel: c, slow: false })
+    this.stopTick = this.clock.every(TICK_MS, () => this.tick())
+    return true
+  }
+
   /** No picture at all, and no error either: the provider simply never sent one. Say so and stop. */
   private failToStart(c: LiveChannel): void {
     const carries = this.media.mediaInfo?.() ?? null
