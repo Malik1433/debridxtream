@@ -25,7 +25,11 @@ html, body { margin: 0; background: var(--bg); color: var(--text); overflow: hid
 /* Overscan-safe: nothing important within 5% of the edges. */
 .content { position: absolute; left: 0; top: 0; width: 100%; height: 100%; padding: 52px 64px 40px 64px; box-sizing: border-box; }
 /* Android rows start at 87 dp = 174 px: the rail floats over the left edge, content clears it. */
-.with-rail .content { padding-left: 176px; }
+/* The content box starts AFTER the rail: spatial navigation bubbles up using the container's own box,
+   and a content box at x=0 left nothing "to the left" of it - ◀ never reached the rail. */
+.with-rail .content { left: 150px; width: calc(100% - 150px); padding-left: 26px; }
+.with-rail .content.screen-home { padding: 0; }
+.with-rail .screen-home .home { left: -150px; width: 1920px; }
 .content.screen-home, .content.screen-movies, .content.screen-series, .content.screen-detail { padding: 0; }
 .content h1 { font-size: 52px; margin: 0 0 12px; }
 .content p { font-size: 28px; color: var(--text-2); margin: 0 0 40px; max-width: 1200px; }
@@ -331,3 +335,53 @@ html.avplay-on .vod-player video { visibility: hidden; }
 .hint-bar { position: absolute; left: 50%; bottom: 26px; transform: translateX(-50%); z-index: 5; font-size: 12px; color: #64748B; letter-spacing: 1px;
   padding: 10px 22px; border-radius: 999px; background: rgba(12, 17, 27, 0.8); border: 1px solid rgba(255, 255, 255, 0.06); white-space: nowrap; }
 .hint-bar b { color: #94A3B8; font-weight: 600; } .hint-bar i { color: #334155; font-style: normal; margin: 0 8px; }
+
+/* ── Parity: Movies / Series (fragment_vod, item_movie_card, item_vod_category, item_vod_sort_chip) ── */
+.vod-screen { position: absolute; left: 0; top: 0; width: 100%; height: 100%; display: flex; background: #06090E; }
+.vod-sidebar { width: 420px; flex: none; height: 100%; box-sizing: border-box; background: rgba(10, 12, 20, 0.97);
+  border-right: 2px solid rgba(255, 255, 255, 0.05); display: flex; flex-direction: column; }
+.vod-logo { height: 188px; display: flex; align-items: center; gap: 20px; padding-left: 40px; flex: none; }
+.vod-dx { width: 76px; height: 76px; border-radius: 18px; display: flex; align-items: center; justify-content: center;
+  font-size: 28px; font-weight: 900; color: #041014; background: linear-gradient(315deg, #0077FF, #00F0FF); }
+.vod-logo-t { font-size: 30px; font-weight: 800; color: #F1F5F9; }
+.vod-logo-s { font-size: 20px; font-weight: 700; color: #00F0FF; letter-spacing: 2px; }
+.vod-search { margin: 0 28px; height: 76px; box-sizing: border-box; display: flex; align-items: center; gap: 16px; padding: 0 24px;
+  border-radius: 16px; background: rgba(255, 255, 255, 0.04); border: 2px solid rgba(255, 255, 255, 0.08); color: #475569; font-size: 26px; flex: none; }
+.vod-search.focused { border-color: #00F0FF; color: #F1F5F9; box-shadow: 0 0 24px rgba(0, 240, 255, 0.3); }
+.vod-sidebar-divider { height: 2px; margin: 28px 32px 24px; background: rgba(255, 255, 255, 0.06); flex: none; }
+.vod-cat-title { font-size: 20px; color: #3D4F60; padding-left: 40px; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 2px; flex: none; }
+.vod-sidebar .vlist { margin: 0 16px; }
+.vod-sidebar .vrow > div.vod-cat { gap: 0; padding: 0 20px; font-size: 28px; color: #64748B; background: transparent; box-shadow: none; }
+.vod-cat .vod-cat-bar { width: 6px; height: 40px; border-radius: 3px; background: #00F0FF; margin-right: 22px; visibility: hidden; flex: none; }
+.vod-sidebar .vrow > div.vod-cat.active { color: #F1F5F9; } .vod-cat.active .vod-cat-bar { visibility: visible; }
+.vod-sidebar .vrow.focused > div.vod-cat { background: rgba(0, 240, 255, 0.08); color: #F1F5F9; box-shadow: inset 0 0 0 2px rgba(0, 240, 255, 0.5); }
+.vod-main { flex: 1; min-width: 0; padding: 48px 0 0 88px; box-sizing: border-box; }
+.vod-header { display: flex; align-items: flex-end; justify-content: space-between; padding-right: 64px; margin-bottom: 28px; }
+.vod-title { font-size: 48px; font-weight: 800; color: #F1F5F9; }
+.vod-meta { font-size: 24px; color: #475569; margin-top: 4px; }
+.vod-sorts { display: flex; gap: 12px; }
+.vod-sort { height: 56px; box-sizing: border-box; display: flex; align-items: center; padding: 0 22px; border-radius: 10px; font-size: 22px;
+  font-weight: 700; letter-spacing: 1px; color: #64748B; background: rgba(255, 255, 255, 0.03); border: 2px solid rgba(255, 255, 255, 0.07); }
+.vod-sort.active { color: #00F0FF; background: rgba(0, 240, 255, 0.1); border-color: rgba(0, 240, 255, 0.3); }
+.vod-sort.focused { border-color: #00F0FF; color: #F1F5F9; box-shadow: 0 0 20px rgba(0, 240, 255, 0.35); }
+.vod-main .vgrid { margin-left: -12px; }
+.vod-main .vcell { padding: 12px; }
+.movie-card { height: 100%; }
+.movie-poster { position: relative; width: 256px; height: 384px; border-radius: 16px; overflow: hidden; background: #16202c; transition: transform 160ms, box-shadow 160ms; }
+.movie-poster img { position: absolute; left: 0; top: 0; width: 100%; height: 100%; object-fit: cover; }
+.vcell.focused .movie-poster { transform: scale(1.06); box-shadow: 0 0 0 4px #00F0FF, 0 0 36px rgba(0, 240, 255, 0.45); }
+.badge-quality { position: absolute; left: 12px; top: 12px; font-size: 18px; font-weight: 800; color: #00F0FF; padding: 3px 10px;
+  border-radius: 6px; background: rgba(6, 9, 14, 0.8); border: 1px solid rgba(0, 240, 255, 0.4); }
+.badge-watched { position: absolute; right: 12px; top: 12px; width: 48px; height: 48px; border-radius: 50%; display: flex;
+  align-items: center; justify-content: center; color: #00FF88; background: rgba(6, 9, 14, 0.85); }
+.badge-fav { position: absolute; right: 12px; bottom: 16px; width: 48px; height: 48px; border-radius: 50%; display: flex;
+  align-items: center; justify-content: center; color: #FF3355; background: rgba(6, 9, 14, 0.7); }
+.movie-progress { position: absolute; left: 0; right: 0; bottom: 0; height: 6px; background: rgba(255, 255, 255, 0.1); }
+.movie-progress > div { height: 100%; background: linear-gradient(90deg, #0077FF, #00F0FF); }
+.movie-title { margin-top: 18px; font-size: 28px; color: #E2E8F0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 256px; }
+.vcell.focused .movie-title { color: #F1F5F9; }
+.vod-skeleton { display: flex; flex-wrap: wrap; gap: 24px; }
+.skeleton-card { width: 236px; height: 354px; border-radius: 16px; background: linear-gradient(90deg, #121826, #1b2433, #121826); background-size: 200% 100%; animation: shimmer 1.2s linear infinite; }
+@keyframes shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+.vod-empty { margin-top: 160px; text-align: center; padding-right: 88px; }
+.vod-empty div { font-size: 44px; color: #94A3B8; } .vod-empty small { display: block; font-size: 32px; color: #64748B; margin-top: 16px; }

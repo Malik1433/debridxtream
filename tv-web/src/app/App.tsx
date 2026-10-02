@@ -50,6 +50,11 @@ export function App({ platform, state, controller, onSyncNow }: { platform: Plat
     try { localStorage.setItem(LAST_SCREEN, router.current) } catch { /* storage full or blocked */ }
   }, [router])
 
+  const openSearchOver = useCallback(() => {
+    router.push('search')
+    setScreen(router.current)
+  }, [router])
+
   // A detail page is one level under its list: BACK closes it and the list puts focus back.
   useEffect(() => {
     if (!detail) return
@@ -154,8 +159,8 @@ export function App({ platform, state, controller, onSyncNow }: { platform: Plat
                 startMs: resumePointMs(controller.watchEntry('movie', m.id)) })} />
           )}
           {!detail && screen === 'live' && <LiveScreen platform={platform} controller={controller} startChannelId={liveStart} onStarted={() => setLiveStart(null)} />}
-          {!detail && screen === 'movies' && <LibraryScreen<Movie> kind="movies" controller={controller} state={state} onOpen={(m) => setDetail({ kind: 'movie', item: m })} />}
-          {!detail && screen === 'series' && <LibraryScreen<Show> kind="shows" controller={controller} state={state} onOpen={(m) => setDetail({ kind: 'show', item: m })} />}
+          {!detail && screen === 'movies' && <LibraryScreen<Movie> kind="movies" controller={controller} state={state} onOpen={(m) => setDetail({ kind: 'movie', item: m })} onSearch={openSearchOver} />}
+          {!detail && screen === 'series' && <LibraryScreen<Show> kind="shows" controller={controller} state={state} onOpen={(m) => setDetail({ kind: 'show', item: m })} onSearch={openSearchOver} />}
           {!detail && screen === 'search' && (
             <SearchScreen controller={controller} onChannel={(c) => { setLiveStart(c.id); open('live') }}
               onMovie={(m) => setDetail({ kind: 'movie', item: m })} onShow={(m) => setDetail({ kind: 'show', item: m })} />

@@ -83,3 +83,8 @@ export function forget(kv: Kv, kind: WatchEntry['kind'], id: string): void {
   delete all[keyOf(kind, id)]
   kv.setItem(KEY, JSON.stringify(all))
 }
+
+/** Every entry, by `kind:id` - one parse for a whole grid of badges. */
+export function allWatch(kv: Kv): Map<string, WatchEntry> {
+  return new Map(Object.entries(load(kv)))
+}

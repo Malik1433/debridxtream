@@ -31,4 +31,12 @@ describe('appKey', () => {
     expect(spatialKeyMap('vidaa').enter).toEqual([13, 53])
     expect(spatialKeyMap('tizen').up).toEqual([38])
   })
+
+  it('push opens a screen over the current one, and BACK returns to it', () => {
+    const r = new Router()
+    r.open('movies'); r.push('search')
+    expect(r.current).toBe('search')
+    expect(r.back()).toBe(true)
+    expect(r.current).toBe('movies')
+  })
 })

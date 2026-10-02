@@ -12,7 +12,29 @@ function Card({ focusKey, onEnter, onFocus, className, children }: {
  * One horizontal Home row (Android RecyclerView, horizontal). The strip slides under a fixed window
  * so the focused card stays in view - TVs scroll badly, a transform is smooth.
  */
-export function HRow<T>({ id, title, count, items, step, cardClass, keyOf, onEnter, render, onRowFocus }: {
+type RowProps<T> = {
+  id: string
+  title: string
+  count?: number
+  items: T[]
+  /** Card width + gap, px. */
+  step: number
+  cardClass: string
+  keyOf: (t: T) => string
+  onEnter: (t: T) => void
+  render: (t: T, focused: boolean) => ReactNode
+  onRowFocus?: () => void
+}
+
+/**
+ * An empty row must not exist for the remote at all: a registered focusable with no box sits at
+ * (0,0) and swallows ◀ from the hero (parity smoke 2026-10-02).
+ */
+export function HRow<T>(props: RowProps<T>) {
+  return props.items.length ? <Row {...props} /> : null
+}
+
+function Row<T>({ id, title, count, items, step, cardClass, keyOf, onEnter, render, onRowFocus }: {
   id: string
   title: string
   count?: number
@@ -28,7 +50,6 @@ export function HRow<T>({ id, title, count, items, step, cardClass, keyOf, onEnt
   const row = useFocusable({ focusKey: `row-${id}`, saveLastFocusedChild: true, trackChildren: true })
   const [idx, setIdx] = useState(0)
   const shift = Math.max(0, idx - 3) * step
-  if (!items.length) return null
   return (
     <FocusContext.Provider value={row.focusKey}>
       <section ref={row.ref} className="home-section" data-row={id}>

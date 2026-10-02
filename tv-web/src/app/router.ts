@@ -20,6 +20,11 @@ export class Router {
     this.stack = screen === 'home' ? ['home'] : ['home', screen]
   }
 
+  /** One level ABOVE the current screen (Search opened from Movies): BACK returns to it, as on Android. */
+  push(screen: Screen): void {
+    if (this.current !== screen) this.stack.push(screen)
+  }
+
   /** @return false when there is nothing to go back to (the caller then offers to exit). */
   back(): boolean {
     if (this.atRoot) return false

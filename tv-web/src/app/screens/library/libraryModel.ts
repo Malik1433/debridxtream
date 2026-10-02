@@ -7,17 +7,20 @@ export const ALL_ID = '__all'
 export const RECENT_LIMIT = 300
 
 export interface LibRow { id: string; name: string; count: number }
-type Item = { id: string; categoryId: string; added: number }
+type Item = { id: string; categoryId: string; added: number; name: string; rating: number; year?: string }
 
-/** Favourites, Recently added and All first; then the provider's categories, empty ones left out. */
-export function libraryRows(cats: VodCategory[], items: Item[], favs: string[]): LibRow[] {
+/**
+ * Android VodFragment.buildSidebarCategories: All · Recently Added · Favorites, then the provider's
+ * categories (empty ones left out - a dead end for the remote).
+ */
+export function libraryRows(cats: VodCategory[], items: Item[], favs: string[], allLabel = 'All Movies'): LibRow[] {
   const counts = new Map<string, number>()
   for (const i of items) counts.set(i.categoryId, (counts.get(i.categoryId) ?? 0) + 1)
   const fav = new Set(favs)
   return [
-    { id: FAV_ID, name: 'Favourites', count: items.filter((i) => fav.has(i.id)).length },
-    { id: RECENT_ID, name: 'Recently added', count: Math.min(RECENT_LIMIT, items.length) },
-    { id: ALL_ID, name: 'All', count: items.length },
+    { id: ALL_ID, name: allLabel, count: items.length },
+    { id: RECENT_ID, name: 'Recently Added', count: Math.min(RECENT_LIMIT, items.length) },
+    { id: FAV_ID, name: 'Favorites', count: items.filter((i) => fav.has(i.id)).length },
     ...cats.filter((c) => (counts.get(c.id) ?? 0) > 0).map((c) => ({ id: c.id, name: c.name, count: counts.get(c.id) ?? 0 })),
   ]
 }
@@ -32,5 +35,21 @@ export function itemsOf<T extends Item>(rowId: string, items: T[], favs: string[
   return index ? index.byCat.get(rowId) ?? [] : items.filter((i) => i.categoryId === rowId)
 }
 
-/** Start on Favourites when there are some, else Recently added - what a returning viewer looks for. */
-export function startRow(rows: LibRow[]): number { return rows[0]?.count > 0 ? 0 : rows.length > 1 ? 1 : 0 }
+/** Android opens on the first row: All. */
+export function startRow(_rows: LibRow[]): number { return 0 }
+
+/** Android VodFragment.SortMode, in the chip order. */
+export type SortMode = 'recent' | 'rated' | 'az' | 'newest'
+export const SORTS: Array<{ mode: SortMode; label: string }> = [
+  { mode: 'recent', label: 'RECENTLY ADDED' }, { mode: 'rated', label: 'TOP RATED' }, { mode: 'az', label: 'A – Z' }, { mode: 'newest', label: 'NEWEST' },
+]
+
+const yearOf = (i: Item): number => Number(i.year) || Number(/\((\d{4})\)/.exec(i.name)?.[1]) || 0
+
+export function sortItems<T extends Item>(items: T[], mode: SortMode): T[] {
+  const a = [...items]
+  if (mode === 'recent') return a.sort((x, y) => y.added - x.added)
+  if (mode === 'rated') return a.sort((x, y) => y.rating - x.rating)
+  if (mode === 'az') return a.sort((x, y) => x.name.localeCompare(y.name))
+  return a.sort((x, y) => yearOf(y) - yearOf(x) || y.added - x.added)
+}

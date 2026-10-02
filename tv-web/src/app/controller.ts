@@ -19,7 +19,7 @@ import type { LibrarySync } from '../data/session'
 import { episodeUrl, movieInfo, movieUrl, showInfo, type Movie, type MovieInfo, type Show, type ShowInfo, type VodCategory } from '../data/vodApi'
 import { enrich, type Enrichment } from '../data/tmdb'
 import { recentChannels, recordChannel, type RecentChannel } from '../data/recentLive'
-import { continueWatching, recordProgress, watchEntry, watchedEpisodes, type WatchEntry } from '../data/watchState'
+import { allWatch, continueWatching, recordProgress, watchEntry, watchedEpisodes, type WatchEntry } from '../data/watchState'
 import { liveUrl } from '../xtream'
 import type { LiveCategory, LiveStream } from '../data/xtreamApi'
 
@@ -193,6 +193,7 @@ export class AppController {
   watchEntry(kind: WatchEntry['kind'], id: string): WatchEntry | null { return watchEntry(localStorage, kind, id) }
   recordProgress(e: Omit<WatchEntry, 'watched' | 'updatedAt'>): WatchEntry { return recordProgress(localStorage, e) }
   continueWatching(): WatchEntry[] { return continueWatching(localStorage) }
+  allWatch(): Map<string, WatchEntry> { return allWatch(localStorage) }
   recentChannels(): RecentChannel[] { return recentChannels(localStorage) }
   recordChannel(c: RecentChannel): void { recordChannel(localStorage, c) }
   watchedEpisodes(seriesId: string): Map<string, WatchEntry> { return watchedEpisodes(localStorage, seriesId) }

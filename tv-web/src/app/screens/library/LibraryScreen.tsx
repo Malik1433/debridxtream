@@ -1,32 +1,44 @@
 import { doesFocusableExist, getCurrentFocusKey, setFocus } from '@noriginmedia/norigin-spatial-navigation'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { LibraryKind } from '../../../data/catalogueStore'
+import { cardText } from '../../../data/titles'
 import type { Movie, Show, VodCategory } from '../../../data/vodApi'
 import type { AppController, AppState } from '../../controller'
-import { VirtualList } from '../live/VirtualList'
-import { FAV_ID, itemsOf, libraryRows, startRow } from './libraryModel'
-import { indexCatalogue } from '../live/liveModel'
-import { Poster } from './Poster'
-import { VirtualGrid } from './VirtualGrid'
-import { recall, remember, takeReturn } from './focusMemory'
+import { Focusable } from '../../Focusable'
+import { Icon } from '../../icons'
 import { useDebounced } from '../../useDebounced'
+import { indexCatalogue } from '../live/liveModel'
+import { VirtualList } from '../live/VirtualList'
+import { recall, remember, takeReturn } from './focusMemory'
+import { FAV_ID, SORTS, itemsOf, libraryRows, sortItems, startRow, type SortMode } from './libraryModel'
+import { VirtualGrid } from './VirtualGrid'
 
 type Load<T> = { kind: 'loading' } | { kind: 'ready'; cats: VodCategory[]; items: T[] } | { kind: 'error'; message: string }
 
-/** Movies or Series: categories | poster grid. OK on a poster opens its detail page. */
-export function LibraryScreen<T extends Movie | Show>({ kind, controller, state, onOpen }: {
-  kind: LibraryKind; controller: AppController; state: AppState; onOpen: (item: T) => void
+/** Android poster grid: 128×192 dp posters, 12 dp spacing → 280 px cells, five columns on a 1080p TV. */
+const CELL_W = 280
+const CELL_H = 470
+const COLUMNS = 5
+
+/**
+ * Movies / Series, as Android's fragment_vod / fragment_series_vod: its own sidebar (DX badge, IPTV /
+ * MOVIES, search bar, CATEGORIES list: All · Recently Added · Favorites · provider), a header with the
+ * category title, `N titles` and the four sort chips, and the poster grid with quality, watched,
+ * favourite and progress badges.
+ */
+export function LibraryScreen<T extends Movie | Show>({ kind, controller, state, onOpen, onSearch }: {
+  kind: LibraryKind; controller: AppController; state: AppState; onOpen: (item: T) => void; onSearch: () => void
 }) {
-  // Warm cache = the list on the first frame; "loading" only on a genuine cold start (W4 QA P1).
   const [load, setLoad] = useState<Load<T>>(() => {
     const cats = controller.peek<VodCategory[]>(`lib-cats-${kind}`), items = controller.peek<T[]>(`lib-items-${kind}`)
     return cats && items ? { kind: 'ready', cats, items } : { kind: 'loading' }
   })
-  const favKind = kind
-  const [favs] = useState(() => controller.favourites(favKind))
+  const [favs] = useState(() => controller.favourites(kind))
   const memKey = `lib:${kind}`
   const [row, setRow] = useState(() => recall(`${memKey}:row`) - 1)
+  const [sort, setSort] = useState<SortMode>(() => (sessionStorage.getItem(`${memKey}:sort`) as SortMode | null) ?? 'recent')
   const libraryAt = state.library?.at ?? 0
+  const isMovies = kind === 'movies'
 
   useEffect(() => {
     let live = true
@@ -38,28 +50,29 @@ export function LibraryScreen<T extends Movie | Show>({ kind, controller, state,
 
   const items = load.kind === 'ready' ? load.items : []
   const favKey = favs.join(',')
-  const rows = useMemo(() => (load.kind === 'ready' ? controller.memo(`lib-rows-${kind}:${favKey}`, () => libraryRows(load.cats, load.items, favs)) : []),
-    [load, favs, favKey, controller, kind])
+  const rows = useMemo(() => (load.kind === 'ready'
+    ? controller.memo(`lib-rows-${kind}:${favKey}`, () => libraryRows(load.cats, load.items, favs, isMovies ? 'All Movies' : 'All Series')) : []),
+  [load, favs, favKey, controller, kind, isMovies])
   const index = useMemo(() => (load.kind === 'ready' ? controller.memo(`lib-index-${kind}`, () => indexCatalogue(load.items)) : undefined), [load, controller, kind])
   useEffect(() => { if (row < 0 && rows.length) setRow(startRow(rows)) }, [rows, row])
   const rowId = rows[row]?.id ?? ''
-  const shown = useMemo(() => (rowId === FAV_ID ? itemsOf(rowId, items, favs, index)
-    : controller.memo(`lib-shown-${kind}-${rowId}`, () => itemsOf(rowId, items, favs, index))), [rowId, items, favs, index, controller, kind])
+  const shown = useMemo(() => {
+    const base = rowId === FAV_ID ? itemsOf(rowId, items, favs, index) : controller.memo(`lib-shown-${kind}-${rowId}`, () => itemsOf(rowId, items, favs, index))
+    return rowId === FAV_ID ? base : controller.memo(`lib-sorted-${kind}-${rowId}-${sort}`, () => sortItems(base, sort))
+  }, [rowId, items, favs, index, controller, kind, sort])
   const favSet = useMemo(() => new Set(favs), [favs])
-  const gridKey = `${memKey}:${rowId}`
-  const watch = useMemo(() => controller.continueWatching(), [controller])
-  const progressOf = (id: string) => { const e = watch.find((w) => (kind === 'movies' ? w.kind === 'movie' && w.id === id : w.seriesId === id)); return e && e.durationMs ? e.progressMs / e.durationMs : 0 }
+  const gridKey = `${memKey}:${rowId}:${sort}`
+  const watch = useMemo(() => controller.allWatch(), [controller])
+  const cw = useMemo(() => controller.continueWatching(), [controller])
 
-  // OK on a category: into ITS grid - after the grid for that category has rendered, not the old one.
-  const toGrid = useRef(false)
+  // Android VodFocusController: arriving on Movies/Series puts focus on the grid's first poster.
+  const returning = useRef(takeReturn())
+  const toGrid = useRef(!returning.current)
   useEffect(() => {
     if (!toGrid.current || !shown.length || !doesFocusableExist('lib-grid-0')) return
     toGrid.current = false
     void setFocus('lib-grid-0')
   })
-
-  // Back from a detail page: the poster it was opened from, once the grid is there again.
-  const returning = useRef(takeReturn())
   useEffect(() => {
     if (!returning.current || !shown.length) return
     const key = `lib-grid-${Math.min(recall(gridKey), shown.length - 1)}`
@@ -67,44 +80,81 @@ export function LibraryScreen<T extends Movie | Show>({ kind, controller, state,
     returning.current = false
     void setFocus(key)
   })
-
-  // Arriving with focus on something that is gone (a Home tile, a closed detail): land on our list.
   useEffect(() => {
     if (row < 0 || doesFocusableExist(getCurrentFocusKey())) return
     void setFocus(shown.length ? `lib-grid-${Math.min(recall(gridKey), shown.length - 1)}` : `lib-cats-${row}`)
   })
 
   const pick = useDebounced((i: number) => { if (i !== row) { setRow(i); remember(`${memKey}:row`, i + 1) } })
+  const chooseSort = (m: SortMode) => { setSort(m); try { sessionStorage.setItem(`${memKey}:sort`, m) } catch { /* private mode */ } }
   const syncing = state.librarySyncing && !state.library
-  const title = kind === 'movies' ? 'Movies' : 'Series'
+  const noun = isMovies ? 'movies' : 'series'
+
   return (
-    <div className="library">
-      <div className="live-col cats">
-        <h2>{title}</h2>
-        {load.kind === 'loading' && <p className="muted">Loading…</p>}
-        {load.kind === 'error' && <p className="muted">Could not read the list ({load.message}).</p>}
-        {load.kind === 'ready' && items.length === 0 && (
-          <p className="muted">{syncing ? `Loading ${title.toLowerCase()} from your provider…` : state.library?.error ? `Could not load ${title.toLowerCase()} (${state.library.error}). Settings → Update channels to try again.` : `Your provider has no ${title.toLowerCase()}.`}</p>
-        )}
-        {row >= 0 && items.length > 0 && (
-          <VirtualList focusKey="lib-cats" count={rows.length} rowHeight={66} visibleRows={12} startIndex={row}
-            onFocusIndex={pick.call}
-            onEnter={() => { pick.flush(); toGrid.current = true }}
-            render={(i) => <div className={`cat-row${i === row ? ' selected' : ''}`}><span className="name">{rows[i].name}</span><span className="count">{rows[i].count}</span></div>} />
+    <div className="vod-screen">
+      <div className="vod-sidebar">
+        <div className="vod-logo">
+          <div className="vod-dx">DX</div>
+          <div><div className="vod-logo-t">IPTV</div><div className="vod-logo-s">{isMovies ? 'MOVIES' : 'SERIES'}</div></div>
+        </div>
+        <Focusable focusKey="lib-search" className="vod-search" onEnter={onSearch}>
+          <Icon name="search" size={26} /><span>{isMovies ? 'Search movies…' : 'Search series…'}</span>
+        </Focusable>
+        <div className="vod-sidebar-divider" />
+        <div className="vod-cat-title">Categories</div>
+        {row >= 0 && rows.length > 0 && (
+          <VirtualList focusKey="lib-cats" count={rows.length} rowHeight={88} visibleRows={8} startIndex={row}
+            onFocusIndex={pick.call} onEnter={() => { pick.flush(); toGrid.current = true }}
+            render={(i) => <div className={`vod-cat${i === row ? ' active' : ''}`}><span className="vod-cat-bar" /><span className="name">{rows[i].name}</span></div>} />
         )}
       </div>
-      <div className="lib-grid-col">
-        <h2>{rows[row]?.name ?? ''}</h2>
+      <div className="vod-main">
+        <div className="vod-header">
+          <div>
+            <div className="vod-title">{rows[row]?.name ?? (isMovies ? 'All Movies' : 'All Series')}</div>
+            <div className="vod-meta">{shown.length.toLocaleString()} titles</div>
+          </div>
+          <div className="vod-sorts">
+            {SORTS.map((s) => (
+              <Focusable key={s.mode} focusKey={`lib-sort-${s.mode}`} className={`vod-sort${s.mode === sort ? ' active' : ''}`} onEnter={() => chooseSort(s.mode)}>
+                {s.label}
+              </Focusable>
+            ))}
+          </div>
+        </div>
+        {load.kind === 'loading' && <div className="vod-skeleton">{Array.from({ length: 10 }, (_, i) => <div key={i} className="skeleton-card" />)}</div>}
+        {load.kind === 'error' && <div className="vod-empty"><div>Could not read the list</div><small>{load.message}</small></div>}
+        {load.kind === 'ready' && items.length === 0 && (
+          <div className="vod-empty">
+            <div>{syncing ? `Loading ${noun}…` : `No ${noun} available`}</div>
+            <small>{state.library?.error ? `${state.library.error} — Settings → Update channels` : 'Please check your connection or try again later.'}</small>
+          </div>
+        )}
         {row >= 0 && items.length > 0 && shown.length === 0 && (
-          <p className="muted">{rowId === FAV_ID ? 'No favourites yet. Open a title and choose ☆ Favourite.' : 'Nothing here.'}</p>
+          <div className="vod-empty"><div>{rowId === FAV_ID ? 'No favorites yet' : 'Nothing here'}</div><small>{rowId === FAV_ID ? 'Open a title and press ♡ to add it.' : ''}</small></div>
         )}
         {shown.length > 0 && (
-          <VirtualGrid key={gridKey} focusKey="lib-grid" count={shown.length} columns={6} cellWidth={180} cellHeight={300} visibleRows={3}
+          <VirtualGrid key={gridKey} focusKey="lib-grid" count={shown.length} columns={COLUMNS} cellWidth={CELL_W} cellHeight={CELL_H} visibleRows={2}
             startIndex={recall(gridKey)} onFocusIndex={(i) => remember(gridKey, i)} onEnter={(i) => onOpen(shown[i])}
             render={(i) => {
               const it = shown[i]
-              const sub = 'year' in it && it.year ? it.year : it.rating ? `★ ${it.rating.toFixed(1)}` : ''
-              return <Poster src={it.poster} title={it.name} sub={sub} fav={favSet.has(it.id)} progress={progressOf(it.id)} />
+              const { title, quality } = cardText(it.name)
+              const w = isMovies ? watch.get(`movie:${it.id}`) : undefined
+              const prog = isMovies ? (w && w.durationMs && !w.watched ? w.progressMs / w.durationMs : 0)
+                : (() => { const e = cw.find((c) => c.seriesId === it.id); return e && e.durationMs ? e.progressMs / e.durationMs : 0 })()
+              return (
+                <div className="movie-card">
+                  <div className="movie-poster">
+                    <div className="poster-fallback">{title}</div>
+                    {it.poster && <img src={it.poster} alt="" loading="lazy" onError={(e) => { e.currentTarget.style.display = 'none' }} />}
+                    <span className="badge-quality">{quality}</span>
+                    {w?.watched && <span className="badge-watched"><Icon name="check_circle" size={24} /></span>}
+                    {favSet.has(it.id) && <span className="badge-fav"><Icon name="favorite" size={22} /></span>}
+                    {prog > 0 && <div className="movie-progress"><div style={{ width: `${Math.round(prog * 100)}%` }} /></div>}
+                  </div>
+                  <div className="movie-title">{title}</div>
+                </div>
+              )
             }} />
         )}
       </div>
