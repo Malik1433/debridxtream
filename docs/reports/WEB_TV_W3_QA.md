@@ -44,6 +44,12 @@ slow channel is not given up on.
 **3. A failure that would not say why.** The message now names what the stream carries, read from
 mpegts.js's `MEDIA_INFO`. That is what turned the next item from a guess into a fact.
 
+> ⚠️ **CORRECTION (2026-10-02): the mechanism below is WRONG.** This TV's MSE *does* take MP3,
+> AC-3 and E-AC-3 — Settings now reports `audio AAC+MP3+AC-3+E-AC-3`. I had asked whether it could
+> play MP3 **inside MP4**, which it cannot, but mpegts.js feeds MP3 as raw `audio/mpeg`, which this TV
+> accepts. Why mpegts.js gets no picture from those channels is still unknown; the AVPlay fallback is
+> triggered by a timeout, not by a known cause. See `WEB_TV_W4_QA.md` P2.
+
 ## ⭐ The real finding: this player cannot play every channel
 
 The owner's 4K channels play on the Fire TV but not here. With the above, the TV answered:
