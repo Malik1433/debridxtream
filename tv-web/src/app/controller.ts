@@ -12,7 +12,12 @@ import type { LicenseState } from '../license/policy'
 import { deviceId, type Platform } from '../platform'
 import { SyncRunner } from './syncRunner'
 import { EpgCache } from '../data/epg'
-import { favourites, toggleFavourite } from '../data/favourites'
+import { favourites, toggleFavourite, type FavKind } from '../data/favourites'
+import type { LibraryKind } from '../data/catalogueStore'
+import { Parental } from '../data/parental'
+import type { LibrarySync } from '../data/session'
+import { episodeUrl, movieInfo, movieUrl, showInfo, type Movie, type MovieInfo, type Show, type ShowInfo, type VodCategory } from '../data/vodApi'
+import { continueWatching, recordProgress, watchEntry, watchedEpisodes, type WatchEntry } from '../data/watchState'
 import { liveUrl } from '../xtream'
 import type { LiveCategory, LiveStream } from '../data/xtreamApi'
 
@@ -42,6 +47,9 @@ export interface AppState {
    */
   catalogue: Catalogue | null
   sync: SyncPhase
+  /** Movies and series: fetched after Live, never in the gate's way. Null until the first one lands. */
+  library: LibrarySync | null
+  librarySyncing: boolean
 }
 
 /**
@@ -74,6 +82,8 @@ export class AppController {
       hasAccount: this.session.account() !== null,
       catalogue: last,
       sync: last ? { kind: 'done', ...last } : { kind: 'idle' },
+      library: this.session.lastLibrarySync(),
+      librarySyncing: false,
     }
   }
 
@@ -93,12 +103,51 @@ export class AppController {
 
   // ── Live TV (W3) ──
   readonly epg = new EpgCache(() => this.session.account())
-  liveCategories(): Promise<LiveCategory[]> { return this.session.liveCategories() }
-  liveStreams(): Promise<LiveStream[]> { return this.session.liveStreams() }
+  /** Parental controls apply at the facade, so every screen agrees without knowing why (Android rule). */
+  readonly parental = new Parental(localStorage)
+  async liveCategories(): Promise<LiveCategory[]> { return this.parental.filterCategories(await this.session.liveCategories()) }
+  async liveStreams(): Promise<LiveStream[]> {
+    const [cats, streams] = await Promise.all([this.session.liveCategories(), this.session.liveStreams()])
+    return this.parental.filterItems(streams, cats)
+  }
   /** Built from the current session every time: an absolute stream URL is never stored (CLAUDE.md). */
   liveUrl(streamId: string): string | null { const a = this.session.account(); return a ? liveUrl(a, streamId) : null }
-  favourites(): string[] { return favourites(localStorage) }
-  toggleFavourite(id: string): string[] { return toggleFavourite(localStorage, id) }
+  favourites(kind: FavKind = 'live'): string[] { return favourites(localStorage, kind) }
+  toggleFavourite(id: string, kind: FavKind = 'live'): string[] { return toggleFavourite(localStorage, id, kind) }
+
+  // ── Movies and series (W4) ──
+  async libraryCategories(kind: LibraryKind): Promise<VodCategory[]> { return this.parental.filterCategories(await this.session.libraryCategories(kind)) }
+  async libraryItems<T extends Movie | Show>(kind: LibraryKind): Promise<T[]> {
+    const [cats, items] = await Promise.all([this.session.libraryCategories(kind), this.session.libraryItems<T>(kind)])
+    return this.parental.filterItems(items, cats)
+  }
+  movieInfo(id: string, ext: string): Promise<MovieInfo> { return this.withAccount((a) => movieInfo(a, id, ext)) }
+  showInfo(id: string): Promise<ShowInfo> { return this.withAccount((a) => showInfo(a, id)) }
+  movieUrl(id: string, ext: string): string | null { const a = this.session.account(); return a ? movieUrl(a, id, ext) : null }
+  episodeUrl(id: string, ext: string): string | null { const a = this.session.account(); return a ? episodeUrl(a, id, ext) : null }
+  watchEntry(kind: WatchEntry['kind'], id: string): WatchEntry | null { return watchEntry(localStorage, kind, id) }
+  recordProgress(e: Omit<WatchEntry, 'watched' | 'updatedAt'>): WatchEntry { return recordProgress(localStorage, e) }
+  continueWatching(): WatchEntry[] { return continueWatching(localStorage) }
+  watchedEpisodes(seriesId: string): Map<string, WatchEntry> { return watchedEpisodes(localStorage, seriesId) }
+  retryLibrary(): void { void this.runLibrarySync() }
+
+  private async withAccount<T>(fn: (a: XtreamAccount) => Promise<T>): Promise<T> {
+    const a = this.session.account()
+    if (!a) throw new Error('no account')
+    return fn(a)
+  }
+
+  private libraryRun: Promise<void> | null = null
+  /** One at a time; Live always first (the gate waits only for channels). */
+  private runLibrarySync(): Promise<void> {
+    if (this.libraryRun) return this.libraryRun
+    this.set({ librarySyncing: true })
+    this.libraryRun = this.session.syncLibrary()
+      .then((r) => this.set({ library: r, librarySyncing: false }))
+      .catch(() => this.set({ librarySyncing: false }))
+      .finally(() => { this.libraryRun = null })
+    return this.libraryRun
+  }
 
   retrySync(): void { void this.runSync(false) }
 
@@ -124,7 +173,7 @@ export class AppController {
     // Dropping the catalogue here puts the gate back on the sync screen, which is also the only
     // place the customer is told "You were moved to <name>".
     if (moved) this.syncer.moved()
-    this.set({ hasAccount: true, providerName: name, ...(moved ? { catalogue: null } : {}) })
+    this.set({ hasAccount: true, providerName: name, ...(moved ? { catalogue: null, library: null } : {}) })
     if (changed || this.state.catalogue === null) void this.runSync(moved)
   }
 
@@ -136,6 +185,7 @@ export class AppController {
         catalogue: { channels: r.channels, categories: r.categories, at },
         sync: { kind: 'done', channels: r.channels, categories: r.categories, at },
       })
+      void this.runLibrarySync()
     },
     failed: (e) => this.set({ sync: { kind: 'error', provider: this.state.providerName ?? 'your provider',
       message: e instanceof Error ? e.message : String(e) } }),

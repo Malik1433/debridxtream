@@ -230,7 +230,7 @@ tabdeeli. W2 ke liye zaroori nahi.
 | **W1** ✅ **DONE** (2026-09-30, dono TV par QA) | Dhaancha: `tv-web/`, Vite build, platform layer, focus navigation, `.wgt` + `.ipk` packaging, CI mein build + tests | ✅ Dono TV par app khuli, remote se chali, Back se nikli, Settings ne sahi platform/player/device id dikhayi |
 | **W2** ✅ code (2026-09-30, TV QA baqi) | License + QR pairing + Xtream login + server-switch purge | Naya TV activation code dikhaye, panel se activate ho, phone se QR setup ho |
 | **W3** ⚠️ Samsung QA done 2026-10-01, ek rukawat baqi (`WEB_TV_W3_QA.md`) | Live TV: categories, virtual channel list, preview, fullscreen, zap, now/next EPG, favourites, "Connecting…", cushion, hold-on, interruption meter | ✅ a–f aur i PASS (zap par kabhi ghalat channel nahi, preview 3–5 s). ❌ **jis channel ki audio AAC nahi (MP3/AC-3) woh mpegts.js par chalta hi nahi** — Samsung ka MSE MP4 mein MP3 nahi leta; hal = AVPlay fallback. **W3d (2026-10-02, code mein, Samsung QA baqi):** audio probe (MP3 raw `audio/mpeg`, AC-3, E-AC-3), AVPlay fallback (4 s / 8 s buffering param; AVPlay par patience aur slow-fill laagu nahi — owner ka faisla), on-screen `[live]` panel (green / 0). Step h (20-min soak, `[live]` numbers) **ho hi nahi sakta** jab tak on-screen panel na ho: retail TV par koi log nahi |
-| **W4** | VOD + series (Xtream), continue watching, audio/subtitle tracks | Movie resume ho, track badle |
+| **W4** ✅ code (2026-10-02, ek batch, TV QA baqi — §12) | Movies + Series (grid, detail, seasons/episodes), VOD player (Samsung AVPlay / baqi `<video>`: seek, audio/subtitle tracks, DTS rule, resume, agla episode), Continue watching, Search (TV IME), favourites (teeno), parental PIN, Live: number zap + aakhri channel + Search se channel, Samsung certification (multitasking, network patti, screensaver, media keys, aakhri screen) | Movie resume ho, track badle, agla episode khud chale, Return/Smart Hub ke qaide pass |
 | **W5** | Store submission (sirf IPTV version): icons, screenshots, privacy/terms, age rating | Dono store mein manzoor |
 | **W6** | Debrid (TorBox, Stremio addons, MediaFusion) + zabaan wala auto-next — store ke qaide dekh kar | — |
 
@@ -314,3 +314,68 @@ Owner ka sawal: "itne software hain, un se seekh kar kyun nahi chalte?" Jo mila:
 AVPlay (tuned TS). Debug panel mein red key yahi karti hai. Agar AVPlay-TS mpegts.js ke barabar
 nikle to AVPlay ko primary banana (jaisa market karta hai) ek alag, naapa hua faisla hoga. m3u8 tab
 aazmana hai jab TS par AVPlay kamzor rahe.
+
+## 12. Poori app ka spec — research ke baad, ek batch (W4, 2026-10-02)
+
+Owner: *"pehle poora data analyze karo, jo best hai woh ek hi baar implement karo, phir TV par ek
+baar check."* Ye us research ka nichor hai. Har line ke peeche source hai (neeche).
+
+### 12.1 Store ki shartein (Samsung development checklist "Common", multitasking guide)
+
+| Shart | Hum kya karte hain |
+|---|---|
+| CO-US-05: Return = pichla page; home par Return = exit popup | Router + backStack + ExitDialog (W1 se) |
+| CO-MT-01 / multitasking guide: app chhupe (Smart Hub) to playback "Return jaisa" band | `visibilitychange`: hidden par player band, wapas aane par pichla page |
+| CO-CN-02/03: net jaye to paigham; loading par indicator | Global "No internet connection" patti (`online/offline`); har list ka loading/empty/error |
+| CO-GE-08: playback ke dauran band hua TV dobara khule to pichla page | Aakhri screen (aur detail id) yaad rehta hai |
+| CO-US-02: Stop key playback rokay; keys loading mein bhi kaam karein | Media keys: Play/Pause/Stop/FF/Rew registered aur handled |
+| CO-US-06/07: number aur color keys anokha kaam na karein | Number keys = channel number zap (Live), color keys sirf jo likhe hain |
+| Screensaver playback par na aaye | `webapis.appcommon.setScreenSaver(OFF)` playback ke dauran |
+| Search: TV ka apna IME; Done = 65376, Cancel = 65385 | `<input type="search">`, OK se IME khulta hai |
+
+### 12.2 Player — kaunsi cheez kis player par
+
+| | Samsung | LG (webOS) | VIDAA |
+|---|---|---|---|
+| Live `.ts` | mpegts.js, AVPlay fallback (W3d) | mpegts.js (TV par tasdeeq baqi) | mpegts.js |
+| Movies / episodes (mp4, mkv) | **AVPlay** — MKV, AC-3/E-AC-3, tracks, subtitles, hardware | native `<video>` — MKV + AC-3/MP3/DTS (webOS specs), `audioTracks` | native `<video>` (best effort, store target nahi) |
+| Audio track | `getTotalTrackInfo` + `setSelectTrack('AUDIO', i)` | `video.audioTracks[i].enabled` | wahi |
+| Subtitles | `setSelectTrack('TEXT', i)` + `onsubtitlechange` → **hum HTML mein khud likhte hain** | `textTracks` | — |
+| DTS | **2018+ Samsung par DTS nahi chalta** → doosri audio track khud chuno, warna saaf paigham | chalta hai | — |
+
+### 12.3 Features (jo TiviMate / IBO / Smarters mein hain aur hamare Android mein bhi)
+
+- **Home:** Continue watching, favourite channels, naye movies, nayi series — rows.
+- **Live:** W3 + channel number se zap + aakhri channel/category yaad. Poori EPG grid (TiviMate jaisi)
+  is batch mein **nahi**: `xmltv.php` dasiyon MB ka hota hai aur TV ka JS heap isay parse karte waqt
+  ruk jata hai. Abhi preview/OSD mein now/next; grid alag phase.
+- **Movies / Series:** categories + poster grid (virtual), detail page (backdrop, plot, cast, saal,
+  rating, muddat), Play / Resume / Start over / Favourite. Series: season chunna, episode list
+  progress ke saath.
+- **VOD player:** OSD (naam, progress bar, waqt), ◀▶ seek (dabaye rakho to tez), OK = play/pause,
+  ▲ = audio/subtitle menu, BACK = progress save karke wapas. Episode khatam: agla episode 10 s ki
+  ulti ginti ke saath (Android `PlayerNextEpisodeManager`).
+- **Progress:** 90% dekha = watched (Android `COMPLETION_THRESHOLD_RATIO = 0.90`). Resume tab hi jab
+  30 s se zyada dekha ho. Sab server-scoped (`dx.srv.` / IndexedDB) — provider badle to sab jaye.
+- **Search:** Live, Movies, Series teeno mein naam se; TV ka IME.
+- **Parental:** adult categories (Android ka `AdultContentDetector` port) default chhupi; Settings
+  mein 4-digit PIN se session ke liye khulti hain (Android `ParentalPolicy`: salt + SHA-256, 30 min).
+
+### 12.4 Xtream API jo istemal hogi
+
+`get_vod_categories`, `get_vod_streams`, `get_vod_info&vod_id=` (`info`: plot, cast, director, genre,
+releasedate, duration_secs, backdrop_path; `movie_data`: container_extension),
+`get_series_categories`, `get_series`, `get_series_info&series_id=` (`episodes` season ke hisaab se
+map — kabhi flat array, kabhi `[]`/`false`: Android `XtreamResponseParser` jaisa mazboot parse).
+URL: `/movie/U/P/ID.ext`, `/series/U/P/EPISODE_ID.ext` — hamesha session se banta hai, store nahi hota.
+
+**Sources:** Samsung [development checklist](https://developer.samsung.com/smarttv/develop/development-checklist/common.html),
+[multitasking](https://developer.samsung.com/smarttv/develop/guides/fundamentals/multitasking.html),
+[AVPlay](https://developer.samsung.com/smarttv/develop/guides/multimedia/media-playback/using-avplay.html),
+[subtitles](https://developer.samsung.com/smarttv/develop/guides/multimedia/subtitles.html),
+[keyboard/IME](https://developer.samsung.com/smarttv/develop/guides/user-interaction/keyboardime.html),
+[2018 video specs](https://developer.samsung.com/smarttv/develop/specifications/media-specifications/2018-tv-video-specifications.html);
+LG [back button](https://webostv.developer.lge.com/develop/guides/back-button),
+[webOS media formats](https://webostv.developer.lge.com/develop/specifications/video-audio-230);
+[XUI player API docs](https://github.com/worldofiptvcom/xui-one-api-docs/blob/main/xtream-codes-player-api-documentation.md);
+player comparisons [itsiptv](https://www.itsiptv.com/blog/best-iptv-player-comparison).

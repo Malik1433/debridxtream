@@ -1,7 +1,7 @@
 import type { Platform } from './platform'
 
 /** What a remote key means to the app, whichever TV sent it. */
-export type AppKey = 'up' | 'down' | 'left' | 'right' | 'enter' | 'back' | 'play_pause' | 'ch_up' | 'ch_down' | 'favourite' | 'debug' | 'red' | null
+export type AppKey = 'up' | 'down' | 'left' | 'right' | 'enter' | 'back' | 'play_pause' | 'ch_up' | 'ch_down' | 'favourite' | 'debug' | 'red' | 'play' | 'pause' | 'stop' | 'ff' | 'rew' | 'digit' | null
 
 /** Back differs per TV: Samsung 10009, LG 461, VIDAA 8 (and Escape on a PC browser). */
 const BACK: Record<Platform, number[]> = {
@@ -27,15 +27,23 @@ export function appKey(keyCode: number, platform: Platform): AppKey {
     case 39: return 'right'
     case 40: return 'down'
     case 13: return 'enter'
-    case 10252: case 415: case 19: case 179: return 'play_pause' // Samsung / LG play, pause, media
+    case 10252: case 179: return 'play_pause' // Samsung / keyboard media key
+    case 415: return 'play' // Samsung and LG
+    case 19: return 'pause'
+    case 413: return 'stop'
+    case 417: return 'ff'
+    case 412: return 'rew'
     case 427: case 33: return 'ch_up'
     case 428: case 34: return 'ch_down'
     case 405: return 'favourite' // the yellow key (Samsung ColorF2Yellow, LG yellow)
     case 403: return 'red' // with the debug panel open: play this channel on the other player (A/B)
     case 404: return 'debug' // the green key: the player's on-screen log (a retail TV gives no other)
-    default: return null
+    default: return keyCode >= 48 && keyCode <= 57 ? 'digit' : null
   }
 }
+
+/** 0-9 for a 'digit' key. */
+export const digitOf = (keyCode: number): number => keyCode - 48
 
 /**
  * The spatial-navigation key map (arrows + OK). VIDAA's browser keeps the arrows for itself and

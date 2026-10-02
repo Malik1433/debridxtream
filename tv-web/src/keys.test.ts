@@ -13,7 +13,7 @@ describe('appKey', () => {
     expect(appKey(50, 'vidaa')).toBe('up')
     expect(appKey(56, 'vidaa')).toBe('down')
     expect(appKey(53, 'browser')).toBe('enter')
-    expect(appKey(56, 'tizen')).toBeNull()
+    expect(appKey(56, 'tizen')).toBe('digit')
   })
 
   it('reads the yellow key as favourite and the channel keys as zap', () => {
@@ -25,10 +25,21 @@ describe('appKey', () => {
   it('opens the debug panel on green, and on 0 where the TV hands the page only digits', () => {
     expect(appKey(404, 'tizen')).toBe('debug')
     expect(appKey(48, 'vidaa')).toBe('debug')
-    expect(appKey(48, 'tizen')).toBeNull()
+    expect(appKey(48, 'tizen')).toBe('digit')
   })
 
   it('reads red as the A/B switch', () => {
     expect(appKey(403, 'tizen')).toBe('red')
+  })
+
+  it('reads the media keys apart, and digits where they are not the VIDAA D-pad', () => {
+    expect(appKey(415, 'tizen')).toBe('play')
+    expect(appKey(19, 'webos')).toBe('pause')
+    expect(appKey(10252, 'tizen')).toBe('play_pause')
+    expect(appKey(413, 'tizen')).toBe('stop')
+    expect(appKey(417, 'tizen')).toBe('ff')
+    expect(appKey(412, 'tizen')).toBe('rew')
+    expect(appKey(55, 'tizen')).toBe('digit')
+    expect(appKey(56, 'vidaa')).toBe('down')
   })
 })

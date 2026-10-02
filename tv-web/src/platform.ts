@@ -31,8 +31,8 @@ export function deviceId(p: Platform): string | null {
 /** Samsung delivers only a few keys unless the app registers the rest. */
 export function registerKeys(p: Platform): string {
   if (p !== 'tizen') return 'not needed'
-  const wanted = ['0', '1', '2', '9', 'MediaPlayPause', 'MediaPlay', 'MediaPause', 'MediaStop',
-    'ColorF0Red', 'ColorF1Green', 'ColorF2Yellow', 'ChannelUp', 'ChannelDown']
+  const wanted = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'MediaPlayPause', 'MediaPlay', 'MediaPause',
+    'MediaStop', 'MediaFastForward', 'MediaRewind', 'ColorF0Red', 'ColorF1Green', 'ColorF2Yellow', 'ChannelUp', 'ChannelDown']
   const done: string[] = []
   for (const k of wanted) {
     try { tizen.tvinputdevice.registerKey(k); done.push(k) } catch { /* not on this model */ }
@@ -45,4 +45,17 @@ export function exitApp(p: Platform): void {
     if (p === 'tizen') tizen.application.getCurrentApplication().exit()
     else window.close()
   } catch { /* stay */ }
+}
+
+
+/**
+ * The TV's screensaver must not cover a film (Samsung). Off while something plays, back on after.
+ * Elsewhere a playing <video> already keeps the screen awake.
+ */
+export function setScreenSaver(p: Platform, on: boolean): void {
+  if (p !== 'tizen') return
+  try {
+    const ac = webapis.appcommon
+    ac.setScreenSaver(on ? ac.AppCommonScreenSaverState.SCREEN_SAVER_ON : ac.AppCommonScreenSaverState.SCREEN_SAVER_OFF)
+  } catch { /* no appcommon on this model */ }
 }

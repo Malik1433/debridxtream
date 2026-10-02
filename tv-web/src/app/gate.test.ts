@@ -11,6 +11,8 @@ const base: AppState = {
   hasAccount: true,
   catalogue: { channels: 15_951, categories: 120, at: 1 },
   sync: { kind: 'done', channels: 15_951, categories: 120, at: 1 },
+  library: null,
+  librarySyncing: false,
 }
 
 describe('gateFor', () => {

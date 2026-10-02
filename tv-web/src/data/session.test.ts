@@ -16,7 +16,11 @@ class MemStore implements CatalogueStore {
   async replaceLive(c: LiveCategory[], s: LiveStream[]) { this.cats = c; this.streams = s }
   async liveCategories() { return this.cats }
   async liveStreams() { return this.streams }
-  async clear() { this.cats = []; this.streams = []; this.clears++ }
+  lib: Record<string, { cats: unknown[]; items: unknown[] }> = {}
+  async replaceLibrary(k: string, c: unknown[], i: unknown[]) { this.lib[k] = { cats: c, items: i } }
+  async libraryCategories(k: string) { return (this.lib[k]?.cats ?? []) as never[] }
+  async libraryItems(k: string) { return (this.lib[k]?.items ?? []) as never[] }
+  async clear() { this.cats = []; this.streams = []; this.lib = {}; this.clears++ }
 }
 const provider = (streams: unknown[]): typeof fetch => (async (url: string) => {
   const u = String(url)
@@ -58,5 +62,24 @@ describe('Session (server-switch contract)', () => {
     s.setAccount(A)
     const refused = (async () => new Response(JSON.stringify({ user_info: { auth: 0 } }))) as unknown as typeof fetch
     await expect(s.sync(refused)).rejects.toThrow('login refused')
+  })
+
+  it('syncs movies and series apart: one failing keeps the other, and an empty list keeps what we had', async () => {
+    const kv = new MemKv(); const store = new MemStore(); const s = new Session(kv, store)
+    s.setAccount(A)
+    const lib = (movies: unknown, failSeries: boolean): typeof fetch => (async (url: string) => {
+      const u = String(url)
+      if (failSeries && u.includes('get_series')) return new Response('x', { status: 500 })
+      const body = u.includes('get_vod_categories') || u.includes('get_series_categories') ? [{ category_id: 1, category_name: 'A' }]
+        : u.includes('get_vod_streams') ? movies
+        : u.includes('get_series') ? [{ series_id: 4, name: 'Dark', category_id: 1 }] : {}
+      return new Response(JSON.stringify(body), { status: 200 })
+    }) as typeof fetch
+    const r1 = await s.syncLibrary(lib([{ stream_id: 1, name: 'Dune', category_id: 1 }], false))
+    expect(r1).toMatchObject({ movies: 1, shows: 1, error: null })
+    const r2 = await s.syncLibrary(lib([], true))
+    expect(r2).toMatchObject({ movies: 1, shows: 1, error: 'HTTP 500' })
+    expect((await s.libraryItems('movies')).length).toBe(1)
+    expect((await s.libraryItems('shows')).length).toBe(1)
   })
 })

@@ -2,7 +2,7 @@
  * The screen stack. BACK goes up the hierarchy and never traps the viewer (CLAUDE.md, TV rulebook):
  * at the root it asks to leave instead of doing nothing. Pure, so it is unit-tested.
  */
-export type Screen = 'home' | 'live' | 'movies' | 'series' | 'settings'
+export type Screen = 'home' | 'live' | 'movies' | 'series' | 'search' | 'settings'
 
 export class Router {
   private stack: Screen[] = ['home']

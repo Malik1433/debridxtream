@@ -2,14 +2,14 @@ import { doesFocusableExist, getCurrentFocusKey, pause, resume, setFocus } from 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { Programme } from '../../../data/epg'
 import type { LiveCategory, LiveStream } from '../../../data/xtreamApi'
-import { appKey } from '../../../keys'
-import type { Platform } from '../../../platform'
+import { appKey, digitOf } from '../../../keys'
+import { setScreenSaver, type Platform } from '../../../platform'
 import { pushBackHandler } from '../../backStack'
 import type { AppController } from '../../controller'
 import { Focusable } from '../../Focusable'
 import { LiveDebugPanel } from './LiveDebugPanel'
 import { LiveOsd } from './LiveOsd'
-import { categoryRows, channelsOf, clock, startCategory, zapIndex } from './liveModel'
+import { ALL_ID, categoryRows, channelsOf, clock, startCategory, zapIndex } from './liveModel'
 import { statusText } from './statusText'
 import { useLiveEngine } from './useLiveEngine'
 import { VirtualList } from './VirtualList'
@@ -24,7 +24,15 @@ type Load = { kind: 'loading' } | { kind: 'ready'; cats: LiveCategory[]; streams
  * playing channel (or the Full screen button) goes fullscreen, where ▲▼ and CH+/- zap, OK shows
  * the guide and BACK returns to the list on the channel now playing.
  */
-export function LiveScreen({ platform, controller }: { platform: Platform; controller: AppController }) {
+const NUMBER_WAIT_MS = 1_500
+const LAST_KEY = 'dx.srv.live.last'
+
+export function LiveScreen({ platform, controller, startChannelId = null, onStarted }: {
+  platform: Platform; controller: AppController
+  /** Open on this channel and play it (from Search). */
+  startChannelId?: string | null
+  onStarted?: () => void
+}) {
   const [load, setLoad] = useState<Load>({ kind: 'loading' })
   const [favs, setFavs] = useState<string[]>(() => controller.favourites())
   const [cat, setCat] = useState(-1)
@@ -41,6 +49,7 @@ export function LiveScreen({ platform, controller }: { platform: Platform; contr
   const { engine, status, relayout } = useLiveEngine(video, box, platform)
   const [debug, setDebug] = useState(false)
   const pendingFocus = useRef<string | null>(null)
+  const [numEntry, setNumEntry] = useState('')
 
   useEffect(() => {
     let live = true
@@ -52,7 +61,20 @@ export function LiveScreen({ platform, controller }: { platform: Platform; contr
 
   const streams = load.kind === 'ready' ? load.streams : []
   const rows = useMemo(() => (load.kind === 'ready' ? categoryRows(load.cats, load.streams, favs) : []), [load, favs])
-  useEffect(() => { if (cat < 0 && rows.length) setCat(startCategory(rows)) }, [rows, cat])
+  // Where the viewer left off (category and channel), unless Search asked for a channel.
+  useEffect(() => {
+    if (cat >= 0 || !rows.length) return
+    let last: { cat?: string; ch?: string } = {}
+    try { last = JSON.parse(localStorage.getItem(LAST_KEY) ?? '{}') } catch { /* none */ }
+    const want = startChannelId ? ALL_ID : last.cat
+    const ci = want ? rows.findIndex((r) => r.id === want) : -1
+    const c = ci >= 0 ? ci : startCategory(rows)
+    const list = channelsOf(rows[c].id, streams, favs)
+    const chId = startChannelId ?? last.ch
+    const idx = chId ? list.findIndex((x) => x.id === chId) : -1
+    setCat(c)
+    if (idx >= 0) { setChanStart(idx); pendingFocus.current = `live-chans-${idx}` }
+  }, [rows, cat, startChannelId, streams, favs])
   const catId = rows[cat]?.id ?? ''
   const channels = useMemo(() => channelsOf(catId, streams, favs), [catId, streams, favs])
   const favSet = useMemo(() => new Set(favs), [favs])
@@ -72,7 +94,45 @@ export function LiveScreen({ platform, controller }: { platform: Platform; contr
     if (!s || !url || !engine) return
     engine.play({ id: s.id, name: s.name, url })
     setPlaying({ list, index })
-  }, [controller, engine])
+    try { localStorage.setItem(LAST_KEY, JSON.stringify({ cat: rows[cat]?.id, ch: s.id })) } catch { /* storage blocked */ }
+  }, [controller, engine, rows, cat])
+
+  // Search asked for this channel: play it once the list and the engine are ready.
+  useEffect(() => {
+    if (!startChannelId || !engine || cat < 0 || rows[cat]?.id !== ALL_ID) return
+    const idx = channels.findIndex((x) => x.id === startChannelId)
+    if (idx >= 0) play(channels, idx)
+    onStarted?.()
+  }, [startChannelId, engine, cat, rows, channels, play, onStarted])
+
+  // Samsung multitasking: hidden = the stream stops (one provider connection, nothing playing
+  // unseen); back in front = the same channel again.
+  useEffect(() => {
+    const onVis = () => {
+      if (!engine) return
+      if (document.hidden) engine.stop()
+      else if (playing) play(playing.list, playing.index)
+    }
+    document.addEventListener('visibilitychange', onVis)
+    return () => document.removeEventListener('visibilitychange', onVis)
+  }, [engine, playing, play])
+
+  // The TV's screensaver must not cover a channel that is playing (Samsung).
+  const showing = status.kind === 'playing' || status.kind === 'buffering'
+  useEffect(() => { setScreenSaver(platform, !showing) }, [platform, showing])
+  useEffect(() => () => setScreenSaver(platform, true), [platform])
+
+  // Channel numbers: digits collect for 1.5 s, then jump to that position in the list being watched.
+  useEffect(() => {
+    if (!numEntry) return
+    const t = setTimeout(() => {
+      const list = playing?.list ?? channels
+      const n = Number(numEntry)
+      if (n >= 1 && n <= list.length) { play(list, n - 1); if (!full) { setChanStart(n - 1); setListGen((g) => g + 1); pendingFocus.current = `live-chans-${n - 1}` } }
+      setNumEntry('')
+    }, NUMBER_WAIT_MS)
+    return () => clearTimeout(t)
+  }, [numEntry, playing, channels, play, full])
 
   const goFull = useCallback(() => { if (current) { setFull(true); setOsdUntil(Date.now() + OSD_MS) } }, [current])
 
@@ -116,6 +176,8 @@ export function LiveScreen({ platform, controller }: { platform: Platform; contr
     const onKey = (e: KeyboardEvent) => {
       const k = appKey(e.keyCode, platform)
       if (k === 'debug') { e.preventDefault(); setDebug((d) => !d); return }
+      if (k === 'digit') { e.preventDefault(); setNumEntry((x) => (x + String(digitOf(e.keyCode))).slice(-4)); return }
+      if (k === 'stop' && engine) { e.preventDefault(); engine.stop(); setPlaying(null); setFull(false); return }
       if (k === 'red' && debug && engine) { e.preventDefault(); engine.useAlternativePlayer(); return }
       if (k === 'favourite') {
         e.preventDefault()
@@ -220,6 +282,7 @@ export function LiveScreen({ platform, controller }: { platform: Platform; contr
           </div>
         )}
       </div>
+      {numEntry && <div className="num-entry">{numEntry}</div>}
       {debug && engine && <LiveDebugPanel engine={engine} status={status} />}
     </div>
   )

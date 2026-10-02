@@ -129,3 +129,108 @@ body.player-full .preview-info { visibility: hidden; }
   font-family: 'Roboto Mono', 'Courier New', monospace; font-size: 18px; line-height: 1.4; color: #e2e8f0; }
 .live-debug .dbg-head { color: var(--accent); margin-bottom: 6px; }
 .live-debug .dbg-line { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #cbd5e1; }
+
+/* ── W4: library, detail, search, VOD player ── */
+.library { display: flex; gap: 24px; height: 100%; }
+.lib-grid-col { flex: 1; min-width: 0; }
+.lib-grid-col h2 { font-size: 30px; margin: 0 0 20px; color: var(--text-2); font-weight: 600; }
+.vgrid { position: relative; overflow: hidden; }
+.vcell { position: absolute; box-sizing: border-box; padding: 8px; }
+.poster { height: 100%; display: flex; flex-direction: column; }
+.poster-img { position: relative; width: 100%; aspect-ratio: 2 / 3; border-radius: 10px; overflow: hidden; background: var(--surface-2); flex: none; }
+.poster-img img { position: absolute; left: 0; top: 0; width: 100%; height: 100%; object-fit: cover; }
+.poster-fallback { position: absolute; left: 0; top: 0; right: 0; bottom: 0; display: flex; align-items: center; justify-content: center;
+  text-align: center; padding: 12px; font-size: 20px; color: var(--text-2); box-sizing: border-box; }
+.poster-fav { position: absolute; right: 8px; top: 6px; color: #facc15; font-size: 24px; text-shadow: 0 0 6px #000; }
+.poster-progress { position: absolute; left: 0; right: 0; bottom: 0; height: 6px; background: rgba(0, 0, 0, 0.6); }
+.poster-progress > div { height: 100%; background: var(--accent); }
+.poster-title { font-size: 20px; margin-top: 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text-2); }
+.poster-sub { font-size: 18px; color: var(--muted); }
+.focused .poster-img, .vcell.focused .poster-img { box-shadow: var(--focus-ring); }
+.focused .poster-title { color: var(--text); }
+
+.detail { position: relative; height: 100%; }
+.detail-backdrop { position: absolute; right: -96px; top: -64px; width: 1300px; height: 731px; object-fit: cover; opacity: 0.55; }
+.detail-shade { position: absolute; left: -72px; top: -64px; right: -96px; bottom: -54px;
+  background: linear-gradient(90deg, var(--bg) 35%, rgba(6, 9, 14, 0.4) 75%, rgba(6, 9, 14, 0.2)); }
+.detail-body { position: relative; display: flex; gap: 48px; }
+.detail-poster { width: 300px; height: 450px; object-fit: cover; border-radius: 14px; flex: none; }
+.detail-text { flex: 1; min-width: 0; max-width: 1000px; }
+.detail-text h1 { font-size: 56px; margin: 0 0 12px; }
+.detail-facts { font-size: 26px; color: var(--text-2); margin-bottom: 20px; }
+.detail-plot { font-size: 26px; line-height: 1.45; color: var(--text); max-height: 230px; overflow: hidden; margin: 0 0 16px; }
+.detail-plot.short { max-height: 115px; }
+.detail-credit { font-size: 22px; color: var(--text-2); margin-bottom: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.detail-credit b { color: var(--muted); font-weight: 500; margin-right: 10px; }
+.detail-buttons { margin: 28px 0 24px; }
+.button.primary { background: var(--accent); color: #001014; font-weight: 700; }
+.button.primary.focused { color: #001014; }
+.season-tabs { display: flex; gap: 14px; margin-bottom: 18px; flex-wrap: wrap; }
+.chip { font-size: 24px; padding: 10px 24px; border-radius: 999px; background: var(--surface-2); color: var(--text-2); }
+.chip.active { color: var(--text); border: 2px solid var(--accent); }
+.chip.focused { box-shadow: var(--focus-ring); color: var(--text); }
+.ep-row .ep-num { width: 48px; flex: none; color: var(--muted); text-align: right; }
+.ep-row .ep-dur { font-size: 20px; color: var(--muted); }
+.ep-row .ep-done { color: var(--accent); }
+.ep-row .ep-bar { width: 80px; height: 6px; background: var(--surface); border-radius: 3px; overflow: hidden; display: inline-block; }
+.ep-row .ep-bar span { display: block; height: 100%; background: var(--accent); }
+
+.search h1 { font-size: 52px; margin: 0 0 20px; }
+.search h2, .home-row-title { font-size: 28px; color: var(--text-2); margin: 28px 0 12px; }
+.search-box { border-radius: 12px; background: var(--surface-2); padding: 6px; max-width: 1100px; }
+.search-box.focused { box-shadow: var(--focus-ring); }
+.search-box input { width: 100%; box-sizing: border-box; font-size: 32px; padding: 14px 20px; border: 0; outline: 0;
+  background: transparent; color: var(--text); font-family: inherit; }
+.sr-row { display: flex; gap: 20px; overflow: hidden; }
+.sr-poster { width: 160px; flex: none; padding: 6px; }
+.sr-chan { flex: none; display: flex; align-items: center; gap: 14px; font-size: 24px; padding: 14px 22px; border-radius: 12px;
+  background: var(--surface-2); max-width: 420px; white-space: nowrap; overflow: hidden; }
+.sr-chan img { width: 64px; height: 40px; object-fit: contain; }
+.sr-chan.focused { box-shadow: var(--focus-ring); }
+
+body.vod-open .app { visibility: hidden; }
+.vod-player { position: fixed; left: 0; top: 0; width: 1920px; height: 1080px; z-index: 70; background: #000; }
+html.avplay-on .vod-player { background: transparent; }
+.vod-player video { width: 100%; height: 100%; display: block; background: #000; }
+html.avplay-on .vod-player video { visibility: hidden; }
+.vod-center { position: absolute; left: 0; top: 0; right: 0; bottom: 0; display: flex; align-items: center; justify-content: center;
+  text-align: center; font-size: 32px; line-height: 1.6; }
+.vod-error { background: rgba(0, 0, 0, 0.7); padding: 0 200px; }
+.vod-sub { position: absolute; left: 160px; right: 160px; bottom: 120px; text-align: center; font-size: 44px; line-height: 1.3;
+  color: #fff; text-shadow: 0 0 6px #000, 0 2px 4px #000; }
+.vod-notice { left: 96px; top: 54px; font-size: 26px; }
+.vod-osd { position: absolute; left: 0; right: 0; bottom: 0; padding: 60px 96px 54px;
+  background: linear-gradient(transparent, rgba(0, 0, 0, 0.88) 40%); }
+.vo-title { font-size: 40px; font-weight: 700; margin-bottom: 18px; }
+.vo-title span { font-size: 28px; font-weight: 400; color: var(--text-2); margin-left: 18px; }
+.vo-bar { height: 8px; background: rgba(255, 255, 255, 0.2); border-radius: 4px; overflow: hidden; }
+.vo-bar > div { height: 100%; background: var(--accent); }
+.vo-times { display: flex; justify-content: space-between; font-size: 26px; color: var(--text-2); margin-top: 10px; }
+.vo-help { font-size: 22px; color: var(--muted); margin-top: 14px; }
+.track-menu { position: absolute; right: 96px; bottom: 260px; width: 560px; max-height: 640px; overflow: hidden;
+  background: rgba(15, 22, 32, 0.96); border-radius: 16px; padding: 20px 24px; box-sizing: border-box; }
+.tm-head { font-size: 22px; color: var(--muted); margin: 10px 0 6px; text-transform: uppercase; letter-spacing: 1px; }
+.tm-row { font-size: 26px; padding: 10px 16px; border-radius: 10px; color: var(--text-2); }
+.tm-row.on { color: var(--text); }
+.tm-row.focused { background: var(--surface-2); box-shadow: var(--focus-ring); color: var(--text); }
+.tm-help, .tm-empty { font-size: 20px; color: var(--muted); margin-top: 12px; }
+.next-prompt { position: absolute; right: 96px; bottom: 240px; background: rgba(15, 22, 32, 0.96); border-radius: 16px;
+  padding: 24px 32px; border: 2px solid var(--accent); }
+.np-t { font-size: 30px; font-weight: 700; }
+.np-s { font-size: 24px; color: var(--text-2); margin-top: 8px; }
+
+.pin-dialog { text-align: center; }
+.pin-boxes { display: flex; gap: 20px; justify-content: center; margin-bottom: 20px; }
+.pin-box { width: 90px; height: 110px; border-radius: 14px; background: var(--surface-2); font-size: 56px; display: flex;
+  align-items: center; justify-content: center; }
+.pin-box.focused { box-shadow: var(--focus-ring); }
+.pin-error { color: #f87171; font-size: 26px; margin-bottom: 12px; }
+.pin-help { font-size: 22px; }
+
+.net-banner { position: fixed; left: 0; right: 0; top: 0; z-index: 90; background: #7f1d1d; color: #fff; font-size: 26px;
+  text-align: center; padding: 14px; }
+.num-entry { position: fixed; right: 96px; top: 54px; z-index: 65; font-size: 64px; font-weight: 800; color: var(--accent);
+  background: rgba(0, 0, 0, 0.8); padding: 10px 28px; border-radius: 12px; }
+/* In the grid the poster height is fixed so the title and year fit under it inside the cell. */
+.vcell .poster-img { aspect-ratio: auto; height: 220px; }
+.ep-row .name { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
