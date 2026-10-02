@@ -1,4 +1,4 @@
-import { FocusContext, setFocus, useFocusable } from '@noriginmedia/norigin-spatial-navigation'
+import { doesFocusableExist, FocusContext, getCurrentFocusKey, setFocus, useFocusable } from '@noriginmedia/norigin-spatial-navigation'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { appKey } from '../keys'
 import { handleBack } from './backStack'
@@ -56,6 +56,34 @@ export function App({ platform, state, controller, onSyncNow }: { platform: Plat
   }, [platform, router, exitAsked])
 
   useEffect(() => { void setFocus('nav-home') }, [])
+
+  /**
+   * TV rulebook: focus is always visible, and the remote is never dead. A press towards a column
+   * that has not rendered yet leaves the app with NO focus at all, and nothing brings it back - the
+   * screens only re-check focus when they re-render, and a lost key press causes no render. W3 QA
+   * 2026-09-30: opening Live TV while the 17,704-channel catalogue was still loading and pressing
+   * right killed the remote until the viewer found their way back to Home.
+   *
+   * So every key press is followed by one check, after the navigation has been applied: put focus
+   * back where it was, or failing that on this screen's own sidebar item, which always exists.
+   */
+  const lastGoodFocus = useRef('nav-home')
+  useEffect(() => {
+    // 'sidebar' and 'content' are the two containers. Focus can come to rest on one of them, which
+    // exists and so looks healthy, while nothing inside it is focused and the arrows do nothing.
+    const real = (k: string) => Boolean(k) && k !== 'sidebar' && k !== 'content' && doesFocusableExist(k)
+    const onKey = () => {
+      const before = getCurrentFocusKey()
+      if (real(before)) lastGoodFocus.current = before
+      setTimeout(() => {
+        if (real(getCurrentFocusKey())) return
+        const back = lastGoodFocus.current
+        void setFocus(real(back) ? back : `nav-${router.current}`)
+      }, 0)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [router])
 
   return (
     <div className="app">

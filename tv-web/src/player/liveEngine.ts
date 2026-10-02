@@ -13,6 +13,8 @@ export interface LiveMedia {
   bufferedAheadMs(): number | null
   setSpeed(rate: number): boolean
   onError(cb: (e: { http?: number; network: boolean; message: string }) => void): void
+  /** What the stream declares it carries, once known: names the cause when nothing can decode it. */
+  mediaInfo?(): string | null
 }
 
 export interface LiveChannel { id: string; name: string; url: string }
@@ -37,6 +39,13 @@ export const STUCK_MS = 1_500
 /** Media3's usual rebuffer threshold on Android live (2-3 s); the patience asks for more. */
 export const BASE_REBUFFER_MS = 2_000
 export const SLOW_LINE_AFTER_MS = 6_000
+/**
+ * A channel that never shows a picture is not "still connecting", it is not available - and an
+ * unbounded wait is exactly the hang CLAUDE.md forbids ("Bound every network call... a timeout must
+ * degrade, never hang"). W3 QA 2026-09-30: some 4K channels sat on "Connecting…" for ever, so the
+ * viewer had nothing to act on. Generous, because a good channel here takes 3-5 s.
+ */
+export const CONNECT_TIMEOUT_MS = 25_000
 export const SLOW_FILL_EVERY_MS = 3_000
 /** A hold whose buffer has not grown for this long is a dead connection: reconnect. */
 export const DEAD_HOLD_MS = 15_000
@@ -140,11 +149,25 @@ export class LiveEngine {
       return
     }
     if (!this.started) {
+      if (now - this.loadedAt >= CONNECT_TIMEOUT_MS) return this.failToStart(c)
       const slow = now - this.loadedAt >= SLOW_LINE_AFTER_MS
       if (this.status.kind === 'connecting' && this.status.slow !== slow) this.set({ kind: 'connecting', channel: c, slow })
       return
     }
     if (this.lastPosAt >= 0 && now - this.lastPosAt >= STUCK_MS) this.startHold(c, now, ahead)
+  }
+
+  /** No picture at all, and no error either: the provider simply never sent one. Say so and stop. */
+  private failToStart(c: LiveChannel): void {
+    this.stopTick?.(); this.stopTick = null
+    this.media.stop()
+    const carries = this.media.mediaInfo?.() ?? null
+    this.log(`live: no picture in ${CONNECT_TIMEOUT_MS} ms on ${c.name}${carries ? ` - stream carries ${carries}` : ' - nothing read from the stream'}`)
+    this.set({
+      kind: 'failed',
+      channel: c,
+      message: carries ? `${carries} did not play` : `no picture in ${Math.round(CONNECT_TIMEOUT_MS / 1000)} s`,
+    })
   }
 
   private startHold(c: LiveChannel, now: number, ahead: number): void {

@@ -7,6 +7,13 @@ export class MpegtsAdapter implements PlayerAdapter {
   private p: mpegts.Player | null = null
   private stateCb: (s: PlayerState) => void = () => undefined
   private errorCb: (e: PlayerError) => void = () => undefined
+  /**
+   * What the stream actually carries, as mpegts.js reads its PMT. The reason this is kept: a
+   * channel whose codecs MSE cannot take produces no picture AND no error - mpegts.js simply stops
+   * demuxing - so the only way to say WHY a channel is unavailable is to name what it carries
+   * (W3 QA 2026-09-30, the provider's 4K channels).
+   */
+  private info: { video?: string; audio?: string } = {}
 
   constructor(private readonly video: HTMLVideoElement) {
     video.addEventListener('waiting', () => this.stateCb('buffering'))
@@ -14,11 +21,21 @@ export class MpegtsAdapter implements PlayerAdapter {
     video.addEventListener('ended', () => this.stateCb('ended'))
   }
 
+  /** `video/audio` as the stream declares them, or null before the PMT has been read. */
+  mediaInfo(): string | null {
+    const { video, audio } = this.info
+    return video || audio ? `${video ?? '?'} / ${audio ?? '?'}` : null
+  }
+
   load(url: string, opts: { live: boolean }): void {
     this.stop()
+    this.info = {}
     const p = mpegts.createPlayer({ type: 'mpegts', isLive: opts.live, url }, { enableWorker: false })
     p.on(mpegts.Events.ERROR, (type: string, detail: string, info?: { code?: number; msg?: string }) =>
       this.errorCb({ http: info?.code, network: type === mpegts.ErrorTypes.NETWORK_ERROR, message: `${type}/${detail}` }))
+    p.on(mpegts.Events.MEDIA_INFO, (mi: { videoCodec?: string; audioCodec?: string }) => {
+      this.info = { video: mi.videoCodec, audio: mi.audioCodec }
+    })
     p.attachMediaElement(this.video)
     p.load()
     this.p = p

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { LiveEngine, TICK_MS, type Clock, type LiveMedia, type LiveStatus } from './liveEngine'
+import { CONNECT_TIMEOUT_MS, LiveEngine, TICK_MS, type Clock, type LiveMedia, type LiveStatus } from './liveEngine'
 
 /** A clock we advance by hand, with real timers semantics (every/after). */
 class FakeClock implements Clock {
@@ -62,6 +62,32 @@ describe('LiveEngine', () => {
     r.engine.play(ch('1')); r.run(7000)
     expect(r.engine.current()).toMatchObject({ kind: 'connecting', slow: true })
     r.media.flowing = true; r.media.ahead = 6000; r.run(1000)
+    expect(r.engine.current().kind).toBe('playing')
+  })
+
+  /**
+   * W3 QA 2026-09-30: some 4K channels never produced a picture and never raised an error either,
+   * so the pill said "Connecting…" for ever and the viewer had nothing to act on.
+   */
+  it('gives up on a channel that never shows a picture, and stops the stream', () => {
+    const r = rig()
+    r.engine.play(ch('1'))
+    r.run(CONNECT_TIMEOUT_MS - TICK_MS)
+    expect(r.engine.current().kind).toBe('connecting')  // still trying, and still says so
+    r.run(TICK_MS * 2)
+    expect(r.engine.current()).toMatchObject({ kind: 'failed', message: 'no picture in 25 s' })
+    expect(r.media.stops).toBe(1)                        // the connection is not left open
+    r.run(10_000)
+    expect(r.engine.current().kind).toBe('failed')       // and it stays given up, not a retry loop
+  })
+
+  it('a channel that is merely slow to start is not given up on', () => {
+    const r = rig()
+    r.engine.play(ch('1'))
+    r.run(CONNECT_TIMEOUT_MS - 2_000)
+    r.media.flowing = true; r.media.ahead = 6000; r.run(1000)
+    expect(r.engine.current().kind).toBe('playing')
+    r.run(10_000)
     expect(r.engine.current().kind).toBe('playing')
   })
 

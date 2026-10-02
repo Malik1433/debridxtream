@@ -25,6 +25,7 @@ export function useLiveEngine(video: RefObject<HTMLVideoElement | null>): { engi
       bufferedAheadMs: () => adapter.bufferedAheadMs(),
       setSpeed: (r) => adapter.setSpeed(r),
       onError: (cb) => adapter.onError(cb),
+      mediaInfo: () => adapter.mediaInfo(),
     }
     const engine = new LiveEngine(media, browserClock, (line) => console.info(`[live] ${line}`))
     engineRef.current = engine
