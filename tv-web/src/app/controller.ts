@@ -105,10 +105,15 @@ export class AppController {
   readonly epg = new EpgCache(() => this.session.account())
   /** Parental controls apply at the facade, so every screen agrees without knowing why (Android rule). */
   readonly parental = new Parental(localStorage)
-  async liveCategories(): Promise<LiveCategory[]> { return this.parental.filterCategories(await this.session.liveCategories()) }
+  async liveCategories(): Promise<LiveCategory[]> {
+    return this.filtered('live-cats', async () => this.parental.filterCategories(await this.session.liveCategories()))
+  }
+
   async liveStreams(): Promise<LiveStream[]> {
-    const [cats, streams] = await Promise.all([this.session.liveCategories(), this.session.liveStreams()])
-    return this.parental.filterItems(streams, cats)
+    return this.filtered('live-streams', async () => {
+      const [cats, streams] = await Promise.all([this.session.liveCategories(), this.session.liveStreams()])
+      return this.parental.filterItems(streams, cats)
+    })
   }
   /** Built from the current session every time: an absolute stream URL is never stored (CLAUDE.md). */
   liveUrl(streamId: string): string | null { const a = this.session.account(); return a ? liveUrl(a, streamId) : null }
@@ -116,11 +121,39 @@ export class AppController {
   toggleFavourite(id: string, kind: FavKind = 'live'): string[] { return toggleFavourite(localStorage, id, kind) }
 
   // ── Movies and series (W4) ──
-  async libraryCategories(kind: LibraryKind): Promise<VodCategory[]> { return this.parental.filterCategories(await this.session.libraryCategories(kind)) }
-  async libraryItems<T extends Movie | Show>(kind: LibraryKind): Promise<T[]> {
-    const [cats, items] = await Promise.all([this.session.libraryCategories(kind), this.session.libraryItems<T>(kind)])
-    return this.parental.filterItems(items, cats)
+  async libraryCategories(kind: LibraryKind): Promise<VodCategory[]> {
+    return this.filtered(`lib-cats-${kind}`, async () => this.parental.filterCategories(await this.session.libraryCategories(kind)))
   }
+
+  async libraryItems<T extends Movie | Show>(kind: LibraryKind): Promise<T[]> {
+    return this.filtered(`lib-items-${kind}`, async () => {
+      const [cats, items] = await Promise.all([this.session.libraryCategories(kind), this.session.libraryItems<T>(kind)])
+      return this.parental.filterItems(items, cats)
+    })
+  }
+
+  /**
+   * The FILTERED catalogue, held for as long as it can stay true. Session caches the read; this
+   * caches the work done to it, which is the expensive half: parental filtering walks 69,536 movies
+   * and 15,951 channels, and it was being redone on every single visit to Movies, Series or Live.
+   * W3d/W4 QA (2026-10-02): the screens still showed "loading" after the read was cached, and focus
+   * went sluggish while they did - that was this, on the main thread.
+   *
+   * The key carries the parental answer, so turning adult categories on or off serves a different
+   * entry instead of a stale one; a sync clears the lot (`forgetFiltered`).
+   */
+  private filteredMemo = new Map<string, Promise<unknown>>()
+
+  private filtered<T>(key: string, work: () => Promise<T>): Promise<T> {
+    const k = `${key}|${this.parental.hidesAdult() ? 'hide' : 'show'}`
+    const hit = this.filteredMemo.get(k) as Promise<T> | undefined
+    if (hit) return hit
+    const p = work().catch((e: unknown) => { this.filteredMemo.delete(k); throw e })
+    this.filteredMemo.set(k, p)
+    return p
+  }
+
+  private forgetFiltered(): void { this.filteredMemo.clear() }
   movieInfo(id: string, ext: string): Promise<MovieInfo> { return this.withAccount((a) => movieInfo(a, id, ext)) }
   showInfo(id: string): Promise<ShowInfo> { return this.withAccount((a) => showInfo(a, id)) }
   movieUrl(id: string, ext: string): string | null { const a = this.session.account(); return a ? movieUrl(a, id, ext) : null }
@@ -143,7 +176,7 @@ export class AppController {
     if (this.libraryRun) return this.libraryRun
     this.set({ librarySyncing: true })
     this.libraryRun = this.session.syncLibrary()
-      .then((r) => this.set({ library: r, librarySyncing: false }))
+      .then((r) => { this.forgetFiltered(); this.set({ library: r, librarySyncing: false }) })
       .catch(() => this.set({ librarySyncing: false }))
       .finally(() => { this.libraryRun = null })
     return this.libraryRun
@@ -180,6 +213,7 @@ export class AppController {
   private readonly syncer = new SyncRunner(() => this.session.sync(), {
     started: (moved) => this.set({ sync: { kind: 'running', provider: this.state.providerName ?? 'your provider', moved } }),
     succeeded: (r) => {
+      this.forgetFiltered()
       const at = Date.now()
       this.set({
         catalogue: { channels: r.channels, categories: r.categories, at },
