@@ -24,6 +24,8 @@ type RowProps<T> = {
   onEnter: (t: T) => void
   render: (t: T, focused: boolean) => ReactNode
   onRowFocus?: () => void
+  /** The card that took focus (Series: the Play button follows it). */
+  onItemFocus?: (t: T) => void
 }
 
 /**
@@ -34,7 +36,7 @@ export function HRow<T>(props: RowProps<T>) {
   return props.items.length ? <Row {...props} /> : null
 }
 
-function Row<T>({ id, title, count, items, step, cardClass, keyOf, onEnter, render, onRowFocus }: {
+function Row<T>({ id, title, count, items, step, cardClass, keyOf, onEnter, render, onRowFocus, onItemFocus }: {
   id: string
   title: string
   count?: number
@@ -46,6 +48,7 @@ function Row<T>({ id, title, count, items, step, cardClass, keyOf, onEnter, rend
   onEnter: (t: T) => void
   render: (t: T, focused: boolean) => ReactNode
   onRowFocus?: () => void
+  onItemFocus?: (t: T) => void
 }) {
   const row = useFocusable({ focusKey: `row-${id}`, saveLastFocusedChild: true, trackChildren: true })
   const [idx, setIdx] = useState(0)
@@ -53,14 +56,16 @@ function Row<T>({ id, title, count, items, step, cardClass, keyOf, onEnter, rend
   return (
     <FocusContext.Provider value={row.focusKey}>
       <section ref={row.ref} className="home-section" data-row={id}>
-        <div className="home-section-head">
-          <span className="home-section-title">{title}</span>
-          {count !== undefined && <span className="home-section-count">{count}</span>}
-        </div>
+        {title && (
+          <div className="home-section-head">
+            <span className="home-section-title">{title}</span>
+            {count !== undefined && <span className="home-section-count">{count}</span>}
+          </div>
+        )}
         <div className="home-strip" style={{ transform: `translateX(${-shift}px)` }}>
           {items.map((t, i) => (
             <Card key={keyOf(t)} focusKey={`${id}-${i}`} className={cardClass} onEnter={() => onEnter(t)}
-              onFocus={() => { setIdx(i); onRowFocus?.() }}>
+              onFocus={() => { setIdx(i); onRowFocus?.(); onItemFocus?.(t) }}>
               {(f) => render(t, f)}
             </Card>
           ))}

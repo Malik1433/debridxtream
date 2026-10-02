@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { continueWatching, forget, recordProgress, resumePointMs, watchEntry, watchedEpisodes } from './watchState'
+import { continueWatching, forget, markWatched, recordProgress, resumePointMs, watchEntry, watchedEpisodes } from './watchState'
 
 class Kv { m = new Map<string, string>(); getItem(k: string) { return this.m.get(k) ?? null } setItem(k: string, v: string) { this.m.set(k, v) } }
 const movie = (id: string, progressMs: number, durationMs = 6_000_000) => ({ kind: 'movie' as const, id, title: id, poster: '', ext: 'mp4', progressMs, durationMs })
@@ -25,5 +25,13 @@ describe('watchState', () => {
     expect([...watchedEpisodes(kv, 's').keys()].sort()).toEqual(['e1', 'e2'])
     forget(kv, 'movie', 'm1')
     expect(watchEntry(kv, 'movie', 'm1')).toBeNull()
+  })
+
+  it('marks watched and unwatched by hand', () => {
+    const kv = new Kv()
+    markWatched(kv, { kind: 'movie', id: 'x', title: 'X', poster: '', ext: 'mp4' }, true)
+    expect(watchEntry(kv, 'movie', 'x')?.watched).toBe(true)
+    markWatched(kv, { kind: 'movie', id: 'x', title: 'X', poster: '', ext: 'mp4' }, false)
+    expect(watchEntry(kv, 'movie', 'x')).toBeNull()
   })
 })

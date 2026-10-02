@@ -1,78 +1,143 @@
 import { setFocus } from '@noriginmedia/norigin-spatial-navigation'
-import { useEffect, useState } from 'react'
-import type { Enrichment } from '../../../data/tmdb'
+import { useEffect, useMemo, useState } from 'react'
+import { cardText, cleanTitle } from '../../../data/titles'
+import { normalizeTitle, type Enrichment } from '../../../data/tmdb'
 import type { Movie, MovieInfo } from '../../../data/vodApi'
 import { resumePointMs } from '../../../data/watchState'
 import { clockOf } from '../../../player/vod/vodTypes'
 import type { AppController } from '../../controller'
 import { Focusable } from '../../Focusable'
+import { Icon } from '../../icons'
+import { HRow } from '../home/HRow'
 import type { PlayRequest } from '../vod/playRequest'
+import { TrailerOverlay } from './TrailerOverlay'
 
-/** A film: backdrop, facts, plot, and Resume / Play / Favourite. Info that fails to load is "no details", never an error page. */
-export function MovieDetail({ movie, controller, onPlay }: { movie: Movie; controller: AppController; onPlay: (r: PlayRequest) => void }) {
+const hm = (min: number) => (min >= 60 ? `${Math.floor(min / 60)}h ${min % 60}m` : `${min}m`)
+
+/**
+ * A film, as Android's fragment_movie_detail_v2: full backdrop at α .45, the "IPTV Movies"
+ * breadcrumb, FEATURE FILM, title, a metadata row, a resume bar, the plot, Watch Now · Trailer · ♡ ·
+ * Mark Watched, DIRECTOR and CAST (photo chips), and SIMILAR MOVIES. TMDB fills what the provider
+ * lacks, exactly as MovieDetailViewModelV2 does.
+ */
+export function MovieDetail({ movie, controller, onPlay, onOpenMovie }: {
+  movie: Movie; controller: AppController; onPlay: (r: PlayRequest) => void; onOpenMovie: (m: Movie) => void
+}) {
   const [info, setInfo] = useState<MovieInfo | null>(null)
   const [failed, setFailed] = useState(false)
   const [tmdb, setTmdb] = useState<Enrichment | null>(null)
   const [fav, setFav] = useState(() => controller.favourites('movies').includes(movie.id))
+  const [trailer, setTrailer] = useState(false)
+  const [, refresh] = useState(0)
   const entry = controller.watchEntry('movie', movie.id)
   const resume = resumePointMs(entry)
+  const title = cardText(movie.name).title
 
   useEffect(() => {
     let live = true
     controller.movieInfo(movie.id, movie.ext).then((i) => {
       if (!live) return
       setInfo(i)
-      // Android enriches every film from TMDB, provider data or not (MovieDetailViewModelV2).
       controller.enrich('movie', movie.name, i.year).then((t) => { if (live) setTmdb(t) }).catch(() => undefined)
     }).catch(() => { if (live) { setFailed(true); controller.enrich('movie', movie.name, '').then((t) => { if (live) setTmdb(t) }).catch(() => undefined) } })
     return () => { live = false }
   }, [controller, movie])
   useEffect(() => { void setFocus('detail-play') }, [])
 
+  // SIMILAR MOVIES: TMDB recommendations that this provider actually has.
+  const similar = useMemo(() => {
+    if (!tmdb?.recommendations.length) return []
+    const all = controller.peek<Movie[]>('lib-items-movies') ?? []
+    const byTitle = controller.memo('movie-title-index', () => {
+      const m = new Map<string, Movie>()
+      for (const x of all) { const k = normalizeTitle(cleanTitle(x.name).replace(/\(\d{4}\)/, '')); if (k && !m.has(k)) m.set(k, x) }
+      return m
+    })
+    const out: Movie[] = []
+    for (const r of tmdb.recommendations) { const hit = byTitle.get(normalizeTitle(r.title) ?? ''); if (hit && hit.id !== movie.id && !out.includes(hit)) out.push(hit) }
+    return out.slice(0, 12)
+  }, [tmdb, controller, movie.id])
+
   const play = (startMs: number) => onPlay({
-    kind: 'movie', id: movie.id, ext: info?.ext ?? movie.ext, title: movie.name, subtitle: info?.year ?? '', poster: movie.poster, startMs,
+    kind: 'movie', id: movie.id, ext: info?.ext ?? movie.ext, title, subtitle: info?.year || tmdb?.year || '', poster: movie.poster, startMs,
   })
-  // TMDB first where it has the field (Android shows TMDB's), the provider's otherwise.
   const year = tmdb?.year || info?.year
   const genre = tmdb?.genre || info?.genre
   const rating = tmdb?.rating || info?.rating || movie.rating
-  const runtime = info?.durationSecs ? info.durationSecs * 1000 : (tmdb?.runtimeMin ?? 0) * 60_000
+  const runtimeMin = info?.durationSecs ? Math.round(info.durationSecs / 60) : tmdb?.runtimeMin ?? 0
   const plot = tmdb?.plot || info?.plot
   const director = tmdb?.director || info?.director
-  const cast = tmdb?.cast || info?.cast
-  // W4 QA N2: never a bare page - provider backdrop, then TMDB's, then the poster itself (blurred).
+  const people = tmdb?.people.length ? tmdb.people : (info?.cast ? info.cast.split(',').slice(0, 6).map((n) => ({ name: n.trim(), photo: '' })) : [])
   const backdrop = info?.backdrop || tmdb?.backdrop || ''
   const posterBg = !backdrop ? (tmdb?.poster || movie.poster || info?.poster || '') : ''
-  const facts = [year, runtime ? clockOf(runtime) : '', genre, rating ? `★ ${rating.toFixed(1)}` : '']
-    .filter(Boolean).join(' · ')
+  const durMs = runtimeMin * 60_000
+  const toggleWatched = () => {
+    controller.markWatched({ kind: 'movie', id: movie.id, title, poster: movie.poster, ext: movie.ext, durationMs: durMs }, !entry?.watched)
+    refresh((n) => n + 1)
+  }
+
   return (
-    <div className="detail">
-      {backdrop && <img className="detail-backdrop" src={backdrop} alt="" onError={(e) => { e.currentTarget.style.display = 'none' }} />}
-      {posterBg && <img className="detail-backdrop poster-bg" src={posterBg} alt="" onError={(e) => { e.currentTarget.style.display = 'none' }} />}
-      <div className="detail-shade" />
-      <div className="detail-body">
-        {movie.poster && <img className="detail-poster" src={movie.poster} alt="" onError={(e) => { e.currentTarget.style.visibility = 'hidden' }} />}
-        <div className="detail-text">
-          <h1>{movie.name}</h1>
-          <div className="detail-facts">{facts || (failed ? 'No details from the provider' : 'Loading details…')}</div>
-          {plot && <p className="detail-plot">{plot}</p>}
-          {director && <div className="detail-credit"><b>Director</b> {director}</div>}
-          {cast && <div className="detail-credit"><b>Cast</b> {cast}</div>}
-          <div className="buttons detail-buttons">
-            {resume > 0 ? (
-              <>
-                <Focusable focusKey="detail-play" className="button primary" onEnter={() => play(resume)}>▶ Resume from {clockOf(resume)}</Focusable>
-                <Focusable focusKey="detail-start" className="button" onEnter={() => play(0)}>Start over</Focusable>
-              </>
-            ) : (
-              <Focusable focusKey="detail-play" className="button primary" onEnter={() => play(0)}>▶ Play{entry?.watched ? ' again' : ''}</Focusable>
-            )}
-            <Focusable focusKey="detail-fav" className="button" onEnter={() => setFav(controller.toggleFavourite(movie.id, 'movies').includes(movie.id))}>
-              {fav ? '★ Favourite' : '☆ Favourite'}
-            </Focusable>
-          </div>
+    <div className="detail2">
+      {backdrop && <img className="detail2-backdrop" src={backdrop} alt="" onError={(e) => { e.currentTarget.style.display = 'none' }} />}
+      {posterBg && <img className="detail2-backdrop poster-bg" src={posterBg} alt="" onError={(e) => { e.currentTarget.style.display = 'none' }} />}
+      <div className="detail2-scrim" />
+      <div className="detail2-crumb"><b>IPTV</b> Movies</div>
+      <div className="detail2-col">
+        <div className="detail2-type">FEATURE FILM</div>
+        <div className="detail2-title">{title}</div>
+        <div className="detail2-meta">
+          {rating > 0 && <span className="rating-badge">{rating.toFixed(1)} ★</span>}
+          {[year, runtimeMin ? hm(runtimeMin) : '', genre].filter(Boolean).map((t, i) => <span key={i}>{i > 0 && <i>·</i>}{t}</span>)}
+          {!year && !genre && !runtimeMin && <span className="muted">{failed ? 'No details from the provider' : 'Loading details…'}</span>}
         </div>
+        {resume > 0 && entry && (
+          <div className="resume-bar">
+            <Icon name="play" size={28} />
+            <div className="resume-text">
+              <div><b>RESUME FROM {clockOf(resume)}</b>{entry.durationMs ? <span>{clockOf(entry.durationMs - resume)} LEFT</span> : null}</div>
+              <div className="resume-progress"><div style={{ width: `${entry.durationMs ? (resume / entry.durationMs) * 100 : 0}%` }} /></div>
+            </div>
+          </div>
+        )}
+        {plot && <p className="detail2-plot">{plot}</p>}
+        <div className="detail2-actions">
+          <Focusable focusKey="detail-play" className="d-btn watch" onEnter={() => play(resume)}><Icon name="play" size={26} /> Watch Now</Focusable>
+          {tmdb?.trailerKey && <Focusable focusKey="detail-trailer" className="d-btn" onEnter={() => setTrailer(true)}>Trailer</Focusable>}
+          <Focusable focusKey="detail-fav" className={`d-btn square${fav ? ' on' : ''}`} onEnter={() => setFav(controller.toggleFavourite(movie.id, 'movies').includes(movie.id))}>
+            <Icon name={fav ? 'favorite' : 'favorite_border'} size={28} />
+          </Focusable>
+          <Focusable focusKey="detail-watched" className="d-btn" onEnter={toggleWatched}>{entry?.watched ? 'Mark Unwatched' : 'Mark Watched'}</Focusable>
+        </div>
+        {entry?.watched && <div className="watched-badge">✓ WATCHED</div>}
+        {(director || people.length > 0) && (
+          <div className="detail2-credits">
+            {director && <div><div className="credit-label">DIRECTOR</div><div className="credit-value">{director}</div></div>}
+            {people.length > 0 && (
+              <div>
+                <div className="credit-label">CAST</div>
+                <div className="cast-row">{people.slice(0, 6).map((p) => (
+                  <div key={p.name} className="cast-chip">
+                    {p.photo ? <img src={p.photo} alt="" onError={(e) => { e.currentTarget.style.display = 'none' }} /> : <span>{p.name.slice(0, 1)}</span>}
+                    <small>{p.name}</small>
+                  </div>
+                ))}</div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
+      {similar.length > 0 && (
+        <div className="detail2-similar">
+          <HRow id="similar" title="SIMILAR MOVIES" items={similar} step={196} cardClass="sim-card" keyOf={(m) => m.id} onEnter={onOpenMovie}
+            render={(m) => (
+              <div className="sim-poster">
+                <div className="poster-fallback">{cardText(m.name).title}</div>
+                {m.poster && <img src={m.poster} alt="" loading="lazy" onError={(e) => { e.currentTarget.style.display = 'none' }} />}
+              </div>
+            )} />
+        </div>
+      )}
+      {trailer && tmdb?.trailerKey && <TrailerOverlay youtubeKey={tmdb.trailerKey} onClose={() => { setTrailer(false); void setFocus('detail-trailer') }} />}
     </div>
   )
 }

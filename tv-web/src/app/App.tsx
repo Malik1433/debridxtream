@@ -149,7 +149,7 @@ export function App({ platform, state, controller, onSyncNow }: { platform: Plat
       {showRail && <NavRail screen={screen} onOpen={open} />}
       <FocusContext.Provider value={content.focusKey}>
         <div ref={content.ref} className={`content screen-${detail ? 'detail' : screen}`}>
-          {detail?.kind === 'movie' && <MovieDetail key={detail.item.id} movie={detail.item} controller={controller} onPlay={setPlay} />}
+          {detail?.kind === 'movie' && <MovieDetail key={detail.item.id} movie={detail.item} controller={controller} onPlay={setPlay} onOpenMovie={(m) => setDetail({ kind: 'movie', item: m })} />}
           {detail?.kind === 'show' && <ShowDetail key={detail.item.id} show={detail.item} controller={controller} onPlay={setPlay} />}
           {!detail && screen === 'home' && (
             <HomeScreen state={state} controller={controller} onContinue={onContinue}

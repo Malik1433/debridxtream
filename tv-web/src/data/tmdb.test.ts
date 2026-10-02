@@ -34,7 +34,16 @@ describe('tmdb (port of Android MovieDetailViewModelV2)', () => {
     expect(e?.backdrop).toBe('https://image.tmdb.org/t/p/w1280/x.jpg')
     expect(calls).toEqual([
       'https://api.themoviedb.org/3/search/movie?api_key=K&query=Dune%20Part%20Two',
-      'https://api.themoviedb.org/3/movie/7?api_key=K&append_to_response=credits',
+      'https://api.themoviedb.org/3/movie/7?api_key=K&append_to_response=credits,videos,recommendations',
     ])
+  })
+
+  it('reads cast photos, the trailer and recommendations', () => {
+    const e = toEnrichment({ credits: { cast: [{ name: 'A', profile_path: '/a.jpg' }, { name: 'B' }] },
+      videos: { results: [{ site: 'YouTube', type: 'Teaser', key: 't' }, { site: 'YouTube', type: 'Trailer', key: 'tr', official: true }, { site: 'Vimeo', type: 'Trailer', key: 'v' }] },
+      recommendations: { results: [{ title: 'Dune', release_date: '2021-09-15' }] } })
+    expect(e.people).toEqual([{ name: 'A', photo: 'https://image.tmdb.org/t/p/w185/a.jpg' }, { name: 'B', photo: '' }])
+    expect(e.trailerKey).toBe('tr')
+    expect(e.recommendations).toEqual([{ title: 'Dune', year: '2021' }])
   })
 })

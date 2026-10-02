@@ -19,6 +19,12 @@ export interface Enrichment {
   backdrop: string; poster: string; plot: string; year: string; genre: string
   /** 0-5, like the provider's rating_5based. */
   rating: number; director: string; cast: string; runtimeMin: number
+  /** For the detail page's photo chips (Android item_cast_member). */
+  people: Array<{ name: string; photo: string }>
+  /** YouTube key of the official trailer, or '' (Android fetchBestTrailerKey). */
+  trailerKey: string
+  /** TMDB recommendations, matched to the provider's titles by the caller (Similar Movies). */
+  recommendations: Array<{ title: string; year: string }>
 }
 
 export function tmdbKey(): string {
@@ -73,10 +79,13 @@ export function bestCandidateId(results: Candidate[], normalizedTarget: string |
   return best ? best[2] : null
 }
 
+type Video = { key?: string; site?: string; type?: string; official?: boolean }
 type Details = {
+  videos?: { results?: Video[] }
+  recommendations?: { results?: Array<{ title?: string; name?: string; release_date?: string; first_air_date?: string }> }
   backdrop_path?: string | null; poster_path?: string | null; overview?: string; release_date?: string; first_air_date?: string
   genres?: Array<{ name?: string }>; vote_average?: number; runtime?: number; episode_run_time?: number[]
-  credits?: { cast?: Array<{ name?: string }>; crew?: Array<{ job?: string; name?: string }> }; created_by?: Array<{ name?: string }>
+  credits?: { cast?: Array<{ name?: string; profile_path?: string | null }>; crew?: Array<{ job?: string; name?: string }> }; created_by?: Array<{ name?: string }>
 }
 
 export function toEnrichment(d: Details): Enrichment {
@@ -90,7 +99,17 @@ export function toEnrichment(d: Details): Enrichment {
     director: d.credits?.crew?.find((c) => (c.job ?? '').toLowerCase() === 'director')?.name ?? d.created_by?.[0]?.name ?? '',
     cast: (d.credits?.cast ?? []).slice(0, 5).map((c) => c.name ?? '').filter(Boolean).join(', '),
     runtimeMin: d.runtime ?? d.episode_run_time?.[0] ?? 0,
+    people: (d.credits?.cast ?? []).slice(0, 8).filter((c) => c.name).map((c) => ({ name: c.name ?? '', photo: c.profile_path ? `${IMG}/w185${c.profile_path}` : '' })),
+    trailerKey: bestTrailer(d.videos?.results ?? []),
+    recommendations: (d.recommendations?.results ?? []).slice(0, 20).map((r) => ({ title: r.title ?? r.name ?? '', year: (r.release_date ?? r.first_air_date ?? '').slice(0, 4) })).filter((r) => r.title),
   }
+}
+
+/** YouTube only; an official Trailer first, then any Trailer, then a Teaser. */
+export function bestTrailer(videos: Video[]): string {
+  const yt = videos.filter((v) => (v.site ?? '').toLowerCase() === 'youtube' && v.key)
+  const pick = yt.find((v) => v.type === 'Trailer' && v.official) ?? yt.find((v) => v.type === 'Trailer') ?? yt.find((v) => v.type === 'Teaser')
+  return pick?.key ?? ''
 }
 
 const cache = new Map<string, Promise<Enrichment | null>>()
@@ -105,7 +124,7 @@ async function lookup(kind: 'movie' | 'tv', title: string, year: string, key: st
     if (!results.length) continue
     const id = bestCandidateId(results, normalizeTitle(q), targetYear)
     if (id === null) continue
-    const d = await fetchJson(`${API}/${kind}/${id}?api_key=${encodeURIComponent(key)}&append_to_response=credits`, STEP_MS, fetcher).catch(() => null) as Details | null
+    const d = await fetchJson(`${API}/${kind}/${id}?api_key=${encodeURIComponent(key)}&append_to_response=credits,videos,recommendations`, STEP_MS, fetcher).catch(() => null) as Details | null
     if (d) return toEnrichment(d)
   }
   return null

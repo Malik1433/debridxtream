@@ -88,3 +88,12 @@ export function forget(kv: Kv, kind: WatchEntry['kind'], id: string): void {
 export function allWatch(kv: Kv): Map<string, WatchEntry> {
   return new Map(Object.entries(load(kv)))
 }
+
+/** Android "Mark Watched" / "Mark Unwatched": a manual state, not a played-through one. */
+export function markWatched(kv: Kv, e: Omit<WatchEntry, 'watched' | 'updatedAt' | 'progressMs' | 'durationMs'> & { durationMs?: number }, watched: boolean, now = Date.now()): void {
+  if (!watched) { forget(kv, e.kind, e.id); return }
+  const all = load(kv)
+  const d = e.durationMs ?? 0
+  all[keyOf(e.kind, e.id)] = { ...e, progressMs: d, durationMs: d, watched: true, updatedAt: now }
+  kv.setItem(KEY, JSON.stringify(all))
+}
