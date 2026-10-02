@@ -12,10 +12,10 @@ class MemKv {
   removeItem(k: string) { this.m.delete(k) }
 }
 class MemStore implements CatalogueStore {
-  cats: LiveCategory[] = []; streams: LiveStream[] = []; clears = 0
+  cats: LiveCategory[] = []; streams: LiveStream[] = []; clears = 0; reads = 0
   async replaceLive(c: LiveCategory[], s: LiveStream[]) { this.cats = c; this.streams = s }
-  async liveCategories() { return this.cats }
-  async liveStreams() { return this.streams }
+  async liveCategories() { this.reads++; return this.cats }
+  async liveStreams() { this.reads++; return this.streams }
   lib: Record<string, { cats: unknown[]; items: unknown[] }> = {}
   async replaceLibrary(k: string, c: unknown[], i: unknown[]) { this.lib[k] = { cats: c, items: i } }
   async libraryCategories(k: string) { return (this.lib[k]?.cats ?? []) as never[] }
@@ -81,5 +81,61 @@ describe('Session (server-switch contract)', () => {
     expect(r2).toMatchObject({ movies: 1, shows: 1, error: 'HTTP 500' })
     expect((await s.libraryItems('movies')).length).toBe(1)
     expect((await s.libraryItems('shows')).length).toBe(1)
+  })
+})
+
+/**
+ * W3d/W4 QA (2026-10-02): every visit to Live TV, Movies or Series walked the whole table again -
+ * 15,951 channels - so each screen change showed "loading" once more.
+ */
+describe('Session (catalogue is read once)', () => {
+  const chan = (id: number) => ({ stream_id: id, name: `Ch ${id}`, category_id: 1, tv_archive: 0 })
+
+  it('reads the store once and serves the rest of the run from memory', async () => {
+    const store = new MemStore(); const s = new Session(new MemKv(), store)
+    s.setAccount(A)
+    await s.sync(provider([chan(1), chan(2)]))
+    store.reads = 0
+
+    await s.liveStreams(); await s.liveStreams(); await s.liveCategories(); await s.liveCategories()
+    expect(store.reads).toBe(2)                      // one per table, not one per visit
+    expect(await s.liveStreams()).toHaveLength(2)    // and it still answers correctly
+  })
+
+  it('serves two screens asking at the same time from one read', async () => {
+    const store = new MemStore(); const s = new Session(new MemKv(), store)
+    s.setAccount(A)
+    await s.sync(provider([chan(1)]))
+    store.reads = 0
+    await Promise.all([s.liveStreams(), s.liveStreams(), s.liveStreams()])
+    expect(store.reads).toBe(1)
+  })
+
+  it('forgets what it holds when a sync replaces it', async () => {
+    const store = new MemStore(); const s = new Session(new MemKv(), store)
+    s.setAccount(A)
+    await s.sync(provider([chan(1)]))
+    expect(await s.liveStreams()).toHaveLength(1)
+    await s.sync(provider([chan(1), chan(2), chan(3)]))
+    expect(await s.liveStreams()).toHaveLength(3)     // not the one it was holding
+  })
+
+  it('forgets what it holds when the provider changes', async () => {
+    const store = new MemStore(); const s = new Session(new MemKv(), store)
+    s.setAccount(A)
+    await s.sync(provider([chan(1), chan(2)]))
+    expect(await s.liveStreams()).toHaveLength(2)
+    s.setAccount(B)
+    await s.sync(provider([chan(9)]))
+    expect(await s.liveStreams()).toHaveLength(1)
+  })
+
+  it('does not remember a failed read as the answer', async () => {
+    const store = new MemStore(); const s = new Session(new MemKv(), store)
+    let broken = true
+    store.liveStreams = async () => { store.reads++; if (broken) throw new Error('idb closed'); return [chan(5)] as never }
+    await expect(s.liveStreams()).rejects.toThrow('idb closed')
+    broken = false
+    expect(await s.liveStreams()).toHaveLength(1)
   })
 })

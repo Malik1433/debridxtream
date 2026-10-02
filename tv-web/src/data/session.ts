@@ -23,6 +23,8 @@ export interface LibrarySync { at: number; movies: number; shows: number; error:
 
 export interface SyncResult { account: AccountInfo; categories: number; channels: number }
 
+const byOrder = (a: { order?: number }, b: { order?: number }) => (a.order ?? 0) - (b.order ?? 0)
+
 export class Session {
   constructor(private readonly kv: KeyValue & { length?: number; key?(i: number): string | null },
     private readonly store: CatalogueStore) {}
@@ -33,21 +35,47 @@ export class Session {
 
   chosenPlaylistId(): string | null { return this.kv.getItem(CHOSEN_KEY) }
 
+  /**
+   * The catalogue, read ONCE per run and kept in memory afterwards.
+   *
+   * Every one of these used to walk IndexedDB and re-sort it on each call - 15,951 channels, every
+   * single time the viewer opened Live TV, Movies or Series. W3d/W4 QA (2026-10-02): "whenever I go
+   * into a category it loads again... Series to Movies and it starts loading again." The data only
+   * changes when a sync replaces it, so the read is the thing to cache, and `forget()` at every
+   * replace is the whole invalidation story.
+   *
+   * In-flight promises are cached too, not just results: two screens asking at once (Live, and the
+   * Home row behind it) must not become two full table scans.
+   */
+  private memo = new Map<string, Promise<unknown>>()
+
+  private once<T>(key: string, read: () => Promise<T>): Promise<T> {
+    const hit = this.memo.get(key) as Promise<T> | undefined
+    if (hit) return hit
+    // A failed read must not be remembered as the answer for the rest of the run.
+    const p = read().catch((e: unknown) => { this.memo.delete(key); throw e })
+    this.memo.set(key, p)
+    return p
+  }
+
+  /** Drop what we hold: a sync replaced it, or the provider changed under us. */
+  forget(): void { this.memo.clear() }
+
   /** The stored Live catalogue, in the provider's own order. */
   async liveCategories(): Promise<LiveCategory[]> {
-    return (await this.store.liveCategories()).sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+    return this.once('live-cats', async () => (await this.store.liveCategories()).sort(byOrder))
   }
 
   async liveStreams(): Promise<LiveStream[]> {
-    return (await this.store.liveStreams()).sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+    return this.once('live-streams', async () => (await this.store.liveStreams()).sort(byOrder))
   }
   /** Movies or series, in the provider's own order. */
   async libraryCategories(kind: LibraryKind): Promise<VodCategory[]> {
-    return (await this.store.libraryCategories(kind)).sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+    return this.once(`lib-cats-${kind}`, async () => (await this.store.libraryCategories(kind)).sort(byOrder))
   }
 
   async libraryItems<T extends Movie | Show>(kind: LibraryKind): Promise<T[]> {
-    return (await this.store.libraryItems<T>(kind)).sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+    return this.once(`lib-items-${kind}`, async () => (await this.store.libraryItems<T>(kind)).sort(byOrder))
   }
 
   lastLibrarySync(): LibrarySync | null {
@@ -68,6 +96,7 @@ export class Session {
         const { categories, items } = kind === 'movies' ? await movieLibrary(a, fetcher) : await showLibrary(a, fetcher)
         if (items.length === 0) return { count: had?.[kind] ?? 0, error: null }
         await this.store.replaceLibrary(kind, categories, items)
+        this.forget()
         return { count: items.length, error: null }
       } catch (e) {
         return { count: had?.[kind] ?? 0, error: e instanceof Error ? e.message : String(e) }
@@ -101,6 +130,7 @@ export class Session {
 
   /** The one wipe (Android: ServerDataReset.purge). A new per-provider store must be added HERE. */
   async purge(): Promise<void> {
+    this.forget()
     await this.store.clear()
     const doomed: string[] = []
     const n = this.kv.length ?? 0
@@ -125,6 +155,7 @@ export class Session {
       if (had && had.channels > 0) return { account, categories: had.categories, channels: had.channels }
     } else {
       await this.store.replaceLive(categories, streams)
+      this.forget()
     }
     const rec = { at: Date.now(), categories: categories.length, channels: streams.length }
     this.kv.setItem(SYNC_KEY, JSON.stringify(rec))
