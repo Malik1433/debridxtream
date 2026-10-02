@@ -71,6 +71,21 @@ tasveer **ruki**, na ke jahan humein pata chala (`metrics.test.ts` dono ko pakad
 nahi parha ja sakta — Fire TV wala `MediaCodecLogger` jaisa koi rasta yahan nahi. Is liye **screen par
 mojood panel hi wahid aala hai**, aur usi wajah se meter ka sach bolna lazmi hai.
 
+## 0b. ⭐ Owner ka standing qaida: ye app Android app ki COPY hai (2026-10-02)
+
+*"Look-wise, functions-wise it should be the same as our Android app - the graphics, everything -
+we have to copy Android exactly, hu-ba-hu the same thing."*
+
+Ye naya design nahi hai jo ittefaq se wahi kaam karta ho. **Jo cheez Android app mein hai aur yahan
+nahi, woh DEFECT hai** - backlog ka idea nahi. Koi bhi `tv-web` screen banane se pehle Android ki
+wahi screen khol kar layout, spacing, rang, poster ki shakl, rows ki tarteeb, button ke alfaz aur
+focus ka bartaav waise hi utarna hai. Agar koi platform kisi cheez ki ijazat hi na de to **keh kar**
+chhorna hai, chup-chaap sada nahi kar dena.
+
+10-foot ke aam qawaid (Netflix/YouTube wala andaz: focus ke saath content badalta hai, debounce ke
+saath; browsing ke liye kabhi "focus phir OK" nahi) in ke **upar** laagu hote hain - woh us bartaav
+ka faisla karte hain jo Android pehle se tay nahi karti, Android ki shakl ko kabhi nahi badalte.
+
 ## 1. Kya banana hai
 
 Ek TypeScript web app jo Samsung aur LG ke store par **apne naam se** jaye, remote (D-pad) se chale,

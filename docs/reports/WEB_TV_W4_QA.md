@@ -143,3 +143,93 @@ search → results → play · parental PIN flow end to end · the BACK ladder o
 | **P4** | Home has a **"Recently watched channels"** row (newest first, 12 kept, server-scoped). OK on one opens Live on that channel and plays it. The Home tiles now fit on one row, so the row is one ▼ away. | Watch two channels, go Home, ▼: both are there; OK plays |
 
 Tests: 109. Steps 7–15 of the original script are still to run.
+
+---
+
+# Round 2 — after `ed86fa6b` (2026-10-02, same TV)
+
+**109 tests pass**, built and installed. P1–P4 all confirmed fixed on the TV by the owner.
+
+| | Verdict |
+|---|---|
+| **P1** screen revisits | ✅ "Series, Movies, Live TV — it is quick now" |
+| **P2** 4K channels | ✅ "loads quickly now… could be more perfect, but fine for now" |
+| **P3** library write | ✅ `last update failed` is gone; Settings shows a plain updated time |
+| **P4** recent channels | ✅ "recently watched channels are showing too" |
+
+**P2, the numbers that were missing last time** (`[live]` panel, read off the TV):
+
+```
+23:17:05 player: audio ac-3 cannot reach this TV's MSE - playing it on AVPlay
+23:17:06 live: first picture on ZEE CINEMA (4K) after 3840 ms (AVPlay)
+AVPlay · playing · buffer n/a · speed 1.00x · stalls 0/3 min · stops 0
+```
+First picture, AVPlay: **SONY MAX 2210 ms · Star GOLD 4510 / 5012 ms · ZEE CINEMA 3840 ms.** The
+switch is now instant — the codec decides it, no 6 s wait — and AVPlay ran **0 stalls / 0 stops**,
+against the 4 stalls in 108 s that W0 measured. Properly configured, AVPlay is steady.
+⚠️ `buffer n/a` still: AVPlay reports no cushion, so the cushion policies do not apply to channels it
+carries. Unchanged since W0 and still undecided.
+
+---
+
+## New in round 2
+
+### N1 — two of our own checks contradict each other on AC-3
+
+```
+Settings → Playback:  HD and 4K (HEVC) · audio AAC+MP3+AC-3+E-AC-3
+[live] panel:         audio ac-3 cannot reach this TV's MSE - playing it on AVPlay
+```
+Both cannot be true. The likely reading: the TV *does* take AC-3 through MSE, but **mpegts.js cannot
+transmux AC-3** (it handles AAC and MP3) — so the limit is the library, not the TV, and the log line
+blames the wrong party. Worth settling, because the Playback line is shown to the customer: today it
+promises AC-3 the app then refuses. (It also retires the "MP3" story for good — these 4K channels are
+**AC-3**.)
+
+### N2 — the movie detail page has no backdrop; the series one does
+
+Owner: *"in the background of the movie detail the poster isn't showing as it should — the series
+detail has it, the movie detail doesn't."* Both screens render it identically
+(`MovieDetail.tsx:32`, `ShowDetail.tsx:53`) and both parse it identically
+(`vodApi.ts:62`, `:100`, `firstUrl(i.backdrop_path)`), so the difference is the **provider's data**:
+this movie has no `backdrop_path`, and the page then shows bare background.
+
+The fix is a fallback, not a layout change: when `backdrop` is empty, use the poster
+(`movie_image` / `cover_big`, already parsed into `info.poster`) as the backdrop, the way the Android
+app does. ⚠️ Must be checked against the Android screen rather than invented — see N3.
+
+### N3 — ⭐ STANDING RULE from the owner: this app is a COPY of the Android app
+
+*"Look-wise, functions-wise it should be the same as our Android app — the graphics, everything — we
+have to copy Android exactly, hu-ba-hu the same thing."*
+
+So **a visual the Android app has and `tv-web` lacks is a defect**, not a backlog idea. Before
+building any screen here, open the Android screen it mirrors and copy layout, spacing, colours,
+poster shapes, row order, button wording and focus behaviour. Where a platform genuinely forbids
+something, say so out loud instead of quietly simplifying. N2 was found exactly this way.
+
+### N4 — category browsing: debounce, do NOT require OK
+
+The owner asked whether changing category should load only on OK, since loading on every focus change
+feels slow — and what the standard says.
+
+**The standard is focus-driven, not OK-driven.** Netflix, YouTube TV, Apple TV, TiviMate, Stremio and
+Android TV's own Leanback guidance all update the content as focus moves; requiring OK adds a key
+press per category and breaks 10-foot browsing. The owner agreed to follow the standard.
+
+What is actually wrong is that the load starts **immediately** on every focus change. The standard
+answer is a **debounce of ~250–300 ms, with the previous work cancelled**, so a fast scroll triggers
+no load at all and only the category you rest on is built. Two things must come with it or it will
+not help: the in-flight build must be **cancellable** (or ten categories' work queues up and runs
+anyway), and the focus handler must never do heavy work itself — that was the "focus feels slow"
+symptom. And because filtering 69,536 movies per category is costly even once, **cache each
+category's list** so returning to it costs nothing.
+
+---
+
+## Still unrun (steps 8–15)
+
+film play + start time + seek/pause + audio/subtitle menu · DTS notice · resume + Continue watching ·
+series next-episode prompt · Smart Hub and TV off/on · search → results → play · parental PIN flow ·
+the BACK ladder. (Step 7, the movies grid, and the detail page layout were seen and look right apart
+from N2.)
