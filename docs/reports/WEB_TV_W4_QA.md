@@ -485,3 +485,124 @@ Each item is its own commit on `claude/gifted-einstein-5mdvd2`, so a regression 
 | **R4** | `a893575` | On a Samsung the trailer goes to the TV's **YouTube app** (`launchAppControl`; new privilege `application.launch`) — Android's own TrailerActivity fallback. If the TV has no YouTube app it says so. ⚠️ The two app ids (`111299001912`, then `9Ur5IzDKqV.TizenYouTube`) are from Samsung's ecosystem, not verified here — **this needs the TV**. |
 | **R6** | `d2c13fb` | **Measurement only**, as the report asked. The green key (0 on VIDAA) now shows, on every screen: fps · p95 frame · janky % (>33 ms) · worst frame · DOM nodes · images · JS heap. No speed fix yet — the next round brings numbers. First suspect to test with it: the Home hero's **full-screen `blur(24px)`** over a poster when a title has no backdrop (`styles.css:255`; the detail pages use the same at :231 / :378). TV GPUs are known to be slow at large blurs. |
 | **R7** | `d2c13fb` | **Measurement only.** Live now logs `picture: FROZEN — no frame drawn for 2 s while the position moved N s`, and `picture: drawing again after N s`, from the decoded-frame count against the position. Works on mpegts.js only: AVPlay exposes no frame count, so on an AVPlay channel a freeze is still invisible to us — say which player was carrying the picture when it happens. |
+
+---
+
+# Round 5 — the answers to round 4, checked on the TV (2026-10-03)
+
+Branch @ `7ecaaeb7`, **136 tests pass**, packaged and installed. Report only. Rulebook: TV, Samsung.
+
+| Round 4 item | Round 5 result |
+|---|---|
+| **R1** category/chip/rail opens on OK, focus moves in | ✅ PASS |
+| **R2** AVPlay draws in the right place | ✅ PASS — correct in the preview box **and** fullscreen |
+| **R3** Home recent channel plays at once | ⚠️ **PARTIAL** — it does reach fullscreen, but shows the list first and jumps |
+| **R4** Trailer | ✅ PASS — the Samsung YouTube app opens on the trailer |
+| **R5** film survives a network cut | ✅ PASS for a ~10 s cut: reconnected and resumed. The >1 min case is **deferred** |
+| **R6** the app is slow | ✅ **now measured** — and the cause is identified |
+| **R7** picture freezes with audio running | ✅ **now measurable, and it reproduced** |
+| Round 4's untested search/settings items | ✅ all PASS (owner) |
+
+---
+
+## ⭐ R6 — measured, and it is the hero
+
+The GREEN readout, same Home, three states:
+
+| State | fps | p95 | janky | worst | DOM | img | heap |
+|---|---|---|---|---|---|---|---|
+| Home top, **hero on screen** | **24** | 67 ms | 9–18 % | **963 ms** | 369 | 40 | 82 MB |
+| Hero on screen (another moment) | 41 | 17 ms | 2 % | 733 ms | 372 | 40 | 82 MB |
+| **Scrolled down, hero off screen** | **43** | 33 ms | 5 % | **383 ms** | 372 | 40 | 82 MB |
+
+**DOM, images and heap are identical in all three** — 372 / 40 / 82 MB. The only variable is whether
+the hero is on screen, and that alone **halves the frame rate** (24 → 43) and **halves the worst
+frame** (963 → 383 ms).
+
+So: **the hero is the cost.** ⚠️ And this kills my own earlier hypothesis — round 4 suggested looking
+at DOM node counts and whether the virtual grid keeps 69,536 items small. It does; DOM is 369. That
+line in round 4 should not be worked on.
+
+⚠️ **But the hero is not the whole story.** With the hero gone it is still **43 fps, not 60**, and
+`worst 383 ms` is still a visible hitch. Two separate costs: the hero's, and a baseline one underneath
+it. Fixing the hero and stopping would leave the app at 43 fps and look like a failed fix.
+
+For reference, CLAUDE.md's own jank gate for the Android app is **p95 ≤ 60 ms, janky ≤ 30 %**. Home
+with the hero breaches the p95 half of it (67 ms); `worst 963 ms` — a frame of nearly one second — is
+what the owner feels as *"focus movement is very slow"*.
+
+## ⭐ R7 — the freeze reproduced, and it is NOT starvation
+
+```
+11:53:18  picture: FROZEN - no frame drawn for 2 s while the position moved 2.4 s
+mpegts.js · pos 11.8 s · buffer 45.3 s · speed 1.00x · stalls 0/3 min · stops 15
+```
+
+The position advanced 2.4 s and **not one frame was drawn**. That is exactly why the old meter was
+blind: it judges a stall from the position, and the position was healthy. `pictureWatch` now catches
+it — the instrument works.
+
+⭐ **The decisive number is `buffer 45.3 s`.** There were forty-five seconds of data in hand when the
+picture froze, so this is **not** the network and not the cushion. The data arrived; the decoder or
+the renderer did not put it on screen. Anything that adds buffer, patience or slow-fill will do
+nothing here — the fix lives in the player, not the policy.
+
+⚠️ `stalls 0/3 min` next to `stops 15`: the interruption meter still reports a healthy session during
+all this, because it too counts stalls from the position. Whatever is decided about the freeze, the
+meter has to learn about the picture as well, or the numbers will keep saying the session was fine.
+
+Two more things in the same capture:
+
+**R7b — `first picture on … after 1070129 ms`** (17.8 minutes). Nonsense; almost certainly measured
+from an older load rather than this one. Worth fixing early because the first-picture number is what
+these QA rounds are being judged on.
+
+**R7c — the player flaps on a zap.** `11:53:06 AVPlay → mpegts.js → 11:53:08 AVPlay →
+11:53:13 mpegts.js` — four switches in seven seconds, each one tearing down and opening a player, on
+an account with `max_connections=1`.
+
+## R3 — partial
+
+The card does end up playing fullscreen, but the list appears first and the app then jumps into
+fullscreen by itself. It should open straight into fullscreen; the intermediate screen is the defect.
+
+## R4 — passes, but going back kills the app
+
+⚠️ **New, and a Samsung checklist item:** returning from the YouTube app **closes DX Play**. Samsung's
+own requirements say an app must survive being backgrounded and resume where it was. Round 3 saw the
+good version of this (TV off → on returned to the same screen), so this is specific to launching
+another app.
+
+## R5 — half done
+
+A ~10 s cut: the reconnect worked and the film carried on. **The >1 min case was not run** — the owner
+cannot take the network down (it is the same network), and ⚠️ **I cannot either**: `sdb shell` is
+silent on this retail TV so no command can be run on it, and cutting the router would take my own sdb
+link down with it, leaving nobody watching. It stays open.
+
+⚠️ **And the reconnect is a safety net, not the cure.** In round 4 a film died at 5:51 with nobody
+touching anything. Why a connection drops unprompted is still **unknown**. Three candidates, each with
+a different fix: the account's `max_connections=1` (another device touching the provider kills this
+stream — the likeliest), the TV being on **Wi-Fi**, or the provider closing idle connections. They can
+be told apart: note whether any other device was on the provider when it next dies, and try the same
+film with the TV on a **LAN cable**.
+
+## Round 4's untested items — all PASS
+
+SPACE / DEL / CLEAR · trending chips · BACK from results → keys → leaves · Recent Searches after
+opening a result · preset scope from Movies / Series · Account panel Up-scroll · Resume Last Channel
+on/off · Change PIN · Manage-on-phone QR.
+
+---
+
+## Where this leaves it
+
+Design and navigation are done. What is open is all playback and frame rate, and for the first time
+all of it is **measured** rather than described:
+
+1. **R7** — frames are not drawn although the data is there (`buffer 45.3 s`). Player-side, not policy.
+2. **R6** — the hero halves the frame rate; a separate baseline cost keeps it at 43 fps without it.
+3. **R7b / R7c** — a nonsense first-picture number, and four player switches per zap.
+4. **R4b** — coming back from YouTube closes the app.
+5. **R3** — the recent-channel card flashes the list before going fullscreen.
+6. **R5** — why a stream drops on its own is still unknown, and the >1 min case is unrun.
