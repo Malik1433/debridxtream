@@ -248,6 +248,10 @@ html.avplay-on .vod-player video { visibility: hidden; }
   padding: 0 22px; font-size: 16px; font-weight: 600; color: #F1F5F9; border-radius: 14px;
   background: rgba(12, 17, 27, 0.92); border: 2px solid rgba(0, 240, 255, 0.35); }
 
+/* W4 QA R6 (2/2), the cost under the hero (43 fps without it): what slides - the page, each row's
+   strip, the Live chips - is its own compositor layer, so a scroll moves a texture instead of
+   repainting every poster under it; and the focus glow appears at once instead of animating a
+   36 px box-shadow blur over ~10 frames. */
 /* ── Parity: Home (fragment_home_cinematic, item_top_10_card, item_continue_watching_card, item_recent_live_card) ── */
 .home { position: absolute; left: 0; top: 0; width: 100%; height: 100%; overflow: hidden; background: #06090E; }
 /* W4 QA R6: the hero halved Home's frame rate on the Samsung (24 vs 43 fps). The image and the scrim
@@ -258,7 +262,7 @@ html.avplay-on .vod-player video { visibility: hidden; }
 .home-hero-scrim { position: absolute; left: 0; top: 0; width: 100%; height: 722px; pointer-events: none; will-change: transform;
   background: linear-gradient(90deg, #06090E 12%, rgba(6, 9, 14, 0.75) 40%, rgba(6, 9, 14, 0.1) 75%),
     linear-gradient(180deg, rgba(6, 9, 14, 0) 55%, #06090E 100%); }
-.home-page { position: relative; transition: transform 220ms ease-out; }
+.home-page { position: relative; transition: transform 220ms ease-out; will-change: transform; }
 .home-hero { height: 680px; position: relative; }
 .hero-content { position: absolute; left: 192px; bottom: 40px; width: 760px; animation: heroIn 360ms ease-out; }
 @keyframes heroIn { from { opacity: 0; transform: translateY(32px); } to { opacity: 1; transform: none; } }
@@ -286,12 +290,12 @@ html.avplay-on .vod-player video { visibility: hidden; }
 .home-section-head { margin-left: 174px; display: flex; align-items: baseline; gap: 14px; margin-bottom: 14px; }
 .home-section-title { font-size: 22px; font-weight: 700; color: #F1F5F9; }
 .home-section-count { font-size: 12px; color: #475569; }
-.home-strip { display: flex; padding-left: 174px; transition: transform 200ms ease-out; }
+.home-strip { display: flex; padding-left: 174px; transition: transform 200ms ease-out; will-change: transform; }
 .home-empty { margin-left: 174px; font-size: 22px; }
 .card-footer-grad { position: absolute; left: 0; right: 0; bottom: 0; height: 40%; background: linear-gradient(transparent, rgba(0, 0, 0, 0.8)); }
 .top-card { width: 256px; flex: none; margin-right: 24px; }
 .top-poster { position: relative; width: 256px; height: 384px; border-radius: 16px; overflow: hidden; background: #16202c;
-  transition: transform 160ms ease-out, box-shadow 160ms; }
+  transition: transform 160ms ease-out; }
 .top-poster img { position: absolute; left: 0; top: 0; width: 100%; height: 100%; object-fit: cover; }
 .top-card.focused .top-poster { transform: scale(1.06); box-shadow: 0 0 0 4px #00F0FF, 0 0 36px rgba(0, 240, 255, 0.45); }
 .top-title { margin-top: 10px; font-size: 19px; color: #F1F5F9; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -355,7 +359,7 @@ html.avplay-on .vod-player video { visibility: hidden; }
 .vod-main .vgrid { margin-left: -12px; }
 .vod-main .vcell { padding: 12px; }
 .movie-card { height: 100%; }
-.movie-poster { position: relative; width: 256px; height: 384px; border-radius: 16px; overflow: hidden; background: #16202c; transition: transform 160ms, box-shadow 160ms; }
+.movie-poster { position: relative; width: 256px; height: 384px; border-radius: 16px; overflow: hidden; background: #16202c; transition: transform 160ms; }
 .movie-poster img { position: absolute; left: 0; top: 0; width: 100%; height: 100%; object-fit: cover; }
 .vcell.focused .movie-poster { transform: scale(1.06); box-shadow: 0 0 0 4px #00F0FF, 0 0 36px rgba(0, 240, 255, 0.45); }
 .badge-quality { position: absolute; left: 12px; top: 12px; font-size: 18px; font-weight: 800; color: #00F0FF; padding: 3px 10px;
@@ -503,7 +507,7 @@ html.avplay-on .vod-player video { visibility: hidden; }
 .live2-search input::placeholder { color: #94A3B8; }
 .live2-search.focused { border-color: #00F0FF; color: #F1F5F9; }
 .live-chips { flex: 1; min-width: 0; overflow: hidden; height: 64px; display: flex; align-items: center; }
-.live-chips-strip { display: flex; gap: 12px; transition: transform 180ms ease-out; padding: 0 4px; }
+.live-chips-strip { display: flex; gap: 12px; transition: transform 180ms ease-out; padding: 0 4px; will-change: transform; }
 .live-chip { height: 60px; box-sizing: border-box; display: flex; align-items: center; gap: 10px; padding: 0 22px 0 24px; border-radius: 999px; flex: none;
   font-size: 24px; color: #94A3B8; background: rgba(255, 255, 255, 0.04); border: 2px solid rgba(255, 255, 255, 0.07); white-space: nowrap; }
 .chip-dot { width: 10px; height: 10px; border-radius: 50%; background: rgba(255, 255, 255, 0.3); }
