@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { LiveEngine, LiveStatus } from '../../../player/liveEngine'
-import { liveLogLines, onLiveLog } from '../../../player/liveLog'
+import { keptLines, liveLogLines, onLiveLog } from '../../../player/liveLog'
 import { thisTvCodecLine } from '../../../player/codecSupport'
 import { learnedBad } from '../../../player/learnedAudio'
 
@@ -27,6 +27,9 @@ export function LiveDebugPanel({ engine, status }: { engine: LiveEngine; status:
       </div>
       <div className="dbg-head">{thisTvCodecLine(learnedBad(localStorage), 'AVPlay')} · red = this channel on the other player</div>
       {liveLogLines().slice(-14).map((l, i) => <div key={i} className="dbg-line">{l}</div>)}
+      {/* Kept across screens and restarts (round 6): errors, retries, player switches, pictures. */}
+      <div className="dbg-head">kept (last 12 of {keptLines().length}):</div>
+      {keptLines().slice(-12).map((l, i) => <div key={`k${i}`} className="dbg-line">{l}</div>)}
     </div>
   )
 }

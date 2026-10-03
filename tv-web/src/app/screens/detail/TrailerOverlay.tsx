@@ -13,7 +13,7 @@ import { recordLifecycle } from '../../perf/lifecycle'
  */
 export function TrailerOverlay({ youtubeKey, onClose }: { youtubeKey: string; onClose: () => void }) {
   const samsung = typeof (window as { tizen?: unknown }).tizen !== 'undefined'
-  const [msg, setMsg] = useState(samsung ? 'Opening trailer in YouTube…' : '')
+  const [msg, setMsg] = useState(samsung ? 'Opening trailer in YouTube… DX Play stays open - come back to it from your apps.' : '')
   useEffect(() => { pauseNav(); return () => resumeNav() }, [])
   useEffect(() => pushBackHandler(() => { onClose(); return true }), [onClose])
   const close = useRef(onClose)
