@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import { spatialKeyMap } from '../keys'
 import { detectPlatform, registerKeys } from '../platform'
 import { AppController } from './controller'
+import { watchLifecycle } from './perf/lifecycle'
 import { Root } from './Root'
 import './styles.css'
 
@@ -15,6 +16,7 @@ setKeyMap(spatialKeyMap(platform))
 ;(window as unknown as { __dxFocus: () => string }).__dxFocus = getCurrentFocusKey
 
 // One 1920x1080 design, scaled to whatever the TV reports (some report 1280x720).
+try { watchLifecycle(localStorage) } catch { /* storage blocked */ }
 const stage = document.createElement('div')
 stage.id = 'stage'
 document.getElementById('root')!.appendChild(stage)

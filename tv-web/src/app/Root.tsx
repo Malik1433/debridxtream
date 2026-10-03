@@ -1,6 +1,7 @@
 import { useEffect, useSyncExternalStore } from 'react'
 import { appKey } from '../keys'
 import { exitApp, type Platform } from '../platform'
+import { recordLifecycle } from './perf/lifecycle'
 import { App } from './App'
 import type { AppController } from './controller'
 import { gateFor } from './gate'
@@ -20,7 +21,7 @@ export function Root({ platform, controller }: { platform: Platform; controller:
   // The gate screens have nowhere to go "up" to: BACK leaves the app rather than doing nothing.
   useEffect(() => {
     if (!gated) return
-    const onKey = (e: KeyboardEvent) => { if (appKey(e.keyCode, platform) === 'back') { e.preventDefault(); exitApp(platform) } }
+    const onKey = (e: KeyboardEvent) => { if (appKey(e.keyCode, platform) === 'back') { e.preventDefault(); recordLifecycle(localStorage, 'exit (BACK)'); exitApp(platform) } }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [gated, platform])

@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { appKey } from '../keys'
 import { handleBack, pushBackHandler } from './backStack'
 import { exitApp, type Platform } from '../platform'
+import { recordLifecycle } from './perf/lifecycle'
 import type { AppController, AppState } from './controller'
 import { ExitDialog } from './ExitDialog'
 import { NavRail } from './NavRail'
@@ -189,7 +190,7 @@ export function App({ platform, state, controller, onSyncNow }: { platform: Plat
       {exitAsked && (
         <ExitDialog
           onStay={() => { setExitAsked(false); void setFocus('nav-home') }}
-          onExit={() => exitApp(platform)}
+          onExit={() => { recordLifecycle(localStorage, 'exit (dialog)'); exitApp(platform) }}
         />
       )}
     </div>

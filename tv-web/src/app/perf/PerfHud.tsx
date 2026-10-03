@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { FrameStats } from './frameStats'
+import { lifecycleLines } from './lifecycle'
 
 /**
  * Frame rate on the TV itself (green key; 0 on VIDAA), on every screen (W4 QA R6). The rAF loop runs
@@ -21,5 +22,7 @@ export function PerfHud() {
     }, 1_000)
     return () => { cancelAnimationFrame(raf); clearInterval(id) }
   }, [])
-  return <div className="perf-hud">{line}</div>
+  // The app's own lifecycle record (R4b): read whether the TV killed it or it closed itself.
+  const life = (() => { try { return lifecycleLines(localStorage).slice(-6) } catch { return [] } })()
+  return <div className="perf-hud">{line}{life.map((l, i) => <div key={i} className="perf-life">{l}</div>)}</div>
 }

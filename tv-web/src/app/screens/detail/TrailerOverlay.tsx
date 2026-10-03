@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { openInYouTubeApp } from '../../../platform'
 import { pushBackHandler } from '../../backStack'
+import { recordLifecycle } from '../../perf/lifecycle'
 
 /**
  * The TMDB trailer, as Android plays it (YouTube). Full screen over the page; BACK closes it. The
@@ -21,7 +22,9 @@ export function TrailerOverlay({ youtubeKey, onClose }: { youtubeKey: string; on
   useEffect(() => {
     if (!samsung) return
     let live = true
+    recordLifecycle(localStorage, 'youtube: launching')
     void openInYouTubeApp(youtubeKey).then((ok) => {
+      recordLifecycle(localStorage, ok ? 'youtube: launched' : 'youtube: no app')
       if (!live) return
       if (ok) close.current()
       else setMsg('This TV has no YouTube app to play the trailer.')
