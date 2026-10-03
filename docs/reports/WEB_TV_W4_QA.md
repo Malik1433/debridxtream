@@ -344,3 +344,130 @@ inside the `.wgt`. A TMDB v3 key is a client key — TMDB expects it in apps —
 rate-limiting or a revoked key, which costs posters and cast photos, never playback (the detail
 pages fall back to the provider's own data). If that risk ever becomes real, the answer for BOTH
 apps is the same proxy, not a tv-web-only one. No change.
+
+---
+
+# Round 4 — parity QA (2026-10-03, Samsung GU75CU7179UXZG, Tizen 9.0)
+
+Branch `claude/gifted-einstein-5mdvd2` @ `a72d26c0`. `npm ci`, **128 tests pass**, `npm run tizen`,
+packaged and installed. Compared against `WEB_TV_PARITY_AUDIT.md` and the Android app.
+**Rulebook: TV, on the Samsung.** Report only — nothing fixed, nothing committed.
+
+**Owner's verdict in one line:** *"design-wise things are roughly fine; the problem is playback, and
+the app is slow."*
+
+| Step | | Result |
+|---|---|---|
+| 1 | Rail + Home (flyout, hero, rows, ◀ to the rail) | ✅ design · ❌ **very stuttery** (R6) |
+| 2 | Movies / Series (sidebar, sort chips, badges, grid, first-poster focus) | ✅ |
+| 3 | Detail pages (movie + series) | ✅ except **Trailer** (R4) |
+| 4 | VOD player (control row, top bar, poster card, seek) | ✅ layout · ❌ **dies mid-film** (R5) |
+| 5 | Live TV (chips, list, preview, NEXT UP, guide, OSD) | ✅ design · ❌ **slow + picture freezes** (R6, R7) |
+| 6 | Search | ✅ owner: "everything I searched came out right" |
+| 7 | Settings | ✅ owner: "everything looked fine" |
+| 8 | Regressions | AC-3 fallback still works (R2 is about where it DRAWS, not whether) |
+
+---
+
+## R1 — category browsing: the owner wants Android's OK model, not focus-driven
+
+*"When focus goes onto each category its list comes up, so it runs slow. Better the way we use it in
+Android: the list comes on OK, and on OK the focus moves to the list."*
+
+⚠️ **This reverses the advice I gave in round 2** (N4), where I argued the published 10-foot
+convention is focus-driven browsing with a debounce, and the owner accepted it. Having used it, the
+owner wants the Android behaviour. **That is the correct call under rule 1** (CLAUDE.md, "DX Play TV
+app"): Android sets the shape, and the general standards only decide what Android leaves open. My
+round-2 recommendation applied a standard over a shape Android had already fixed — the rule exists
+precisely to prevent that.
+
+So: **OK opens the category and moves focus into the list**; focus alone changes nothing.
+
+## R2 — ⚠️ AVPlay draws in the wrong place (likely a regression from the N5 fix)
+
+Some channels: **audio plays, a narrow strip of video appears on one side, the rest is black** —
+and in the small preview box the picture is **entirely black**. The AC-3 → AVPlay fallback still
+fires correctly; the fault is where AVPlay puts the picture.
+
+Suspected cause, `src/app/screens/live/useLiveEngine.ts:11` —
+
+```ts
+// "Relative to the stage (the 1920x1080 design), so the scale and any letterbox offset drop out."
+const k = st && st.width ? 1920 / st.width : 1920 / window.innerWidth
+```
+
+`setDisplayRect` draws on the TV's **real screen**, under the page — so it needs the rect in **screen
+pixels**, not in the 1920×1080 design space. While the stage filled the screen the two were the same.
+The N5 fix (`6c43433`) made the scale **uniform**, which introduces letterboxing, and the two spaces
+diverged. A rect expressed in design space would then land as a strip, and in the preview case
+off the visible area entirely — which is exactly what is reported. Worth checking first; it is a
+hypothesis, not a measurement.
+
+## R3 — Home's recent channel opens the list instead of playing
+
+Owner: a card under **Recently watched channels** opens Live TV's list; it should **play that channel
+directly**. (Android plays it.)
+
+## R4 — Trailer does not play: YouTube embed is refused
+
+`"video player configuration error"` on the Samsung. The parity audit flagged this exact risk —
+*"a TMDB trailer plays through YouTube's embed; whether a Samsung TV allows it is checked on the TV"* —
+and the answer is **no**. Needs either a different trailer route or the button hidden on Tizen with
+the reason said out loud.
+
+## R5 — a film dies mid-playback with no retry
+
+Screenshot: `This video could not be played (PLAYER_ERROR_CONNECTION_FAILED). Press BACK to return.`
+at **5:51 of 43:39**, the status reading `UNAVAILABLE`. The stream had been playing fine.
+
+Live TV has retry, quick-retry and hold-on (`LiveHoldOn`, `QUICK_RETRIES`); **the VOD player has
+none** — one failed segment ends the film. CLAUDE.md's rule is the same for both: a failure must
+degrade, not hang, and the Android player reconnects here. Same shape as the live hold-on: retry,
+resume from the position already held, and only give up with a message after that.
+
+## R6 — the app is slow: Home badly, Live TV noticeably
+
+*"On the Home screen the app runs very stop-and-go"*, and Live TV is slow too. This is the same
+complaint as round 1's P1, which the caching work improved for **screen revisits** — this is
+different: it is the **frame rate while using a screen**, not the time to open one.
+
+Nothing has been measured. ⚠️ And it cannot be measured the usual way — a retail Samsung gives no
+logs and no inspector, and a desktop browser will not show it. What is needed first is a way to see
+it on the TV (a frame/latency readout in the existing `[live]` panel would do), otherwise any fix is
+guesswork. Suspects worth looking at before guessing: the Home hero rotation and its backdrop images,
+the number of DOM nodes the rows keep alive, and whether `VirtualGrid` / `VirtualList` really keep
+the DOM small at 69,536 items.
+
+## R7 — Live: audio keeps playing while the picture freezes, and it is not called buffering
+
+Owner: *"in Live TV the audio is playing and the picture sometimes stops — but it doesn't show
+buffering."* The owner has parked this ("we'll look at it later") but it is recorded because of what
+it implies.
+
+⚠️ This is **the W0 failure returning in a new place**: a player that is not playing while everything
+believes it is. The meter catches a stall by polling the position — so if AVPlay's `getCurrentTime()`
+keeps advancing while the decoder shows nothing, the stall is invisible to us, exactly as the old
+event-based meter was blind to a frozen AVPlay. Whoever takes this should first establish **what the
+position does during one of these freezes**, before changing any policy.
+
+---
+
+## Not defects — deliberate deviations (from the parity audit, restated so they are not re-filed)
+
+Settings opens a category on focus rather than OK; search results are 5 columns, not Android's 6; a
+live search result opens Live TV on the channel rather than a player; debrid / addons / IMDb / Rotten
+Tomatoes items are not carried over. ⚠️ **R1 means the Settings-on-focus deviation should be
+re-decided too** — the owner has now stated a preference for Android's OK model in the same
+situation.
+
+## Still unrun
+
+Step 8's screensaver-during-play and network-loss-banner checks, step 9's DTS title (none found), and
+the Smart Hub half of step 12 from round 3.
+
+⚠️ Search and Settings are marked PASS on the owner's own use of them, not on a line-by-line walk of
+the parity audit's rows H and I. The individual items listed in the brief — SPACE / DEL / CLEAR,
+trending chips, BACK from results → keys → leaves, Recent Searches after opening a result, the preset
+scope coming from Movies / Series, the Account panel's Up-scroll, Resume Last Channel actually
+changing where Live TV opens, Change PIN, and the Manage-on-phone QR — were **not each confirmed
+separately**. Treat them as untested rather than passed.
