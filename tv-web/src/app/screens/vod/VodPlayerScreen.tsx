@@ -7,6 +7,7 @@ import { avplayAvailable } from '../../../player/AvplayAdapter'
 import { AvplayVod } from '../../../player/vod/AvplayVod'
 import { HtmlVod } from '../../../player/vod/HtmlVod'
 import { clockOf, seekStep, type VodPlayer } from '../../../player/vod/vodTypes'
+import { VOD_BUFFER_TIMEOUT_MS, VOD_MAX_RETRIES, VodRecovery } from '../../../policy/vodRecovery'
 import type { Episode } from '../../../data/vodApi'
 import { pushBackHandler } from '../../backStack'
 import type { AppController } from '../../controller'
@@ -60,24 +61,46 @@ export function VodPlayerScreen({ platform, controller, request, onClose }: {
     const player: VodPlayer = platform === 'tizen' && plane && avplayAvailable() ? new AvplayVod(plane) : new HtmlVod(videoRef.current!)
     playerRef.current = player
     let subTimer: ReturnType<typeof setTimeout> | null = null
+    // W4 QA R5: a dropped connection reconnects and resumes, as Android's player does.
+    const url = req.kind === 'movie' ? controller.movieUrl(req.id, req.ext) : controller.episodeUrl(req.id, req.ext)
+    const recovery = new VodRecovery()
+    recovery.progress(req.startMs)
+    let retryTimer: ReturnType<typeof setTimeout> | null = null
+    let stallTimer: ReturnType<typeof setTimeout> | null = null
+    const clearStall = () => { if (stallTimer) { clearTimeout(stallTimer); stallTimer = null } }
+    const fail = (message: string) => {
+      clearStall()
+      const r = url ? recovery.onFailure(message) : null
+      if (!r || !url) { setStatus('error'); setError(message); return }
+      setStatus('buffering')
+      setNotice(`Connection lost — reconnecting (${r.attempt}/${VOD_MAX_RETRIES})…`)
+      if (retryTimer) clearTimeout(retryTimer)
+      retryTimer = setTimeout(() => { retryTimer = null; armStall(); player.open(url, r.resumeMs) }, r.delayMs)
+    }
+    const armStall = () => { clearStall(); stallTimer = setTimeout(() => fail('buffer timeout'), VOD_BUFFER_TIMEOUT_MS) }
     player.onEvent((e) => {
-      if (e.type === 'playing') setStatus('playing')
-      else if (e.type === 'buffering') setStatus('buffering')
-      else if (e.type === 'error') { setStatus('error'); setError(e.message) }
+      if (e.type === 'playing') { clearStall(); recovery.recovered(); setStatus('playing') }
+      else if (e.type === 'buffering') { armStall(); setStatus('buffering') }
+      else if (e.type === 'error') fail(e.message)
       else if (e.type === 'notice') { setNotice(e.message); setTimeout(() => setNotice(''), 6_000) }
       else if (e.type === 'subtitle') {
         setSubtitle(e.text)
         if (subTimer) clearTimeout(subTimer)
         if (e.text) subTimer = setTimeout(() => setSubtitle(''), e.durationMs + 200)
-      } else if (e.type === 'ended') { save(); setStatus('paused') }
+      } else if (e.type === 'ended') { clearStall(); save(); setStatus('paused') }
+      else if (e.type === 'ready') clearStall()
     })
-    const url = req.kind === 'movie' ? controller.movieUrl(req.id, req.ext) : controller.episodeUrl(req.id, req.ext)
-    if (url) player.open(url, req.startMs)
+    if (url) { armStall(); player.open(url, req.startMs) }
     else { setStatus('error'); setError('no account') }
     setStatus('loading'); setError(''); setNextDismissed(false)
     const saver = setInterval(save, SAVE_EVERY_MS)
-    const ui = setInterval(() => tick((n) => n + 1), 500)
-    return () => { save(); clearInterval(saver); clearInterval(ui); if (subTimer) clearTimeout(subTimer); player.destroy(); playerRef.current = null }
+    const ui = setInterval(() => { if (player.playing()) recovery.progress(player.positionMs()); tick((n) => n + 1) }, 500)
+    return () => {
+      save(); clearInterval(saver); clearInterval(ui); clearStall()
+      if (subTimer) clearTimeout(subTimer)
+      if (retryTimer) clearTimeout(retryTimer)
+      player.destroy(); playerRef.current = null
+    }
   }, [req, platform, controller, save])
 
   // The remote, the screensaver and the rest of the app are ours while this is open.
