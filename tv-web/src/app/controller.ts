@@ -20,6 +20,7 @@ import { episodeUrl, movieInfo, movieUrl, showInfo, type Movie, type MovieInfo, 
 import { enrich, type Enrichment } from '../data/tmdb'
 import { recentChannels, recordChannel, type RecentChannel } from '../data/recentLive'
 import { recentSearches, recordSearch } from '../data/recentSearches'
+import { span, spanAsync } from './perf/span'
 import { allWatch, continueWatching, markWatched, recordProgress, watchEntry, watchedEpisodes, type WatchEntry } from '../data/watchState'
 import { liveUrl } from '../xtream'
 import type { LiveCategory, LiveStream } from '../data/xtreamApi'
@@ -130,8 +131,8 @@ export class AppController {
 
   async libraryItems<T extends Movie | Show>(kind: LibraryKind): Promise<T[]> {
     return this.filtered(`lib-items-${kind}`, async () => {
-      const [cats, items] = await Promise.all([this.session.libraryCategories(kind), this.session.libraryItems<T>(kind)])
-      return this.parental.filterItems(items, cats)
+      const [cats, items] = await spanAsync(`read:lib-${kind}`, () => Promise.all([this.session.libraryCategories(kind), this.session.libraryItems<T>(kind)]))
+      return span(`parental:lib-${kind}`, () => this.parental.filterItems(items, cats))
     })
   }
 
@@ -156,7 +157,7 @@ export class AppController {
     const k = `${key}|${this.mode()}`
     const hit = this.filteredMemo.get(k) as Promise<T> | undefined
     if (hit) return hit
-    const p = work().then((v) => { if (this.filteredMemo.get(k) === p) this.filteredReady.set(k, v); return v })
+    const p = spanAsync(`load:${key}`, work).then((v) => { if (this.filteredMemo.get(k) === p) this.filteredReady.set(k, v); return v })
       .catch((e: unknown) => { this.filteredMemo.delete(k); throw e })
     this.filteredMemo.set(k, p)
     return p
@@ -179,7 +180,7 @@ export class AppController {
   memo<T>(key: string, compute: () => T): T {
     const k = `${key}|${this.mode()}`
     if (this.derivedMemo.has(k)) return this.derivedMemo.get(k) as T
-    const v = compute()
+    const v = span(`memo:${key}`, compute)
     this.derivedMemo.set(k, v)
     return v
   }
