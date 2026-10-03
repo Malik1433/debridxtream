@@ -717,3 +717,4 @@ html.avplay-on .live2-frame:not(.full) { z-index: -1; box-shadow: 0 0 0 4000px #
 .set2-modal-card h2 { margin: 0 0 32px; font-size: 40px; color: #F1F5F9; }
 .set2-modal-card svg, .set2-modal-card img { background: #fff; padding: 16px; border-radius: 16px; }
 .set2-modal-card p { margin: 28px 0 36px; font-size: 26px; line-height: 1.5; color: #94A3B8; }
+.perf-hud { position: fixed; left: 24px; bottom: 16px; z-index: 200; padding: 8px 16px; border-radius: 8px; font: 20px 'Share Tech Mono', monospace; color: #00FF88; background: rgba(0, 0, 0, 0.8); pointer-events: none; }

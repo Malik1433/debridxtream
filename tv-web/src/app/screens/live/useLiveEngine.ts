@@ -7,6 +7,7 @@ import { LiveMediaSwitch } from '../../../player/liveMediaSwitch'
 import { MpegtsAdapter } from '../../../player/MpegtsAdapter'
 import { canPlayAudio } from '../../../player/mseTypes'
 import { learnBad, learnedBad } from '../../../player/learnedAudio'
+import { decodedFrames, FROZEN_AFTER_MS, PictureWatch } from '../../../player/pictureWatch'
 
 /**
  * Where [el] is on the SCREEN, in the 1920x1080 coordinates AVPlay's setDisplayRect takes. AVPlay
@@ -57,8 +58,18 @@ export function useLiveEngine(video: RefObject<HTMLVideoElement | null>, box: Re
     const engine = new LiveEngine(media, browserClock, liveLog)
     engineRef.current = engine
     const off = engine.onStatus(setStatus)
+    // W4 QA R7: log when the picture stops while the position runs on (MSE only - AVPlay has no
+    // frame count). Measurement, not policy: the stall meter is unchanged.
+    const watch = new PictureWatch()
+    const watcher = setInterval(() => {
+      const d = engine.debug()
+      const ev = watch.sample(Date.now(), d.positionMs, d.player === mse.name ? decodedFrames(el) : null)
+      if (ev?.kind === 'frozen') liveLog(`picture: FROZEN - no frame drawn for ${FROZEN_AFTER_MS / 1000} s while the position moved ${(ev.positionMovedMs / 1000).toFixed(1)} s`)
+      else if (ev?.kind === 'thawed') liveLog(`picture: drawing again after ${(ev.frozenForMs / 1000).toFixed(1)} s frozen`)
+    }, 500)
     setReady(true)
     return () => {
+      clearInterval(watcher)
       liveLog(engine.meter.logLine('live'))
       off()
       engine.stop()

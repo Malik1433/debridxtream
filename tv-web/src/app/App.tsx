@@ -10,6 +10,7 @@ import { Router, type Screen } from './router'
 import { HomeScreen } from './screens/home/HomeScreen'
 import { resumePointMs } from '../data/watchState'
 import { LiveScreen } from './screens/live/LiveScreen'
+import { PerfHud } from './perf/PerfHud'
 import { SettingsScreen } from './screens/settings/SettingsScreen'
 import { MovieDetail } from './screens/detail/MovieDetail'
 import { ShowDetail } from './screens/detail/ShowDetail'
@@ -36,6 +37,7 @@ export function App({ platform, state, controller, onSyncNow }: { platform: Plat
   const router = useRef(new Router()).current
   const [screen, setScreen] = useState<Screen>('home')
   const [exitAsked, setExitAsked] = useState(false)
+  const [hud, setHud] = useState(false)
   const [searchCtx, setSearchCtx] = useState<SearchContext | null>(null)
   const [detail, setDetail] = useState<Detail>(null)
   const [play, setPlay] = useState<PlayRequest | null>(null)
@@ -87,6 +89,13 @@ export function App({ platform, state, controller, onSyncNow }: { platform: Plat
       setPlay(ep ? episodeRequest(ep, show, info.episodes, e.progressMs) : single)
     }).catch(() => setPlay(single))
   }, [controller])
+
+  // Green key: the frame-rate readout, on any screen (W4 QA R6). Live also opens its player log.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (appKey(e.keyCode, platform) === 'debug') setHud((h) => !h) }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [platform])
 
   // BACK goes up; at the top it asks to leave. Never a dead key (TV rulebook).
   useEffect(() => {
@@ -174,6 +183,7 @@ export function App({ platform, state, controller, onSyncNow }: { platform: Plat
           {!detail && screen === 'settings' && <SettingsScreen platform={platform} state={state} controller={controller} onSyncNow={onSyncNow} />}
         </div>
       </FocusContext.Provider>
+      {hud && <PerfHud />}
       {!online && <div className="net-banner">No internet connection — DX Play will carry on when it is back.</div>}
       {play && <VodPlayerScreen key={`${play.kind}-${play.id}`} platform={platform} controller={controller} request={play} onClose={() => setPlay(null)} />}
       {exitAsked && (
