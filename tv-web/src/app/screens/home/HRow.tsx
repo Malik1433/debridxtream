@@ -57,7 +57,20 @@ function Row<T>({ id, title, count, items, step, cardClass, keyOf, onEnter, rend
   onRowFocus?: () => void
   onItemFocus?: (t: T) => void
 }) {
-  const row = useFocusable({ focusKey: `row-${id}`, saveLastFocusedChild: true, trackChildren: true })
+  // W4 QA rounds 8-9: Home spent ~550 ms of JavaScript per press on the TV. On every arrow the focus
+  // engine re-measured the row's cards (getBoundingClientRect, a forced layout) to find the neighbour -
+  // in a row whose order IS the index. Left/right is now index - 1 / + 1 with no measuring at all;
+  // up/down returns null, so the engine leaves the row exactly as before.
+  const row = useFocusable({
+    focusKey: `row-${id}`, saveLastFocusedChild: true, trackChildren: true,
+    measureChildrenLayout: false,
+    nextFocusResolver: (direction, focusKey, siblings) => {
+      if (direction !== 'left' && direction !== 'right') return null
+      const at = Number(focusKey.slice(id.length + 1))
+      const want = `${id}-${at + (direction === 'right' ? 1 : -1)}`
+      return siblings.find((s) => s.focusKey === want) ?? null
+    },
+  })
   const [idx, setIdx] = useState(0)
   const focusAt = useCallback((i: number, t: T) => { setIdx(i); onRowFocus?.(); onItemFocus?.(t) }, [onRowFocus, onItemFocus])
   const shift = Math.max(0, idx - 3) * step
