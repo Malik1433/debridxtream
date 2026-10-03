@@ -4,6 +4,7 @@ import { spatialKeyMap } from '../keys'
 import { detectPlatform, registerKeys } from '../platform'
 import { AppController } from './controller'
 import { watchLifecycle } from './perf/lifecycle'
+import { watchKeys } from './perf/span'
 import { Root } from './Root'
 import './styles.css'
 
@@ -17,6 +18,7 @@ setKeyMap(spatialKeyMap(platform))
 
 // One 1920x1080 design, scaled to whatever the TV reports (some report 1280x720).
 try { watchLifecycle(localStorage) } catch { /* storage blocked */ }
+watchKeys()
 const stage = document.createElement('div')
 stage.id = 'stage'
 document.getElementById('root')!.appendChild(stage)

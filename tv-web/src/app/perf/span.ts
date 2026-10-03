@@ -20,3 +20,19 @@ export function spanAsync<T>(name: string, p: () => Promise<T>): Promise<T> {
   const t = performance.now()
   return p().finally(() => note(name, t))
 }
+
+/**
+ * Every key press as two named measures (round 9): `dx:key` - its handlers, focus engine and React
+ * included (to the next task) - and `dx:key-paint` - to the frame after it. Always on and cheap, so
+ * the QA probe reads per-press cost without the on-screen readout running (which costs frames itself).
+ */
+export function watchKeys(): void {
+  let n = 0
+  window.addEventListener('keydown', () => {
+    // Bounded: a long evening of zapping must not grow the measure buffer without end.
+    if (++n % 500 === 0) { try { performance.clearMeasures('dx:key'); performance.clearMeasures('dx:key-paint') } catch { /* none */ } }
+    const t = performance.now()
+    setTimeout(() => note('key', t), 0)
+    requestAnimationFrame(() => requestAnimationFrame(() => note('key-paint', t)))
+  }, true)
+}
