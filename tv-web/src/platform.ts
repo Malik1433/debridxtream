@@ -59,21 +59,3 @@ export function setScreenSaver(p: Platform, on: boolean): void {
     ac.setScreenSaver(on ? ac.AppCommonScreenSaverState.SCREEN_SAVER_ON : ac.AppCommonScreenSaverState.SCREEN_SAVER_OFF)
   } catch { /* no appcommon on this model */ }
 }
-
-/**
- * The trailer on a Samsung (W4 QA R4): YouTube refuses its embed inside a packaged app (no page
- * Referer, "video player configuration error"), so - as Android's TrailerActivity falls back to -
- * hand the video to the TV's own YouTube app. Tries the Smart Hub id, then the newer package id.
- * Resolves false when there is no YouTube app to launch (or this is not a Samsung).
- */
-const YOUTUBE_APP_IDS = ['111299001912', '9Ur5IzDKqV.TizenYouTube']
-export function openInYouTubeApp(videoId: string): Promise<boolean> {
-  if (typeof tizen === 'undefined' || !tizen.application?.launchAppControl) return Promise.resolve(false)
-  const control = () => new tizen.ApplicationControl('http://tizen.org/appcontrol/operation/view', null, null, null,
-    [new tizen.ApplicationControlData('PAYLOAD', [JSON.stringify({ values: `v=${videoId}` })])])
-  const attempt = (i: number): Promise<boolean> => (i >= YOUTUBE_APP_IDS.length ? Promise.resolve(false)
-    : new Promise<boolean>((done) => {
-      try { tizen.application.launchAppControl(control(), YOUTUBE_APP_IDS[i], () => done(true), () => done(false)) } catch { done(false) }
-    }).then((ok) => ok || attempt(i + 1)))
-  return attempt(0)
-}

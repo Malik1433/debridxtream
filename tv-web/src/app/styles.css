@@ -454,7 +454,6 @@ html.avplay-on .vod-player video { visibility: hidden; }
 .trailer-overlay { position: fixed; left: 0; top: 0; width: 1920px; height: 1080px; z-index: 75; background: #000; }
 .trailer-overlay iframe { width: 100%; height: 100%; border: 0; pointer-events: none; }
 .trailer-hint { position: absolute; right: 64px; top: 40px; font-size: 20px; color: #94A3B8; background: rgba(0, 0, 0, 0.6); padding: 8px 18px; border-radius: 8px; }
-.trailer-msg { position: absolute; left: 0; right: 0; top: 50%; transform: translateY(-50%); text-align: center; font-size: 34px; color: #CBD5E1; }
 
 /* ── Parity: VOD player overlay (custom_player_control_view) ── */
 .vp-overlay { position: absolute; left: 0; top: 0; right: 0; bottom: 0; pointer-events: none;

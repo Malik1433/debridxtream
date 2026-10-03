@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<title>DX Play trailer</title>
+<!--
+  The DX Play TV app's trailer frame (W4 QA round 6). YouTube refuses its embed without a page
+  Referer ("video player configuration error", Error 153), and a packaged Samsung app has none:
+  it runs from file://. Android solves it by giving its WebView an origin (TrailerActivity,
+  loadDataWithBaseURL); the TV app cannot, so it frames THIS page, and the YouTube embed inside
+  gets this site as its referrer. Official embed only - nothing is downloaded or re-streamed.
+  Takes ?v=<YouTube video id>; anything that is not an id is refused.
+-->
+<style>
+  html, body { margin: 0; height: 100%; background: #000; overflow: hidden; }
+  iframe { position: fixed; inset: 0; width: 100%; height: 100%; border: 0; }
+  p { color: #94A3B8; font: 28px sans-serif; text-align: center; margin-top: 45vh; }
+</style>
+</head>
+<body>
+<script>
+  (function () {
+    var id = new URLSearchParams(location.search).get('v') || ''
+    if (!/^[A-Za-z0-9_-]{6,20}$/.test(id)) { document.body.innerHTML = '<p>No trailer.</p>'; return }
+    var f = document.createElement('iframe')
+    f.src = 'https://www.youtube.com/embed/' + id + '?autoplay=1&controls=0&rel=0&modestbranding=1&playsinline=1&origin=' + encodeURIComponent(location.origin)
+    f.allow = 'autoplay; encrypted-media'
+    f.referrerPolicy = 'strict-origin-when-cross-origin'
+    document.body.appendChild(f)
+  })()
+</script>
+</body>
+</html>
