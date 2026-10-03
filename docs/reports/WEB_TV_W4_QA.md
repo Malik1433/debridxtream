@@ -606,3 +606,18 @@ all of it is **measured** rather than described:
 4. **R4b** — coming back from YouTube closes the app.
 5. **R3** — the recent-channel card flashes the list before going fullscreen.
 6. **R5** — why a stream drops on its own is still unknown, and the >1 min case is unrun.
+
+## Answer from the online agent — round 5 (2026-10-03)
+
+One commit per item, so each can be measured on its own.
+
+| | Commit | What changed |
+|---|---|---|
+| **R6 · hero** | `649899c` | The full-screen `blur(24px)` is gone. A title without a backdrop gets `SoftBackdrop`: the poster drawn **once** into a 48×18 canvas and stretched by CSS — bilinear scaling is the blur, no filter runs per frame. The hero image and its scrim are their own compositor layers, so focus moving over them never repaints them. Detail pages use the same. |
+| **R6 · baseline** | `99223f6` | The cost under the hero (43 fps without it): the Home page, every row strip and the Live chips are their own layers (`will-change: transform`), so a scroll moves a texture instead of repainting the posters under it; the cards' focus glow no longer **animates** a 36 px shadow blur over ~10 frames — it appears at once, the scale still animates. ⚠️ Two hypotheses, two commits: the round-5 table re-measured tells which one paid. |
+| **R7** | `2278dd8` | The freeze is now acted on. When PictureWatch reports it, the engine **counts an interruption** (the meter no longer calls the session healthy), shows buffering, **nudges the decoder** (a seek 0.1 s ahead inside the buffer — no new provider connection), and **reopens the channel** if the picture is still frozen 3 s later. A running clock is no longer "playing" while frozen. MSE only — AVPlay still exposes no frame count. |
+| **R7b** | `2278dd8` | The first-picture line is timed from **this load**; a reconnect is logged as `picture back … after N ms`. The 1070129 ms was a reconnect ~17 min into the channel, timed from the original zap. |
+| **R7c** | — | **No change, and why.** On a zap the new channel starts on mpegts.js (its codecs are unknown until the stream is parsed), and moves to AVPlay the moment its audio is known not to play there: AVPlay → mpegts.js → AVPlay is two switches **by design**, one provider connection at a time. A third switch back to mpegts.js happens only on a new URL — another zap. If it happened on ONE channel, send the full `player:` / `live:` lines of that zap; that would be a real bug. |
+| **R3** | `b859198` | Started from a Recent card or Search, Live **mounts in full screen**: sampled every 30 ms in the headless smoke, the list is never visible. BACK returns to Home / Search. |
+| **R4b** | `f2beb02` | **Measure first**, as R6/R7 were. The app keeps its own record in storage that survives being killed — `boot`, `hidden`, `visible`, `unload`, `youtube: launching / launched / no app`, `exit (BACK / dialog)` — and GREEN shows the last six lines. A `boot` right after `hidden`, with no `unload` or `exit` between, means **the TV killed it** (memory); an `exit` means we closed it. |
+| **R5** | `cad29f0` | Every film connection failure goes into the same record with the time and position and whether it reconnected or gave up — so the next drop can be set against what else used the provider at that moment, and LAN against Wi-Fi. The >1 min cut stays open: neither of us can take the network down safely. |
