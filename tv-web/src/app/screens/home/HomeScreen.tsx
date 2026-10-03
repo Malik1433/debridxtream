@@ -1,5 +1,5 @@
 import { setFocus, useFocusable, FocusContext } from '@noriginmedia/norigin-spatial-navigation'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { RecentChannel } from '../../../data/recentLive'
 import type { Enrichment } from '../../../data/tmdb'
 import type { Movie, Show } from '../../../data/vodApi'
@@ -60,13 +60,29 @@ export function HomeScreen({ state, controller, onMovie, onShow, onPlayMovie, on
     ...topMovies.map((m) => ({ kind: 'movie' as const, item: m })), ...topShows.map((s) => ({ kind: 'show' as const, item: s })),
   ].slice(0, 3), [topMovies, topShows])
 
+  // Vertical scroll: the focused row's top sits at ROW_ANCHOR_Y; the hero takes the top.
+  const page = useRef<HTMLDivElement>(null)
+  const [scrollY, setScrollY] = useState(0)
+  const scrollTo = useCallback((rowId: string | null) => {
+    if (!rowId) { setScrollY(0); return }
+    const el = page.current?.querySelector<HTMLElement>(`[data-row="${rowId}"]`)
+    if (!el) return
+    // offsetTop up to the page (layout px, unaffected by the stage's scale transform).
+    let y = 0
+    for (let n: HTMLElement | null = el; n && n !== page.current; n = n.offsetParent as HTMLElement | null) y += n.offsetTop
+    setScrollY(Math.max(0, y - ROW_ANCHOR_Y))
+  }, [])
+
   const [heroIdx, setHeroIdx] = useState(0)
   const [heroFocused, setHeroFocused] = useState(false)
+  // W4 QA round 6: a rotation decodes a new 1280 px backdrop; while the viewer is down in the rows
+  // the hero is off screen, so it waits - nobody sees it turn, everybody felt it stutter.
+  const heroOffScreen = scrollY > 0
   useEffect(() => {
-    if (pool.length < 2 || heroFocused) return
+    if (pool.length < 2 || heroFocused || heroOffScreen) return
     const id = setInterval(() => setHeroIdx((i) => (i + 1) % pool.length), HERO_ROTATE_MS)
     return () => clearInterval(id)
-  }, [pool.length, heroFocused])
+  }, [pool.length, heroFocused, heroOffScreen])
   const hero = pool[heroIdx % Math.max(1, pool.length)]
   const [tmdb, setTmdb] = useState<Enrichment | null>(null)
   useEffect(() => {
@@ -79,24 +95,50 @@ export function HomeScreen({ state, controller, onMovie, onShow, onPlayMovie, on
   const [favs, setFavs] = useState(() => ({ movies: controller.favourites('movies'), shows: controller.favourites('shows') }))
   const heroFav = hero ? favs[hero.kind === 'movie' ? 'movies' : 'shows'].includes(hero.item.id) : false
 
-  // Vertical scroll: the focused row's top sits at ROW_ANCHOR_Y; the hero takes the top.
-  const page = useRef<HTMLDivElement>(null)
-  const [scrollY, setScrollY] = useState(0)
-  const scrollTo = (rowId: string | null) => {
-    if (!rowId) { setScrollY(0); return }
-    const el = page.current?.querySelector<HTMLElement>(`[data-row="${rowId}"]`)
-    if (!el) return
-    // offsetTop up to the page (layout px, unaffected by the stage's scale transform).
-    let y = 0
-    for (let n: HTMLElement | null = el; n && n !== page.current; n = n.offsetParent as HTMLElement | null) y += n.offsetTop
-    setScrollY(Math.max(0, y - ROW_ANCHOR_Y))
-  }
   const heroBox = useFocusable({ focusKey: 'home-hero', saveLastFocusedChild: true, trackChildren: true,
     onFocus: () => { setHeroFocused(true); scrollTo(null) }, onBlur: () => setHeroFocused(false) })
   useEffect(() => { void setFocus('hero-watch') }, [])
 
-  const clock = useClock()
+  // W4 QA round 6: the rows are a memoized element, so a hero rotation, a clock tick or a scroll
+  // re-renders the hero alone - not forty cards. (Before, every 7 s re-rendered the whole Home.)
   const lib = state.library
+  const rows = useMemo(() => (
+      <div className="home-rows">
+        <HRow id="cw" title="Continue Watching" count={cont.length} items={cont} step={312} cardClass="cw-card" onRowFocus={() => scrollTo('cw')}
+          keyOf={(e) => `${e.kind}-${e.id}`} onEnter={onContinue}
+          render={(e) => (
+            <>
+              <div className="cw-img">
+                {e.poster && <img src={e.poster} alt="" loading="lazy" decoding="async" onError={(ev) => { ev.currentTarget.style.display = 'none' }} />}
+                <div className="card-footer-grad" />
+                <div className="cw-progress"><div style={{ width: `${e.durationMs ? Math.min(100, (e.progressMs / e.durationMs) * 100) : 0}%` }} /></div>
+              </div>
+              <div className="cw-title">{e.seriesName ? `${e.seriesName} · S${e.season} E${e.episode}` : e.title}</div>
+              <div className="cw-sub">{clockOf(e.progressMs)}{e.durationMs ? ` / ${clockOf(e.durationMs)}` : ''}</div>
+            </>
+          )} />
+        <HRow id="tm" title="Trending Movies" count={topMovies.length} items={topMovies} step={280} cardClass="top-card" onRowFocus={() => scrollTo('tm')}
+          keyOf={(m) => m.id} onEnter={onMovie}
+          render={(m) => <TopCard poster={m.poster} title={m.name} sub={m.rating ? `★ ${m.rating.toFixed(1)}` : ''} />} />
+        <HRow id="ts" title="Trending Series" count={topShows.length} items={topShows} step={280} cardClass="top-card" onRowFocus={() => scrollTo('ts')}
+          keyOf={(s) => s.id} onEnter={onShow}
+          render={(s) => <TopCard poster={s.poster} title={s.name} sub={[s.year, s.rating ? `★ ${s.rating.toFixed(1)}` : ''].filter(Boolean).join(' · ')} />} />
+        <HRow id="rl" title="Recent Live Channels" count={recent.length} items={recent} step={280} cardClass="live-card" onRowFocus={() => scrollTo('rl')}
+          keyOf={(c) => c.id} onEnter={(c) => onChannel(c.id, true)}
+          render={(c) => (
+            <div className="live-card-glass">
+              <span className="live-badge">LIVE</span>
+              {c.icon ? <img src={c.icon} alt="" decoding="async" onError={(e) => { e.currentTarget.style.visibility = 'hidden' }} /> : <span className="live-initials">{c.name.slice(0, 2).toUpperCase()}</span>}
+              <span className="live-name">{c.name}</span>
+            </div>
+          )} />
+        {!topMovies.length && !topShows.length && !cont.length && !recent.length && (
+          <p className="muted home-empty">{lib ? 'Nothing to show yet.' : 'Loading your library…'}</p>
+        )}
+      </div>
+  ), [cont, topMovies, topShows, recent, lib, onContinue, onMovie, onShow, onChannel, scrollTo])
+
+  const clock = useClock()
   const licence = state.license.kind === 'active' ? (state.license.trialDaysLeft !== null ? `TRIAL · ${state.license.trialDaysLeft}D` : 'ACTIVE') : 'LOCKED'
   const backdrop = hero ? (tmdb?.backdrop || (hero.kind === 'movie' ? hero.item.poster : hero.item.poster)) : ''
   const rating = hero ? (tmdb?.rating || hero.item.rating) : 0
@@ -105,7 +147,7 @@ export function HomeScreen({ state, controller, onMovie, onShow, onPlayMovie, on
   return (
     <div className="home">
       {backdrop && (tmdb?.backdrop
-        ? <img key={backdrop} className="home-hero-bg" src={backdrop} alt="" onError={(e) => { e.currentTarget.style.display = 'none' }} />
+        ? <img key={backdrop} className="home-hero-bg" src={backdrop} alt="" decoding="async" onError={(e) => { e.currentTarget.style.display = 'none' }} />
         : <SoftBackdrop key={backdrop} className="home-hero-bg poster-bg" src={backdrop} />)}
       <div className="home-hero-scrim" />
       <div ref={page} className="home-page" style={{ transform: `translateY(${-scrollY}px)` }}>
@@ -151,39 +193,7 @@ export function HomeScreen({ state, controller, onMovie, onShow, onPlayMovie, on
           </div>
         </FocusContext.Provider>
 
-        <div className="home-rows">
-          <HRow id="cw" title="Continue Watching" count={cont.length} items={cont} step={312} cardClass="cw-card" onRowFocus={() => scrollTo('cw')}
-            keyOf={(e) => `${e.kind}-${e.id}`} onEnter={onContinue}
-            render={(e) => (
-              <>
-                <div className="cw-img">
-                  {e.poster && <img src={e.poster} alt="" loading="lazy" onError={(ev) => { ev.currentTarget.style.display = 'none' }} />}
-                  <div className="card-footer-grad" />
-                  <div className="cw-progress"><div style={{ width: `${e.durationMs ? Math.min(100, (e.progressMs / e.durationMs) * 100) : 0}%` }} /></div>
-                </div>
-                <div className="cw-title">{e.seriesName ? `${e.seriesName} · S${e.season} E${e.episode}` : e.title}</div>
-                <div className="cw-sub">{clockOf(e.progressMs)}{e.durationMs ? ` / ${clockOf(e.durationMs)}` : ''}</div>
-              </>
-            )} />
-          <HRow id="tm" title="Trending Movies" count={topMovies.length} items={topMovies} step={280} cardClass="top-card" onRowFocus={() => scrollTo('tm')}
-            keyOf={(m) => m.id} onEnter={onMovie}
-            render={(m) => <TopCard poster={m.poster} title={m.name} sub={m.rating ? `★ ${m.rating.toFixed(1)}` : ''} />} />
-          <HRow id="ts" title="Trending Series" count={topShows.length} items={topShows} step={280} cardClass="top-card" onRowFocus={() => scrollTo('ts')}
-            keyOf={(s) => s.id} onEnter={onShow}
-            render={(s) => <TopCard poster={s.poster} title={s.name} sub={[s.year, s.rating ? `★ ${s.rating.toFixed(1)}` : ''].filter(Boolean).join(' · ')} />} />
-          <HRow id="rl" title="Recent Live Channels" count={recent.length} items={recent} step={280} cardClass="live-card" onRowFocus={() => scrollTo('rl')}
-            keyOf={(c) => c.id} onEnter={(c) => onChannel(c.id, true)}
-            render={(c) => (
-              <div className="live-card-glass">
-                <span className="live-badge">LIVE</span>
-                {c.icon ? <img src={c.icon} alt="" onError={(e) => { e.currentTarget.style.visibility = 'hidden' }} /> : <span className="live-initials">{c.name.slice(0, 2).toUpperCase()}</span>}
-                <span className="live-name">{c.name}</span>
-              </div>
-            )} />
-          {!topMovies.length && !topShows.length && !cont.length && !recent.length && (
-            <p className="muted home-empty">{lib ? 'Nothing to show yet.' : 'Loading your library…'}</p>
-          )}
-        </div>
+        {rows}
       </div>
 
       <div className="status-bar">
@@ -203,7 +213,7 @@ function TopCard({ poster, title, sub }: { poster: string; title: string; sub: s
     <>
       <div className="top-poster">
         <div className="poster-fallback">{title}</div>
-        {poster && <img src={poster} alt="" loading="lazy" onError={(e) => { e.currentTarget.style.display = 'none' }} />}
+        {poster && <img src={poster} alt="" loading="lazy" decoding="async" onError={(e) => { e.currentTarget.style.display = 'none' }} />}
         <div className="card-footer-grad" />
       </div>
       <div className="top-title">{title}</div>
