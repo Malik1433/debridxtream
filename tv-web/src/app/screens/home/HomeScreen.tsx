@@ -6,6 +6,7 @@ import type { Movie, Show } from '../../../data/vodApi'
 import type { WatchEntry } from '../../../data/watchState'
 import { clockOf } from '../../../player/vod/vodTypes'
 import type { AppController, AppState } from '../../controller'
+import { SoftBackdrop } from '../../SoftBackdrop'
 import { Focusable } from '../../Focusable'
 import { Icon } from '../../icons'
 import { HRow } from './HRow'
@@ -103,7 +104,9 @@ export function HomeScreen({ state, controller, onMovie, onShow, onPlayMovie, on
 
   return (
     <div className="home">
-      {backdrop && <img key={backdrop} className={`home-hero-bg${tmdb?.backdrop ? '' : ' poster-bg'}`} src={backdrop} alt="" onError={(e) => { e.currentTarget.style.display = 'none' }} />}
+      {backdrop && (tmdb?.backdrop
+        ? <img key={backdrop} className="home-hero-bg" src={backdrop} alt="" onError={(e) => { e.currentTarget.style.display = 'none' }} />
+        : <SoftBackdrop key={backdrop} className="home-hero-bg poster-bg" src={backdrop} />)}
       <div className="home-hero-scrim" />
       <div ref={page} className="home-page" style={{ transform: `translateY(${-scrollY}px)` }}>
         <FocusContext.Provider value={heroBox.focusKey}>

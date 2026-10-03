@@ -6,6 +6,7 @@ import type { Episode, Show, ShowInfo } from '../../../data/vodApi'
 import { resumePointMs } from '../../../data/watchState'
 import { clockOf } from '../../../player/vod/vodTypes'
 import type { AppController } from '../../controller'
+import { SoftBackdrop } from '../../SoftBackdrop'
 import { Focusable } from '../../Focusable'
 import { Icon } from '../../icons'
 import { HRow } from '../home/HRow'
@@ -68,7 +69,7 @@ export function ShowDetail({ show, controller, onPlay }: { show: Show; controlle
   return (
     <div className="detail2">
       {backdrop && <img className="detail2-backdrop" src={backdrop} alt="" onError={(e) => { e.currentTarget.style.display = 'none' }} />}
-      {posterBg && <img className="detail2-backdrop poster-bg" src={posterBg} alt="" onError={(e) => { e.currentTarget.style.display = 'none' }} />}
+      {posterBg && <SoftBackdrop className="detail2-backdrop poster-bg" src={posterBg} w={48} h={27} />}
       <div className="detail2-scrim" />
       <div className="detail2-crumb"><b>IPTV</b> / SERIES <span className="session-badge">XTREAM ACTIVE</span></div>
       <div className="detail2-col show">

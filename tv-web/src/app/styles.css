@@ -228,7 +228,6 @@ html.avplay-on .vod-player video { visibility: hidden; }
 .vcell .poster-img { aspect-ratio: auto; height: 220px; }
 .ep-row .name { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 /* W4 QA N2: no backdrop from the provider or TMDB - the poster fills the space, softened so the text stays readable. */
-.detail-backdrop.poster-bg { filter: blur(18px) saturate(1.2); opacity: 0.45; transform: scale(1.1); }
 
 /* ── Parity: the Android TV nav rail (view_home_sidebar, item_sidebar_nav, bg_nav_rail) ── */
 .rail { position: absolute; left: 26px; top: 26px; bottom: 26px; width: 120px; z-index: 20; box-sizing: border-box;
@@ -251,9 +250,12 @@ html.avplay-on .vod-player video { visibility: hidden; }
 
 /* ── Parity: Home (fragment_home_cinematic, item_top_10_card, item_continue_watching_card, item_recent_live_card) ── */
 .home { position: absolute; left: 0; top: 0; width: 100%; height: 100%; overflow: hidden; background: #06090E; }
-.home-hero-bg { position: absolute; left: 0; top: 0; width: 100%; height: 720px; object-fit: cover; }
-.home-hero-bg.poster-bg { filter: blur(24px) saturate(1.2); opacity: 0.5; transform: scale(1.1); }
-.home-hero-scrim { position: absolute; left: 0; top: 0; width: 100%; height: 722px; pointer-events: none;
+/* W4 QA R6: the hero halved Home's frame rate on the Samsung (24 vs 43 fps). The image and the scrim
+   are their own compositor layers, so focus moving over them never repaints them; and a title with
+   no backdrop gets its soft poster from SoftBackdrop (a 48x18 canvas stretched - no CSS filter). */
+.home-hero-bg { position: absolute; left: 0; top: 0; width: 100%; height: 720px; object-fit: cover; will-change: transform; }
+.home-hero-bg.poster-bg { opacity: 0.5; }
+.home-hero-scrim { position: absolute; left: 0; top: 0; width: 100%; height: 722px; pointer-events: none; will-change: transform;
   background: linear-gradient(90deg, #06090E 12%, rgba(6, 9, 14, 0.75) 40%, rgba(6, 9, 14, 0.1) 75%),
     linear-gradient(180deg, rgba(6, 9, 14, 0) 55%, #06090E 100%); }
 .home-page { position: relative; transition: transform 220ms ease-out; }
@@ -374,8 +376,8 @@ html.avplay-on .vod-player video { visibility: hidden; }
 
 /* ── Parity: detail pages (fragment_movie_detail_v2, fragment_series_detail_v2, item_episode_v2) ── */
 .detail2 { position: absolute; left: 0; top: 0; width: 100%; height: 100%; overflow: hidden; background: #06090E; }
-.detail2-backdrop { position: absolute; left: 0; top: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0.45; }
-.detail2-backdrop.poster-bg { filter: blur(24px) saturate(1.2); transform: scale(1.1); }
+.detail2-backdrop { position: absolute; left: 0; top: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0.45; will-change: transform; }
+/* As the Home hero (W4 QA R6): SoftBackdrop softens the poster without a CSS filter. */
 .detail2-scrim { position: absolute; left: 0; top: 0; width: 100%; height: 100%;
   background: linear-gradient(90deg, #06090E 20%, rgba(6, 9, 14, 0.6) 55%, rgba(6, 9, 14, 0.1)), linear-gradient(180deg, transparent 60%, #06090E); }
 .detail2-crumb { position: absolute; left: 88px; top: 48px; font-size: 24px; color: #64748B; }
