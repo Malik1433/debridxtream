@@ -50,7 +50,9 @@ export function LiveScreen({ platform, controller, startChannelId = null, startF
   const [listGen, setListGen] = useState(0)
   const focusedChan = useRef(0)
   const [playing, setPlaying] = useState<{ list: LiveStream[]; index: number } | null>(null)
-  const [full, setFull] = useState(false)
+  // R3 (round 5): started from a Recent card or Search, the screen OPENS full screen - the list is
+  // never drawn first and then jumped over.
+  const [full, setFull] = useState(() => startFull && Boolean(startChannelId))
   const [osdUntil, setOsdUntil] = useState(0)
   const [epg, setEpg] = useState<Programme[]>([])
   const [query, setQuery] = useState('')
@@ -162,7 +164,7 @@ export function LiveScreen({ platform, controller, startChannelId = null, startF
     return () => clearTimeout(t)
   }, [numEntry, playing, channels, play, full])
 
-  const direct = useRef(false)
+  const direct = useRef(startFull && Boolean(startChannelId))
   const goFull = useCallback(() => { if (current) { setFull(true); setOsdUntil(Date.now() + OSD_MS) } }, [current])
 
   const onChannelEnter = useCallback((i: number) => {
