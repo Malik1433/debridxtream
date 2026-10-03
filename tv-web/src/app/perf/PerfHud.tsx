@@ -11,16 +11,27 @@ export function PerfHud() {
   const [line, setLine] = useState('measuring…')
   useEffect(() => {
     const stats = new FrameStats()
+    // Round 6: Home 36 fps where a detail page holds 60. Long tasks (>50 ms of JavaScript) tell the
+    // main thread from the GPU: slow frames with no long tasks are paint / compositing.
+    const longs: Array<{ at: number; ms: number }> = []
+    let obs: PerformanceObserver | null = null
+    try {
+      obs = new PerformanceObserver((l) => { for (const e of l.getEntries()) longs.push({ at: e.startTime, ms: e.duration }) })
+      obs.observe({ entryTypes: ['longtask'] })
+    } catch { obs = null }
     let last = performance.now(), raf = 0
     const loop = (t: number) => { stats.push(t - last); last = t; raf = requestAnimationFrame(loop) }
     raf = requestAnimationFrame(loop)
     const id = setInterval(() => {
       const s = stats.snapshot()
       const mem = (performance as Performance & { memory?: { usedJSHeapSize: number } }).memory
-      setLine(`${s.fps} fps · p95 ${s.p95} ms · janky ${s.jankPct}% · worst ${s.worst} ms · DOM ${document.getElementsByTagName('*').length}` +
+      const since = performance.now() - 5_000
+      while (longs.length && longs[0].at < since) longs.shift()
+      const js = obs ? ` · JS long ${longs.length}/${Math.round(longs.reduce((a, x) => a + x.ms, 0))} ms (5 s)` : ' · JS long n/a'
+      setLine(`${s.fps} fps · p95 ${s.p95} ms · janky ${s.jankPct}% · worst ${s.worst} ms${js} · DOM ${document.getElementsByTagName('*').length}` +
         ` · img ${document.images.length}${mem ? ` · heap ${Math.round(mem.usedJSHeapSize / 1048576)} MB` : ''}`)
     }, 1_000)
-    return () => { cancelAnimationFrame(raf); clearInterval(id) }
+    return () => { cancelAnimationFrame(raf); clearInterval(id); obs?.disconnect() }
   }, [])
   // The app's own lifecycle record (R4b): read whether the TV killed it or it closed itself.
   const life = (() => { try { return lifecycleLines(localStorage).slice(-6) } catch { return [] } })()
