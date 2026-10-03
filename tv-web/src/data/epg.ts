@@ -42,21 +42,35 @@ export const EPG_TIMEOUT_MS = 8_000
 /** Now/next for one channel, cached for a minute; a failure is "no guide", never an error screen. */
 export class EpgCache {
   private cache = new Map<string, { at: number; items: Programme[] }>()
+  private inflight = new Map<string, Promise<Programme[]>>()
   constructor(private readonly account: () => W0Config | null, private readonly fetcher?: typeof fetch) {}
 
-  async nowNext(streamId: string): Promise<Programme[]> {
-    const hit = this.cache.get(streamId)
+  /** Now and next (preview, OSD, channel rows). */
+  async nowNext(streamId: string): Promise<Programme[]> { return (await this.schedule(streamId)).slice(0, 2) }
+
+  /**
+   * Up to 8 programmes from now on (Android's Program Guide strip), one request per channel per
+   * minute however many places ask - channel rows, preview and guide share it.
+   */
+  async schedule(streamId: string): Promise<Programme[]> {
     const now = Date.now()
+    const hit = this.cache.get(streamId)
     if (hit && now - hit.at < 60_000) return hit.items.filter((p) => p.end > now)
+    const busy = this.inflight.get(streamId)
+    if (busy) return busy
     const a = this.account()
     if (!a) return []
-    try {
-      const body = await fetchJson(`${apiUrl(a, 'get_short_epg')}&stream_id=${encodeURIComponent(streamId)}&limit=4`, EPG_TIMEOUT_MS, this.fetcher)
-      const items = parseShortEpg(body, now).slice(0, 2)
-      this.cache.set(streamId, { at: now, items })
-      return items
-    } catch {
-      return []
-    }
+    const p = fetchJson(`${apiUrl(a, 'get_short_epg')}&stream_id=${encodeURIComponent(streamId)}&limit=8`, EPG_TIMEOUT_MS, this.fetcher)
+      .then((body) => { const items = parseShortEpg(body, now).slice(0, 8); this.cache.set(streamId, { at: now, items }); return items })
+      .catch(() => [] as Programme[])
+      .finally(() => this.inflight.delete(streamId))
+    this.inflight.set(streamId, p)
+    return p
+  }
+
+  /** Cached now/next only - for drawing a row without starting a request. */
+  peek(streamId: string): Programme[] | null {
+    const hit = this.cache.get(streamId)
+    return hit ? hit.items.filter((p) => p.end > Date.now()).slice(0, 2) : null
   }
 }

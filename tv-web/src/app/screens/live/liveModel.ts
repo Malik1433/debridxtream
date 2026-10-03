@@ -5,17 +5,27 @@ export const ALL_ID = '__all'
 
 export interface CategoryRow { id: string; name: string; count: number }
 
-/** Favourites first (always there, so the yellow key has somewhere to show its result), then All, then the provider's own order. */
+/**
+ * Android LiveCategoryChips.buildDisplayCategories: Favorites, then the provider's categories - no
+ * "All channels" chip on the TV. Empty categories are left out (a dead end for the remote).
+ */
 export function categoryRows(cats: LiveCategory[], streams: LiveStream[], favs: string[]): CategoryRow[] {
   const counts = new Map<string, number>()
   for (const s of streams) counts.set(s.categoryId, (counts.get(s.categoryId) ?? 0) + 1)
   const favSet = new Set(favs)
   return [
-    { id: FAVOURITES_ID, name: 'Favourites', count: streams.filter((s) => favSet.has(s.id)).length },
-    { id: ALL_ID, name: 'All channels', count: streams.length },
-    // An empty category is a dead end for the remote: leave it out.
+    { id: FAVOURITES_ID, name: 'Favorites', count: streams.filter((s) => favSet.has(s.id)).length },
     ...cats.filter((c) => (counts.get(c.id) ?? 0) > 0).map((c) => ({ id: c.id, name: c.name, count: counts.get(c.id) ?? 0 })),
   ]
+}
+
+/**
+ * Android LiveCategoryChips.applyChipFilter: while the search pill has a query the chip strip is a
+ * category search - matching names only, and Favorites drops out. Returns indexes into [rows].
+ */
+export function filterChips(rows: CategoryRow[], query: string): number[] {
+  const q = query.trim().toLowerCase()
+  return rows.map((r, i) => [r, i] as const).filter(([r]) => !q || (r.id !== FAVOURITES_ID && r.name.toLowerCase().includes(q))).map(([, i]) => i)
 }
 
 /**
@@ -47,7 +57,7 @@ export function channelsOf(categoryId: string, streams: LiveStream[], favs: stri
 /** Where the viewer starts: their favourites if they have any, else the provider's first category. */
 export function startCategory(rows: CategoryRow[]): number {
   if (rows[0]?.count > 0) return 0
-  return rows.length > 2 ? 2 : Math.min(1, rows.length - 1)
+  return rows.length > 1 ? 1 : 0
 }
 
 /** Channel up/down, wrapping at both ends like a TV's own zap. */

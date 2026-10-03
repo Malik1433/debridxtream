@@ -8,8 +8,11 @@ import { pushBackHandler } from '../../backStack'
 import type { AppController } from '../../controller'
 import { Focusable } from '../../Focusable'
 import { LiveDebugPanel } from './LiveDebugPanel'
-import { LiveOsd } from './LiveOsd'
-import { ALL_ID, categoryRows, channelsOf, clock, indexCatalogue, startCategory, zapIndex } from './liveModel'
+import { ChipRow } from './ChipRow'
+import { FullscreenOsd, OSD_BUTTONS } from './FullscreenOsd'
+import { cardText } from '../../../data/titles'
+import { Icon } from '../../icons'
+import { categoryRows, filterChips, channelsOf, clock, indexCatalogue, progress, startCategory, zapIndex } from './liveModel'
 import { statusText } from './statusText'
 import { useLiveEngine } from './useLiveEngine'
 import { useDebounced } from '../../useDebounced'
@@ -48,6 +51,12 @@ export function LiveScreen({ platform, controller, startChannelId = null, onStar
   const [full, setFull] = useState(false)
   const [osdUntil, setOsdUntil] = useState(0)
   const [epg, setEpg] = useState<Programme[]>([])
+  const [query, setQuery] = useState('')
+  const queryInput = useRef<HTMLInputElement>(null)
+  const [osdFocus, setOsdFocus] = useState(0)
+  const [notice, setNotice] = useState('')
+  const [focusIdx, setFocusIdx] = useState(0)
+  const [, epgTick] = useState(0)
   const [now, setNow] = useState(() => Date.now())
   const video = useRef<HTMLVideoElement>(null)
   const box = useRef<HTMLDivElement>(null)
@@ -74,7 +83,7 @@ export function LiveScreen({ platform, controller, startChannelId = null, onStar
     if (cat >= 0 || !rows.length) return
     let last: { cat?: string; ch?: string } = {}
     try { last = JSON.parse(localStorage.getItem(LAST_KEY) ?? '{}') } catch { /* none */ }
-    const want = startChannelId ? ALL_ID : last.cat
+    const want = startChannelId ? streams.find((x) => x.id === startChannelId)?.categoryId : last.cat
     const ci = want ? rows.findIndex((r) => r.id === want) : -1
     const c = ci >= 0 ? ci : startCategory(rows)
     const list = channelsOf(rows[c].id, streams, favs, index)
@@ -84,7 +93,11 @@ export function LiveScreen({ platform, controller, startChannelId = null, onStar
     if (idx >= 0) { setChanStart(idx); pendingFocus.current = `live-chans-${idx}` }
   }, [rows, cat, startChannelId, streams, favs, index])
   const catId = rows[cat]?.id ?? ''
-  const channels = useMemo(() => channelsOf(catId, streams, favs, index), [catId, streams, favs, index])
+  const catChannels = useMemo(() => channelsOf(catId, streams, favs, index), [catId, streams, favs, index])
+  // The header's search pill filters the list in place (Android et_channel_search).
+  const channels = catChannels
+  // The search pill searches CATEGORIES (Android applyChipFilter), not channels.
+  const chipIdx = useMemo(() => filterChips(rows, query), [rows, query])
   const favSet = useMemo(() => new Set(favs), [favs])
   const current = playing ? playing.list[playing.index] : null
 
@@ -108,7 +121,7 @@ export function LiveScreen({ platform, controller, startChannelId = null, onStar
 
   // Search asked for this channel: play it once the list and the engine are ready.
   useEffect(() => {
-    if (!startChannelId || !engine || cat < 0 || rows[cat]?.id !== ALL_ID) return
+    if (!startChannelId || !engine || cat < 0 || !channels.some((x) => x.id === startChannelId)) return
     const idx = channels.findIndex((x) => x.id === startChannelId)
     if (idx >= 0) play(channels, idx)
     onStarted?.()
@@ -200,21 +213,29 @@ export function LiveScreen({ platform, controller, startChannelId = null, onStar
         e.preventDefault()
         play(playing.list, zapIndex(playing.index, delta, playing.list.length))
         if (full) setOsdUntil(Date.now() + OSD_MS)
+      } else if (full && (k === 'left' || k === 'right') && osdUntil > Date.now()) {
+        e.preventDefault()
+        setOsdFocus((f) => Math.max(0, Math.min(OSD_BUTTONS.length - 1, f + (k === 'left' ? -1 : 1))))
+        setOsdUntil(Date.now() + OSD_MS)
       } else if (full && k === 'enter') {
         e.preventDefault()
-        setOsdUntil((u) => (u > Date.now() ? 0 : Date.now() + OSD_MS))
+        if (osdUntil <= Date.now()) { setOsdUntil(Date.now() + OSD_MS); return }
+        const b = OSD_BUTTONS[osdFocus]?.key
+        if (b === 'channels' || b === 'guide') { setFull(false); if (b === 'guide') pendingFocus.current = 'guide-0' }
+        else { setNotice(b === 'cc' ? 'No subtitles on this channel' : 'This channel has one audio track'); setTimeout(() => setNotice(''), 3_000) }
+        setOsdUntil(Date.now() + OSD_MS)
       }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [platform, full, playing, current, channels, play, toggleFav, debug, engine])
+  }, [platform, full, playing, current, channels, play, toggleFav, debug, engine, osdUntil, osdFocus])
 
   // Now/next for the playing channel, refreshed while it plays.
   useEffect(() => {
     setEpg([])
     if (!current) return
     let live = true
-    const fetchIt = () => { void controller.epg.nowNext(current.id).then((p) => { if (live) setEpg(p) }) }
+    const fetchIt = () => { void controller.epg.schedule(current.id).then((p) => { if (live) setEpg(p) }) }
     fetchIt()
     const id = setInterval(() => { setNow(Date.now()); fetchIt() }, EPG_REFRESH_MS)
     return () => { live = false; clearInterval(id) }
@@ -226,74 +247,132 @@ export function LiveScreen({ platform, controller, startChannelId = null, onStar
     return () => clearTimeout(t)
   }, [osdUntil])
 
+  // Now-playing lines on the channel rows: the rows around focus, once focus rests (one request per
+  // channel per minute, shared with the preview - EpgCache.schedule).
+  useEffect(() => {
+    const t = setTimeout(() => {
+      const from = Math.max(0, focusIdx - 2), to = Math.min(channels.length, focusIdx + 6)
+      let chain = Promise.resolve()
+      for (let i = from; i < to; i++) {
+        const id = channels[i]?.id
+        if (id && !controller.epg.peek(id)) chain = chain.then(() => controller.epg.schedule(id).then(() => epgTick((n) => n + 1)))
+      }
+    }, 400)
+    return () => clearTimeout(t)
+  }, [focusIdx, channels, controller])
+
   const pickCat = useDebounced((i: number) => { if (i !== cat) { setCat(i); setChanStart(0); focusedChan.current = 0 } })
   const pill = statusText(status)
   const osdShown = full && osdUntil > Date.now()
 
+  const nowProg = epg[0]
+  const nextProg = epg[1]
+  const playingNum = playing ? playing.index + 1 : 0
+  const quality = current ? cardText(current.name).quality : ''
+  const hdr = new Date(now)
+  const clockText = `${((hdr.getHours() + 11) % 12) + 1}:${String(hdr.getMinutes()).padStart(2, '0')} ${hdr.getHours() < 12 ? 'AM' : 'PM'}`
+
   return (
-    <div className="live">
-      <div className="live-col cats">
-        <h2>Categories</h2>
-        {load.kind === 'loading' && <p className="muted">Loading channels…</p>}
-        {load.kind === 'error' && <p className="muted">Could not read the channel list ({load.message}).</p>}
-        {cat >= 0 && (
-          <VirtualList focusKey="live-cats" count={rows.length} rowHeight={66} visibleRows={12} startIndex={cat}
-            onFocusIndex={pickCat.call}
-            onEnter={() => { pickCat.flush(); pendingFocus.current = 'live-chans-0' }}
-            render={(i) => (
-              <div className={`cat-row${i === cat ? ' selected' : ''}`}>
-                <span className="name">{rows[i].name}</span><span className="count">{rows[i].count}</span>
-              </div>
-            )} />
-        )}
-      </div>
-      <div className="live-col chans">
-        <h2>{rows[cat]?.name ?? 'Channels'}</h2>
-        {cat >= 0 && channels.length === 0 && (
-          <p className="muted">{catId === '__fav' ? 'No favourites yet. Press the yellow key on a channel, or use ☆ Favourite.' : 'No channels here.'}</p>
-        )}
-        {channels.length > 0 && (
-          <VirtualList key={`${catId}:${listGen}`} focusKey="live-chans" count={channels.length} rowHeight={76} visibleRows={11}
-            startIndex={chanStart} onFocusIndex={(i) => { focusedChan.current = i }} onEnter={onChannelEnter}
-            render={(i) => {
-              const c = channels[i]
-              return (
-                <div className={`chan-row${current?.id === c.id ? ' playing' : ''}`}>
-                  <span className="num">{i + 1}</span>
-                  {c.icon ? <img src={c.icon} alt="" loading="lazy" onError={(e) => { e.currentTarget.style.visibility = 'hidden' }} /> : <span className="noimg" />}
-                  <span className="name">{c.name}</span>
-                  {favSet.has(c.id) && <span className="fav">★</span>}
-                  {current?.id === c.id && <span className="live-dot">▶</span>}
-                </div>
-              )
+    <div className="live2">
+      <div className="live2-header">
+        <span className="live2-dot" /><span className="live2-title">Live TV</span>
+        <Focusable focusKey="live-search" className="live2-search" onEnter={() => queryInput.current?.focus()}>
+          <Icon name="search" size={24} />
+          <input ref={queryInput} value={query} placeholder="Search" onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={(e) => {
+              e.stopPropagation()
+              if ([13, 40, 65376].includes(e.keyCode)) { e.preventDefault(); queryInput.current?.blur(); if (chipIdx.length) void setFocus('live-cats-0') }
+              else if ([27, 10009, 461, 65385].includes(e.keyCode) || (e.keyCode === 8 && !query)) { e.preventDefault(); queryInput.current?.blur() }
             }} />
+        </Focusable>
+        {cat >= 0 && rows.length > 0 && (
+          <ChipRow key={query} rows={chipIdx.map((i) => rows[i])} active={Math.max(0, chipIdx.indexOf(cat))}
+            onFocusIndex={(i) => pickCat.call(chipIdx[i])} onEnter={() => { pickCat.flush(); pendingFocus.current = 'live-chans-0' }} />
         )}
+        <span className="live2-clock">{clockText}</span>
       </div>
-      <div className="live-col preview">
-        <div ref={box} className={`live-player${full ? ' full' : ''}`}>
-          <video ref={video} playsInline />
-          {!current && <div className="player-hint">Press OK on a channel to watch it here</div>}
-          {pill && <div className="pill">{pill}</div>}
-          {osdShown && current && playing && (
-            <LiveOsd number={playing.index + 1} name={current.name} favourite={favSet.has(current.id)} programmes={epg} now={now} />
+      <div className="live2-body">
+        <div className="live2-list">
+          <div className="live2-list-head">
+            <span>{(rows[cat]?.name ?? 'Channels').toUpperCase()}</span>
+            <span className="count-pill">{channels.length}</span>
+          </div>
+          {load.kind === 'loading' && <div className="live2-state"><div className="spinner" /><span>Loading channels…</span></div>}
+          {load.kind === 'error' && <div className="live2-state"><span>Could not read the channel list ({load.message}).</span></div>}
+          {cat >= 0 && channels.length === 0 && load.kind === 'ready' && (
+            <div className="live2-state"><span>{catId === '__fav' ? 'No favourites yet. Press the yellow key on a channel, or ★.' : 'No channels here.'}</span></div>
+          )}
+          {channels.length > 0 && (
+            <VirtualList key={`${catId}:${listGen}`} focusKey="live-chans" count={channels.length} rowHeight={128} visibleRows={6}
+              startIndex={chanStart} onFocusIndex={(i) => { focusedChan.current = i; setFocusIdx(i) }} onEnter={onChannelEnter}
+              render={(i) => {
+                const c = channels[i]
+                const pe = controller.epg.peek(c.id)
+                const pr = pe?.[0]
+                const q = cardText(c.name).quality
+                return (
+                  <div className={`chan2${current?.id === c.id ? ' playing' : ''}`}>
+                    <span className="chan2-num">{i + 1}</span>
+                    <span className="chan2-logo">{c.icon ? <img src={c.icon} alt="" loading="lazy" onError={(e) => { e.currentTarget.style.visibility = 'hidden' }} /> : <b>{c.name.slice(0, 2).toUpperCase()}</b>}</span>
+                    <span className="chan2-text">
+                      <span className="chan2-name"><span>{c.name}</span>{/4K|FHD/.test(q) && <i className={`q-badge q-${q}`}>{q}</i>}</span>
+                      <span className="chan2-now">{pr ? pr.title : current?.id === c.id ? 'Live' : ''}</span>
+                      {pr && <span className="chan2-prog"><span style={{ width: `${Math.round(progress(pr.start, pr.end, now) * 100)}%` }} /></span>}
+                    </span>
+                    {favSet.has(c.id) && <span className="chan2-fav"><Icon name="live_star" size={22} /></span>}
+                  </div>
+                )
+              }} />
           )}
         </div>
-        {current && (
-          <div className="preview-info">
-            <div className="p-name">{current.name}</div>
-            {epg[0] ? <div className="p-now"><b>{clock(epg[0].start)}</b> {epg[0].title}</div> : <div className="p-now muted">No programme guide</div>}
-            {epg[1] && <div className="p-next"><b>{clock(epg[1].start)}</b> {epg[1].title}</div>}
-            <div className="buttons">
-              <Focusable focusKey="live-full" className="button" onEnter={goFull}>Full screen</Focusable>
-              <Focusable focusKey="live-fav" className="button" onEnter={() => toggleFav(current.id)}>
-                {favSet.has(current.id) ? '★ Favourite' : '☆ Favourite'}
-              </Focusable>
-            </div>
+        <div className="live2-preview">
+          <div ref={box} className={`live-player live2-frame${full ? ' full' : ''}`}>
+            <video ref={video} playsInline />
+            {!current && <div className="player-hint">Press OK on a channel to watch it here</div>}
+            {current && !full && <span className="live2-badge-live"><i />LIVE</span>}
+            {current && !full && quality && <span className={`live2-badge-q q-${quality}`}>{quality}</span>}
+            {current && !full && (
+              <div className="live2-lower">
+                <div className="live2-now-label">NOW PLAYING</div>
+                <div className="live2-now-row"><span className="live2-now-title">{nowProg?.title ?? current.name}</span>
+                  {nowProg && <span className="live2-now-time">{clock(nowProg.start)} – {clock(nowProg.end)}</span>}</div>
+                {nowProg && <div className="live2-now-prog"><div style={{ width: `${Math.round(progress(nowProg.start, nowProg.end, now) * 100)}%` }} /></div>}
+              </div>
+            )}
+            {pill && <div className="pill">{pill}</div>}
+            {notice && full && <div className="pill lo-notice">{notice}</div>}
+            {osdShown && current && playing && (
+              <FullscreenOsd number={playingNum} name={current.name} logo={current.icon} quality={quality} programmes={epg} now={now}
+                focus={osdFocus} onAirNext={epg.slice(1)} />
+            )}
           </div>
-        )}
+          <div className="live2-actions">
+            <div className="live2-next">
+              <div><div className="next-label">NEXT UP</div><div className="next-time">{nextProg ? clock(nextProg.start) : '—'}</div></div>
+              <span className="next-sep" />
+              <span className="next-title">{nextProg?.title ?? (current ? 'No programme guide' : 'Choose a channel')}</span>
+            </div>
+            <Focusable focusKey="live-full" className="live2-watch" onEnter={goFull}><Icon name="play" size={20} /> Watch</Focusable>
+            <Focusable focusKey="live-fav" className={`live2-fav${current && favSet.has(current.id) ? ' on' : ''}`} onEnter={() => { if (current) toggleFav(current.id) }}>
+              <Icon name="live_star" size={24} />
+            </Focusable>
+          </div>
+          <div className="live2-guide-head"><span className="guide-bar" />Program Guide<small>{current ? current.name : ''}</small></div>
+          <div className="live2-guide">
+            {epg.length === 0 && <div className="guide-empty">{current ? 'No programme guide for this channel' : 'The guide shows here once a channel plays'}</div>}
+            {epg.slice(0, 6).map((p2, i) => (
+              <Focusable key={i} focusKey={`guide-${i}`} className={`guide-card${i === 0 ? ' onair' : ''}`} onEnter={goFull}>
+                <div className="guide-time">{clock(p2.start)}{i === 0 && <span className="guide-onair">ON AIR</span>}</div>
+                <div className="guide-title">{p2.title}</div>
+                {i === 0 && <div className="guide-prog"><div style={{ width: `${Math.round(progress(p2.start, p2.end, now) * 100)}%` }} /></div>}
+              </Focusable>
+            ))}
+          </div>
+        </div>
       </div>
       {numEntry && <div className="num-entry">{numEntry}</div>}
       {debug && engine && <LiveDebugPanel engine={engine} status={status} />}
     </div>
   )
+
 }
