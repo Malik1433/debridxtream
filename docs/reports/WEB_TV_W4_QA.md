@@ -721,3 +721,70 @@ found that explains them, and a quiet half-hour may just mean no other device to
    link with it).
 3. **R7** — the frozen-picture case was not re-captured this round.
 4. **R3** — the recent-channel card flashing the list was not re-checked.
+
+---
+
+# Round 7 — measured by the agent, not read off the screen (2026-10-03)
+
+Branch @ `34db35c7`, **142 tests pass**, built and installed. Report only.
+
+## ⭐ First: how this round was measured, and why it matters
+
+The owner stopped the round and said the right thing:
+
+> *"Find a way you can test and see this yourself — these details are hard for me, I cannot give you
+> exact information, and that way we can go in the wrong direction."*
+
+He was right, and it had already happened twice: numbers read off a photograph sent me after **paint**
+when the cause was JavaScript, and after **DOM size** when the DOM was never the problem.
+
+There is no debugger on this TV — `sdb shell` is silent, no inspector port, and the Tizen CLI has no
+debug command. So instead **the TV now posts its own measurements to the PC**: a small probe injected
+into the *built package only* (`build-tizen/`, never the repo — `git status` stayed clean), POSTing
+every 5 s to a collector on the LAN. It measures independently of the app's own HUD: `PerformanceObserver`
+for long tasks, rAF for frames, DOM/img counts, heap. It sends numbers only — no credentials, no URLs,
+no content — and the clean build goes back on the TV when QA ends.
+
+⚠️ **The first thing it found was that the HUD was part of the problem it was reporting.** Home sitting
+still read *44 fps / 958 ms of long tasks* on the HUD; the probe, with the HUD closed, reads
+**60 fps and zero long tasks** on the same build, with heap at **23 MB** instead of 54. Some of what
+rounds 5 and 6 measured was the measuring.
+
+## ⭐ R6 — what is actually slow
+
+| What | fps | worst frame | JS long tasks (5 s) | of which NOT key-triggered | DOM |
+|---|---|---|---|---|---|
+| **Any screen, untouched** | **60** | 17 ms | **0** | 0 | — |
+| **Detail page**, moving focus | **60** | 17–33 ms | **0** | 0 | 129 |
+| **Home**, moving focus along a row | 35–52 | 350–817 ms | 5–17 / 0.5–1.6 s | **0** | 396 |
+| **Opening Movies** (grid build) | 29–38 | 667–1200 ms | **97 / 11.4 s** | 10.8 s | 258–471 |
+
+Three separate facts, and they point in different directions:
+
+1. **Nothing runs on its own.** Idle is 60 fps with zero long tasks, on every screen. No timer, no
+   rotation, no background refresh is costing anything. That closes a suspicion carried since round 5.
+2. **The focus system is not at fault.** On a detail page, moving focus costs **zero** long tasks.
+   If the shared focus code were expensive it would show there too.
+3. **Home's own per-key work is expensive**, and `idle 0` says it is *caused by the key press*:
+   100–800 ms of JavaScript for a single focus move. An 820 ms task is why a press feels dead.
+
+⚠️ And the heaviest finding is not Home at all: **opening the Movies grid ran 97 long tasks totalling
+11.4 seconds**, 10.8 s of it not key-triggered — screen construction. The proof it really blocks: the
+probe's own 5-second timer could not fire, and the gap between two samples came out at **17 s**.
+
+So the work left is: **the per-key work on Home**, and **the one-off build of a big screen**. Not
+paint, not DOM size, not the focus system, not a background timer.
+
+`f7c06e8` (the forced layout removed on every focus move) made a real difference — the owner's words
+were *"it's a lot better now, only slightly slow"*, and the numbers agree.
+
+## R3, R5, R7 — not re-checked this round
+
+The round went into the measurement problem, which was the right use of it. The recent-channel card,
+the unprompted VOD drop and the frozen picture stand where round 6 left them.
+
+## For the next round
+
+The probe is the useful thing to keep. It turns "the app feels slow" into a table, it needs nothing
+from the owner but normal use, and it cannot be fooled by the HUD. ⚠️ It is injected into the built
+package only — if someone rebuilds without it, the numbers go back to being read off a television.
