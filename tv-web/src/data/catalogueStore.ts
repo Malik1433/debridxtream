@@ -25,7 +25,25 @@ const DB = 'dxplay'
  */
 const VERSION = 3
 const STORES = ['live_categories', 'live_streams', 'movie_categories', 'movies', 'show_categories', 'shows', 'library'] as const
-interface LibraryBlob { id: LibraryKind; categories: VodCategory[]; items: Array<Movie | Show> }
+/** The v3 record as first written (items as objects) - still read. */
+interface LibraryBlobV1 { id: LibraryKind; categories: VodCategory[]; items: Array<Movie | Show> }
+/**
+ * The record as written since W4 QA round 8: the items as ONE JSON string. On the Samsung,
+ * `read:lib-movies` was 6.25 s - the IndexedDB read of 69,500 films, structured-clone-decoded on the
+ * main thread. A single string comes out of IndexedDB as a copy, and V8's JSON.parse builds the
+ * objects faster than structured clone does (~1.7x in a node measurement of the same shape).
+ */
+interface LibraryBlobV2 { id: LibraryKind; categories: VodCategory[]; itemsJson: string }
+type LibraryBlob = LibraryBlobV1 | LibraryBlobV2
+/** The categories alone, so reading them never decodes the items (they used to: two full reads per open). */
+interface LibraryCats { id: `${LibraryKind}-cats`; categories: VodCategory[] }
+
+export function encodeLibrary(kind: LibraryKind, categories: VodCategory[], items: Array<Movie | Show>): LibraryBlobV2 {
+  return { id: kind, categories, itemsJson: JSON.stringify(items) }
+}
+export function decodeLibrary<T extends Movie | Show>(b: LibraryBlob): { categories: VodCategory[]; items: T[] } {
+  return { categories: b.categories, items: ('itemsJson' in b ? JSON.parse(b.itemsJson) : b.items) as T[] }
+}
 
 function open(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
@@ -80,28 +98,46 @@ export class IdbCatalogueStore implements CatalogueStore {
     const [catStore, itemStore] = LIB_STORES[kind]
     const db = await this.conn()
     const tx = db.transaction(['library', catStore, itemStore], 'readwrite')
-    tx.objectStore('library').put({ id: kind, categories, items } satisfies LibraryBlob)
+    const lib = tx.objectStore('library')
+    lib.put(encodeLibrary(kind, categories, items))
+    lib.put({ id: `${kind}-cats`, categories } satisfies LibraryCats)
     // The v2 copy is superseded: clearing a store is one request, not one per row.
     tx.objectStore(catStore).clear(); tx.objectStore(itemStore).clear()
     await done(tx)
+    this.libs.delete(kind)
   }
 
-  private async blob(kind: LibraryKind): Promise<LibraryBlob | null> {
-    const db = await this.conn()
-    return new Promise((resolve, reject) => {
-      const req = db.transaction('library', 'readonly').objectStore('library').get(kind)
-      req.onsuccess = () => resolve((req.result as LibraryBlob | undefined) ?? null)
+  private get<T>(store: string, key: string): Promise<T | null> {
+    return this.conn().then((db) => new Promise<T | null>((resolve, reject) => {
+      const req = db.transaction(store, 'readonly').objectStore(store).get(key)
+      req.onsuccess = () => resolve((req.result as T | undefined) ?? null)
       req.onerror = () => reject(req.error)
-    })
+    }))
+  }
+
+  /** One decode per half, shared by whoever asks first (categories and items used to read it twice). */
+  private libs = new Map<LibraryKind, Promise<{ categories: VodCategory[]; items: Array<Movie | Show> } | null>>()
+  private library(kind: LibraryKind) {
+    let p = this.libs.get(kind)
+    if (!p) {
+      p = this.get<LibraryBlob>('library', kind).then((b) => (b ? decodeLibrary(b) : null))
+      p.catch(() => this.libs.delete(kind))
+      this.libs.set(kind, p)
+    }
+    return p
   }
 
   async libraryCategories(kind: LibraryKind): Promise<VodCategory[]> {
-    const b = await this.blob(kind)
+    const own = await this.get<LibraryCats>('library', `${kind}-cats`)
+    if (own) return own.categories
+    const b = await this.library(kind)
     return b ? b.categories : all(await this.conn(), LIB_STORES[kind][0])
   }
 
   async libraryItems<T extends Movie | Show>(kind: LibraryKind): Promise<T[]> {
-    const b = await this.blob(kind)
+    const b = await this.library(kind)
+    // Handed over once: the session keeps its own sorted copy, so this one is not held twice.
+    this.libs.delete(kind)
     return b ? (b.items as T[]) : all<T>(await this.conn(), LIB_STORES[kind][1])
   }
 
@@ -113,5 +149,6 @@ export class IdbCatalogueStore implements CatalogueStore {
     const tx = db.transaction(STORES as unknown as string[], 'readwrite')
     STORES.forEach((s) => tx.objectStore(s).clear())
     await done(tx)
+    this.libs.clear()
   }
 }
