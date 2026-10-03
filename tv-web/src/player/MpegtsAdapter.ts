@@ -78,6 +78,19 @@ export class MpegtsAdapter implements PlayerAdapter {
     return Math.max(0, Math.round((b.end(b.length - 1) - this.video.currentTime) * 1000))
   }
 
+  /**
+   * W4 QA R7: the decoder stopped drawing with data buffered. A seek a frame ahead inside what is
+   * already buffered makes the media pipeline flush and restart decoding - the cheapest reset there
+   * is, and it costs no provider connection.
+   */
+  nudge(): boolean {
+    const v = this.video, b = v.buffered
+    if (!this.p || !b.length) return false
+    const to = v.currentTime + 0.1
+    for (let i = 0; i < b.length; i++) if (to >= b.start(i) && to < b.end(i)) { v.currentTime = to; return true }
+    return false
+  }
+
   setSpeed(rate: number): boolean {
     this.video.playbackRate = rate
     return Math.abs(this.video.playbackRate - rate) < 0.001

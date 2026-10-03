@@ -30,6 +30,8 @@ export interface LiveMedia {
   diagnose?(): string
   /** No picture yet, and what the stream carries points at the other player: try it early. */
   prefersAlternative?(): boolean
+  /** Shake a decoder that stopped drawing with data in hand (W4 QA R7). False = cannot. */
+  nudge?(): boolean
 }
 
 /** Numbers for the on-screen debug panel. */
@@ -73,6 +75,8 @@ export const EARLY_ALTERNATIVE_MS = 6_000
 export const SLOW_FILL_EVERY_MS = 3_000
 /** A hold whose buffer has not grown for this long is a dead connection: reconnect. */
 export const DEAD_HOLD_MS = 15_000
+/** W4 QA R7: a picture still frozen this long after the nudge is reopened. */
+export const FROZEN_REOPEN_MS = 3_000
 export const QUICK_RETRIES = [1_000, 2_000]
 
 /**
@@ -137,6 +141,8 @@ export class LiveEngine {
     this.quickRetry = 0
     this.channel = c
     this.openedAt = this.clock.now()
+    this.shownOnce = false
+    this.frozenAt = -1
     this.open()
   }
 
@@ -153,6 +159,7 @@ export class LiveEngine {
     const c = this.channel
     if (!c) return
     this.cancelRetry?.(); this.cancelRetry = null
+    this.frozenAt = -1
     this.setSpeed(1)
     this.loadedAt = this.clock.now()
     this.started = false
@@ -180,6 +187,8 @@ export class LiveEngine {
     const ownBuffer = this.media.reportsBuffer?.() === false
 
     if (advancing) {
+      // A frozen picture's clock runs on (R7): it is not playing until a frame is drawn again.
+      if (this.frozenAt >= 0) return
       if (this.status.kind !== 'playing') this.becamePlaying(c)
       if (!ownBuffer && now - this.lastSpeedAt >= SLOW_FILL_EVERY_MS) {
         this.lastSpeedAt = now
@@ -216,6 +225,40 @@ export class LiveEngine {
     const ok = this.media.setSpeed(rate)
     if (rate !== this.speed) this.log(`live cushion: speed ${rate.toFixed(2)}${ok ? '' : ' (refused)'}`)
     this.speed = ok ? rate : 1
+  }
+
+  private shownOnce = false
+  private frozenAt = -1
+
+  /**
+   * W4 QA R7: no frame drawn while the position runs on, with data in hand (PictureWatch). Not a
+   * starved buffer - round 5 caught it with 45 s buffered - so no cushion rule can help: it counts as
+   * an interruption, the decoder is nudged, and a picture still frozen 3 s later reopens the channel.
+   */
+  pictureFrozen(): void {
+    const c = this.channel
+    if (!c || this.frozenAt >= 0 || this.holding) return
+    this.frozenAt = this.clock.now()
+    this.meter.onStopped(true)
+    this.set({ kind: 'buffering', channel: c, waitingForMs: 0 })
+    this.log(`live: picture frozen with ${Math.round((this.media.bufferedAheadMs() ?? 0) / 100) / 10} s buffered${this.media.nudge?.() ? ' - nudging the decoder' : ''}`)
+    this.cancelRetry?.()
+    this.cancelRetry = this.clock.after(FROZEN_REOPEN_MS, () => {
+      this.cancelRetry = null
+      if (this.frozenAt < 0 || this.channel !== c) return
+      this.log(`live: picture still frozen on ${c.name} - reopening it`)
+      this.frozenAt = -1
+      this.open()
+    })
+  }
+
+  /** Frames are drawn again. */
+  pictureThawed(): void {
+    const c = this.channel
+    if (this.frozenAt < 0) return
+    this.frozenAt = -1
+    this.cancelRetry?.(); this.cancelRetry = null
+    if (c) this.becamePlaying(c)
   }
 
   /**
@@ -286,7 +329,13 @@ export class LiveEngine {
   }
 
   private becamePlaying(c: LiveChannel): void {
-    if (!this.started) this.log(`live: first picture on ${c.name} after ${this.clock.now() - this.openedAt} ms (${this.media.playerName?.() ?? 'player'})`)
+    // W4 QA R7b: timed from THIS load. Measured from the zap, a reconnect 17 minutes in read as a
+    // "first picture after 1070129 ms".
+    if (!this.started) {
+      const what = this.shownOnce ? 'picture back' : 'first picture'
+      this.log(`live: ${what} on ${c.name} after ${this.clock.now() - this.loadedAt} ms (${this.media.playerName?.() ?? 'player'})`)
+    }
+    this.shownOnce = true
     this.started = true
     this.meter.onPlaying()
     this.holdOn.onRecovered()

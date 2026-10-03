@@ -15,6 +15,7 @@ export interface PrimaryMedia {
   onMediaInfo(cb: (i: { video?: string; audio?: string }) => void): void
   mediaInfo(): string | null
   diagnose?(): string
+  nudge?(): boolean
 }
 
 /** The player for what the primary cannot carry (Samsung: AVPlay). It keeps its own buffer. */
@@ -79,6 +80,7 @@ export class LiveMediaSwitch implements LiveMedia {
   reportsBuffer(): boolean { return this.active === 'primary' }
   diagnose(): string { return this.active === 'primary' ? this.primary.diagnose?.() ?? '' : '' }
   playerName(): string { return this.current().name }
+  nudge(): boolean { return this.active === 'primary' ? this.primary.nudge?.() ?? false : false }
 
   tryAlternative(): boolean {
     if (this.active !== 'primary' || !this.fallback || !this.url) return false

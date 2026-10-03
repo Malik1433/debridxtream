@@ -59,13 +59,18 @@ export function useLiveEngine(video: RefObject<HTMLVideoElement | null>, box: Re
     engineRef.current = engine
     const off = engine.onStatus(setStatus)
     // W4 QA R7: log when the picture stops while the position runs on (MSE only - AVPlay has no
-    // frame count). Measurement, not policy: the stall meter is unchanged.
+    // frame count). Round 5 caught it with 45 s buffered: the engine counts it and recovers (R7).
     const watch = new PictureWatch()
     const watcher = setInterval(() => {
       const d = engine.debug()
       const ev = watch.sample(Date.now(), d.positionMs, d.player === mse.name ? decodedFrames(el) : null)
-      if (ev?.kind === 'frozen') liveLog(`picture: FROZEN - no frame drawn for ${FROZEN_AFTER_MS / 1000} s while the position moved ${(ev.positionMovedMs / 1000).toFixed(1)} s`)
-      else if (ev?.kind === 'thawed') liveLog(`picture: drawing again after ${(ev.frozenForMs / 1000).toFixed(1)} s frozen`)
+      if (ev?.kind === 'frozen') {
+        liveLog(`picture: FROZEN - no frame drawn for ${FROZEN_AFTER_MS / 1000} s while the position moved ${(ev.positionMovedMs / 1000).toFixed(1)} s`)
+        engine.pictureFrozen()
+      } else if (ev?.kind === 'thawed') {
+        liveLog(`picture: drawing again after ${(ev.frozenForMs / 1000).toFixed(1)} s frozen`)
+        engine.pictureThawed()
+      }
     }, 500)
     setReady(true)
     return () => {

@@ -28,6 +28,7 @@ class FakeClock implements Clock {
 
 /** A player whose position advances only while "flowing" and playing. */
 class FakeMedia implements LiveMedia {
+  nudge?: () => boolean
   reportsBuffer?: () => boolean
   tryAlternative?: () => boolean
   prefersAlternative?: () => boolean
@@ -208,5 +209,38 @@ describe('LiveEngine', () => {
     expect(switched).toBe(true)
     expect(r.logs.some((l) => /no picture in 6\d\d\d ms/.test(l))).toBe(true)
     expect(r.engine.current()).toMatchObject({ kind: 'connecting' })
+  })
+
+  it('W4 QA R7: a frozen picture with data in hand counts, is nudged, and is reopened if it stays frozen', () => {
+    const r = rig()
+    let nudges = 0
+    r.media.nudge = () => { nudges++; return true }
+    r.engine.play(ch('1')); r.media.flowing = true; r.media.ahead = 45_000; r.run(2000)
+    expect(r.engine.current().kind).toBe('playing')
+    r.engine.pictureFrozen()
+    expect(r.engine.current().kind).toBe('buffering')
+    expect(r.engine.meter.count).toBe(1)
+    expect(nudges).toBe(1)
+    r.run(1000) // the clock runs on, but that is not "playing" while frozen
+    expect(r.engine.current().kind).toBe('buffering')
+    r.engine.pictureThawed()
+    expect(r.engine.current().kind).toBe('playing')
+    expect(r.media.loads.length).toBe(1)
+    r.engine.pictureFrozen(); r.run(3500)
+    expect(r.media.loads.length).toBe(2)
+    expect(r.logs.some((l) => l.includes('still frozen'))).toBe(true)
+  })
+
+  it('W4 QA R7b: a reconnect is timed from its own load, and called "picture back"', () => {
+    const r = rig()
+    r.engine.play(ch('1')); r.media.flowing = true; r.run(1000)
+    r.run(60_000)
+    r.media.fail({ network: true, message: 'drop' })
+    r.run(10_000)
+    const lines = r.logs.filter((l) => /picture (on|back)|first picture/.test(l))
+    expect(lines[0]).toMatch(/first picture on Ch 1 after \d+ ms/)
+    const back = lines.find((l) => l.includes('picture back'))
+    expect(back).toBeDefined()
+    expect(Number(/after (\d+) ms/.exec(back!)![1])).toBeLessThan(10_000)
   })
 })
