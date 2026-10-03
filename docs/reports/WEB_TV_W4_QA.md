@@ -328,3 +328,19 @@ Everything else on the Samsung passes, including the four problems round 1 opene
 Standing facts for whoever runs this next, unchanged: a retail Samsung TV gives no logs (the on-screen
 `[live]` panel is the only instrument), and none of the performance work in this report is visible on
 a desktop browser — measure on the TV.
+
+## Answer from the online agent — round 3 (2026-10-03)
+
+**N5 — fixed in `6c43433` (parity 4/n).** The stage now scales uniformly
+(`min(w/1920, h/1080)`, letterboxed), and a resize that keeps the width and only shrinks the height —
+the IME opening — is ignored, so the design is never flattened. Search no longer needs the IME at
+all: it now has Android's on-screen key grid (parity 6/n); the TV keyboard stays one OK away on the
+query bar.
+
+**N6 — same answer as Android, on purpose.** Android keeps the TMDB key out of SOURCE
+(`local.properties` → `BuildConfig.TMDB_API_KEY`) but ships it inside the APK, where anyone who
+unzips it can read it. tv-web does exactly that: out of source (`tv-web/.env.local`, gitignored) and
+inside the `.wgt`. A TMDB v3 key is a client key — TMDB expects it in apps — and the worst case is
+rate-limiting or a revoked key, which costs posters and cast photos, never playback (the detail
+pages fall back to the provider's own data). If that risk ever becomes real, the answer for BOTH
+apps is the same proxy, not a tv-web-only one. No change.

@@ -23,6 +23,29 @@ tv-web already uses the same bg and cyan. The look differs in structure, not col
 | H | **Search** (`layout-television/fragment_search`) | "Search" 34 px + query bar with caret and count; left 452 px: **scope chips** All · Movies · Series · Live, an **on-screen A–Z 0–9 key grid**, actions Space · Delete · Clear; right: Trending Searches chips, then results grid with an accent header; a no-results state. (Netflix and YouTube TV use the same on-screen grid. The Samsung IME stays reachable.) | Native IME box + three rows | Key grid, scopes, actions, results grid |
 | I | **Settings** (`fragment_settings_v2`) | Two panes: rail 660 px (⚙ Settings, version, categories **Playback · Live TV · Home · Data · About · Account**), and a panel (dot + title + description + items: toggles, selections, actions, info). | Single info list + buttons | Two-pane categories with the items tv-web supports |
 
+## Status (2026-10-03) — every row implemented
+
+| # | Commit | Note |
+|---|---|---|
+| A, B | `bd6b168` parity 1/n | Icon rail with flyout; Home hero, rows, status bar |
+| D | `e97931e` parity 2/n | Movies / Series sidebar, sort chips, badges |
+| E, F | `58561e5` parity 3/n | Movie and series detail pages (V2) |
+| G | `6c43433` parity 4/n | Player controls; one uniform stage scale (N5) |
+| C, C2 | `1a1fc7b` parity 5/n | Live: chips, channel list, preview, guide, fullscreen OSD |
+| H | `067f67e` parity 6/n | Search key grid, scopes, trending / recent, typed results |
+| I | `3d0993e` parity 7/n | Settings two panes; Resume Last Channel |
+
+Deviations, said out loud:
+- **Search result columns.** Android computes 6 columns of 95 dp but draws 128 dp posters into them;
+  tv-web draws 5 columns that fit beside the rail. A live result opens Live TV on that channel
+  (Android opens the player directly; tv-web's live player lives on the Live screen).
+- **Settings rail.** Android selects a category on OK; tv-web opens it on focus (250 ms debounce),
+  the 10-foot rule in CLAUDE.md, and OK still works.
+- **Settings items left out (no tv-web counterpart):** Home Screen (app language, layout, row
+  pickers), Addons, preferred audio languages and the smart-audio toggle (Playback shows what this TV
+  decodes instead), TV-guide zoom / density / colours / auto-update, diagnostics, clear cached data,
+  check for update, Your servers, Sign out (the account comes from the phone link).
+
 **Not copied, said out loud (rule 1):** debrid / Stremio / addons items, IMDb and Rotten Tomatoes
 badges (OMDb key, debrid tier), TV-guide zoom / density / genre colours (no full EPG grid yet, §12).
 A TMDB trailer plays through YouTube's embed. Whether a Samsung TV allows it is checked on the TV,
