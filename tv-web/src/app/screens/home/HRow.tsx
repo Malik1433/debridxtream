@@ -1,12 +1,19 @@
 import { FocusContext, useFocusable } from '@noriginmedia/norigin-spatial-navigation'
-import { useState, type ReactNode } from 'react'
+import { memo, useCallback, useState, type ReactNode } from 'react'
 
-function Card({ focusKey, onEnter, onFocus, className, children }: {
-  focusKey: string; onEnter: () => void; onFocus: () => void; className: string; children: (focused: boolean) => ReactNode
-}) {
-  const { ref, focused } = useFocusable({ focusKey, onEnterPress: onEnter, onFocus: () => onFocus() })
-  return <div ref={ref} className={`${className}${focused ? ' focused' : ''}`}>{children(focused)}</div>
+type CardProps<T> = {
+  focusKey: string; index: number; item: T; className: string
+  onEnter: (t: T) => void; onFocusAt: (i: number, t: T) => void; render: (t: T, focused: boolean) => ReactNode
 }
+/**
+ * Memoized (round 7: Home spent 100-800 ms of JavaScript per focus move on the TV). Moving focus along
+ * a row re-renders the row, but only the two cards whose focus changed draw again - as long as the
+ * caller's `render` is stable (Home's rows are). An inline `render` simply re-renders every card, as before.
+ */
+const Card = memo(function Card<T>({ focusKey, index, item, className, onEnter, onFocusAt, render }: CardProps<T>) {
+  const { ref, focused } = useFocusable({ focusKey, onEnterPress: () => onEnter(item), onFocus: () => onFocusAt(index, item) })
+  return <div ref={ref} className={`${className}${focused ? ' focused' : ''}`}>{render(item, focused)}</div>
+}) as <T>(p: CardProps<T>) => ReactNode
 
 /**
  * One horizontal Home row (Android RecyclerView, horizontal). The strip slides under a fixed window
@@ -52,6 +59,7 @@ function Row<T>({ id, title, count, items, step, cardClass, keyOf, onEnter, rend
 }) {
   const row = useFocusable({ focusKey: `row-${id}`, saveLastFocusedChild: true, trackChildren: true })
   const [idx, setIdx] = useState(0)
+  const focusAt = useCallback((i: number, t: T) => { setIdx(i); onRowFocus?.(); onItemFocus?.(t) }, [onRowFocus, onItemFocus])
   const shift = Math.max(0, idx - 3) * step
   return (
     <FocusContext.Provider value={row.focusKey}>
@@ -64,10 +72,8 @@ function Row<T>({ id, title, count, items, step, cardClass, keyOf, onEnter, rend
         )}
         <div className="home-strip" style={{ transform: `translateX(${-shift}px)` }}>
           {items.map((t, i) => (
-            <Card key={keyOf(t)} focusKey={`${id}-${i}`} className={cardClass} onEnter={() => onEnter(t)}
-              onFocus={() => { setIdx(i); onRowFocus?.(); onItemFocus?.(t) }}>
-              {(f) => render(t, f)}
-            </Card>
+            <Card key={keyOf(t)} focusKey={`${id}-${i}`} index={i} item={t} className={cardClass}
+              onEnter={onEnter} onFocusAt={focusAt} render={render} />
           ))}
         </div>
       </section>
