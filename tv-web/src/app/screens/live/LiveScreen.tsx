@@ -16,7 +16,6 @@ import { Icon } from '../../icons'
 import { categoryRows, filterChips, channelsOf, clock, indexCatalogue, progress, startCategory, zapIndex } from './liveModel'
 import { statusText } from './statusText'
 import { useLiveEngine } from './useLiveEngine'
-import { useDebounced } from '../../useDebounced'
 import { VirtualList } from './VirtualList'
 
 const OSD_MS = 5_000
@@ -263,7 +262,13 @@ export function LiveScreen({ platform, controller, startChannelId = null, onStar
     return () => clearTimeout(t)
   }, [focusIdx, channels, controller])
 
-  const pickCat = useDebounced((i: number) => { if (i !== cat) { setCat(i); setChanStart(0); focusedChan.current = 0 } })
+  // W4 QA R1, Android LiveCategoryController.handleCategoryClick: a chip changes the list on OK, and
+  // OK takes focus into the list. Moving along the chips only moves focus.
+  const chooseCat = (i: number) => {
+    if (i === cat) { void setFocus('live-chans'); return }
+    setCat(i); setChanStart(0); focusedChan.current = 0
+    pendingFocus.current = 'live-chans-0'
+  }
   const pill = statusText(status)
   const osdShown = full && osdUntil > Date.now()
 
@@ -289,7 +294,7 @@ export function LiveScreen({ platform, controller, startChannelId = null, onStar
         </Focusable>
         {cat >= 0 && rows.length > 0 && (
           <ChipRow key={query} rows={chipIdx.map((i) => rows[i])} active={Math.max(0, chipIdx.indexOf(cat))}
-            onFocusIndex={(i) => pickCat.call(chipIdx[i])} onEnter={() => { pickCat.flush(); pendingFocus.current = 'live-chans-0' }} />
+            onEnter={(i) => chooseCat(chipIdx[i])} />
         )}
         <span className="live2-clock">{clockText}</span>
       </div>

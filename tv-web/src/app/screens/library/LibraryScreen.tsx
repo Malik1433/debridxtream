@@ -6,7 +6,6 @@ import type { Movie, Show, VodCategory } from '../../../data/vodApi'
 import type { AppController, AppState } from '../../controller'
 import { Focusable } from '../../Focusable'
 import { Icon } from '../../icons'
-import { useDebounced } from '../../useDebounced'
 import { indexCatalogue } from '../live/liveModel'
 import { VirtualList } from '../live/VirtualList'
 import { recall, remember, takeReturn } from './focusMemory'
@@ -86,7 +85,13 @@ export function LibraryScreen<T extends Movie | Show>({ kind, controller, state,
     void setFocus(shown.length ? `lib-grid-${Math.min(recall(gridKey), shown.length - 1)}` : `lib-cats-${row}`)
   })
 
-  const pick = useDebounced((i: number) => { if (i !== row) { setRow(i); remember(`${memKey}:row`, i + 1) } })
+  // W4 QA R1, Android VodFragment: a category opens on OK and OK takes focus to its grid. Moving
+  // along the list only moves focus.
+  const choose = (i: number) => {
+    if (i === row) { if (shown.length) void setFocus('lib-grid-0'); return }
+    setRow(i); remember(`${memKey}:row`, i + 1)
+    toGrid.current = true
+  }
   const chooseSort = (m: SortMode) => { setSort(m); try { sessionStorage.setItem(`${memKey}:sort`, m) } catch { /* private mode */ } }
   const syncing = state.librarySyncing && !state.library
   const noun = isMovies ? 'movies' : 'series'
@@ -110,7 +115,7 @@ export function LibraryScreen<T extends Movie | Show>({ kind, controller, state,
         <div className="vod-cat-title">Categories</div>
         {row >= 0 && rows.length > 0 && (
           <VirtualList focusKey="lib-cats" count={rows.length} rowHeight={88} visibleRows={8} startIndex={row}
-            onFocusIndex={pick.call} onEnter={() => { pick.flush(); toGrid.current = true }}
+            onEnter={choose}
             render={(i) => <div className={`vod-cat${i === row ? ' active' : ''}`}><span className="vod-cat-bar" /><span className="name">{rows[i].name}</span></div>} />
         )}
       </div>

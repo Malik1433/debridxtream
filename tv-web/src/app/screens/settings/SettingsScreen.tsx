@@ -11,7 +11,6 @@ import type { AppController, AppState } from '../../controller'
 import { Focusable } from '../../Focusable'
 import { Icon } from '../../icons'
 import { PinDialog } from '../../PinDialog'
-import { useDebounced } from '../../useDebounced'
 import { ManageOnPhone } from './ManageOnPhone'
 import { CATEGORIES, isFocusableRow, type CategoryKey, type Row } from './settingsModel'
 import { useParentalFlow } from './useParentalFlow'
@@ -35,12 +34,20 @@ export function SettingsScreen({ platform, state, controller, onSyncNow }: {
   const [, refresh] = useState(0)
   const [qr, setQr] = useState(false)
   const parental = useParentalFlow(controller.parental)
-  const pick = useDebounced((i: number) => setCat(i))
+  // W4 QA R1: as on Android (SettingsCategoryAdapter's click), OK opens a category and takes focus to
+  // its first row; moving along the rail only moves focus.
+  const toPanel = useRef(false)
   const list = useRef<HTMLDivElement>(null)
   useEffect(() => { void setFocus('set-cat-0') }, [])
 
   const c = CATEGORIES[cat]
   const rows = rowsFor(c.key)
+  useEffect(() => {
+    if (!toPanel.current) return
+    toPanel.current = false
+    const first = rows.find(isFocusableRow)
+    if (first) void setFocus(`set-row-${first.key}`)
+  })
 
   function rowsFor(key: CategoryKey): Row[] {
     const sync = state.sync, lib = state.library
@@ -112,7 +119,7 @@ export function SettingsScreen({ platform, state, controller, onSyncNow }: {
         <div className="set2-version">DX PLAY · v{__APP_VERSION__}</div>
         {CATEGORIES.map((k, i) => (
           <Focusable key={k.key} focusKey={`set-cat-${i}`} className={`set2-cat${i === cat ? ' on' : ''}`}
-            onFocus={() => pick.call(i)} onEnter={() => { pick.flush(); setCat(i) }}>
+            onEnter={() => { toPanel.current = true; if (i === cat) refresh((n) => n + 1); else setCat(i) }}>
             <span className="set2-cat-bar" style={{ background: k.accent }} />
             <span className="set2-cat-icon" style={{ color: i === cat ? k.accent : '#64748B', background: `${k.accent}${i === cat ? '1A' : '0A'}`, borderColor: `${k.accent}${i === cat ? '33' : '10'}` }}>
               <Icon name={k.icon} size={40} />
