@@ -621,3 +621,103 @@ One commit per item, so each can be measured on its own.
 | **R3** | `b859198` | Started from a Recent card or Search, Live **mounts in full screen**: sampled every 30 ms in the headless smoke, the list is never visible. BACK returns to Home / Search. |
 | **R4b** | `f2beb02` | **Measure first**, as R6/R7 were. The app keeps its own record in storage that survives being killed — `boot`, `hidden`, `visible`, `unload`, `youtube: launching / launched / no app`, `exit (BACK / dialog)` — and GREEN shows the last six lines. A `boot` right after `hidden`, with no `unload` or `exit` between, means **the TV killed it** (memory); an `exit` means we closed it. |
 | **R5** | `cad29f0` | Every film connection failure goes into the same record with the time and position and whether it reconnected or gave up — so the next drop can be set against what else used the provider at that moment, and LAN against Wi-Fi. The >1 min cut stays open: neither of us can take the network down safely. |
+
+---
+
+# Round 6 — the answers to round 5, checked on the TV (2026-10-03)
+
+Branch from `568069a6` through `9e71b7ea`, rebuilt and reinstalled after each. **142 tests pass.**
+Report only. Rulebook: TV, on the Samsung.
+
+| Round 5 item | Round 6 result |
+|---|---|
+| **R4 / R4b** trailer | ✅ **CLOSED** — plays **inside the app**, "perfect" (owner), after the hosting deploy |
+| **R6** the app is slow | ⚠️ **better, not fixed — but the cause is now identified** |
+| **R7** picture freezes | not re-captured this round |
+| **R5** streams drop by themselves | ⚠️ still happening; the lifecycle line is now on record |
+| **R3** recent-channel card | not re-checked this round |
+
+---
+
+## ⭐ R6 — it is JavaScript, not paint
+
+The readout now separates the two. Same build, two screens:
+
+| | fps | p95 | janky | worst | **JS long (per 5 s)** | DOM | img | heap |
+|---|---|---|---|---|---|---|---|---|
+| **Home**, hero on screen | 44 | 67 ms | 11 % | 317 ms | **9 tasks / 958 ms** | 394 | 42 | 54 MB |
+| **Movie detail** | 55 | 17 ms | 4 % | 83 ms | **4 tasks / 264 ms** | 131 | 19 | 54 MB |
+
+**Home blocks the main thread for 958 ms out of every 5 s — one second in five — across nine
+separate long tasks.** The detail page does 264 ms, roughly a quarter of that. That is the whole
+difference, and it is what the owner feels as *"focus movement is very slow"*: when the thread is
+blocked, a key press has nowhere to go until it comes back.
+
+⚠️ **This corrects what I wrote in round 5 and earlier in round 6.** I argued the cost had to be
+**paint** — gradients, blur, posters — because the DOM was small. The DOM *is* small; the cause is
+still JavaScript. Work on the CSS would have missed it. **Find the nine long tasks Home runs every
+five seconds**; do not go to the stylesheet first.
+
+**What the three attempted fixes actually did**, measured across rounds (Home, hero on screen):
+
+| | round 5 | `649899c` + `99223f6` | `e0c3cd2` | now |
+|---|---|---|---|---|
+| fps | 24 | 35 | 36 | **44** |
+| p95 | 67 ms | 50 ms | 30–67 ms | 67 ms |
+| worst | 963 ms | 533 ms | 800+ ms | **317 ms** |
+| heap | 82 MB | 54 MB | 45 MB | 54 MB |
+
+Real progress — the worst frame is a third of what it was, and fps has nearly doubled — but Home is
+**44 fps where the same TV gives 55–60 on a detail page**, so it is not finished. The remaining gap is
+the JS long figure above.
+
+## R4 / R4b — closed, and the owner's own argument is why
+
+Round 5 left this split between "a bug" and "a Tizen limit". The owner cut through both:
+
+> *"No other app does it this way — Netflix doesn't, none of them do. They all play trailers inside
+> their own app."*
+
+That is the standard, and it is right. So the question was never how to come back from YouTube; it
+was that the app should not leave. `777b4dc` does that with a hosted frame page
+(`admin-panel/trailer.html`), which needed a hosting deploy to exist — **done this round with the
+owner's approval**, hosting only, one file, rules and functions untouched (the config ignores them in
+any case), and verified by fetching the page back (HTTP 200, real content).
+
+Result on the TV: **the trailer plays inside the app, "perfect".** No YouTube app, so no return
+problem, and no `video player configuration error` — the frame page gives the embed the page origin
+that a packaged app running from `file://` does not have.
+
+⚠️ The page is public and carries no secret: it validates the video id, uses YouTube's official embed
+and downloads nothing. Read in full before it was deployed.
+
+## R5 — the drop is real, and now it has a log line
+
+```
+18:38:01  vod: PLAYER_ERROR_CONNECTION_FAILED at 1:37 - reconnect 1/5
+```
+
+A film dropped **by itself at 1:37** and the retry began. So this is not an artefact of the earlier
+test; it keeps happening. **Why remains unknown** — the three candidates from round 5 stand
+(`max_connections=1`, Wi-Fi, the provider), and the way to tell them apart is still the way to tell
+them apart.
+
+⭐ Separately: **"Reconnecting" did not appear once in 30 minutes** of Live on the `3406a90a` build.
+Recorded as *did not reproduce*, **not** as fixed — the earlier occurrences were real, nothing was
+found that explains them, and a quiet half-hour may just mean no other device touched the provider.
+
+## Lifecycle, for the record
+
+```
+18:02:30 hidden   18:06:24 visible      (backgrounded and came back - it did not die)
+18:34:05 unload   18:34:19 boot         (the reinstall)
+```
+
+## Open going into round 7
+
+1. **R6** — the nine long JS tasks per 5 s on Home. Everything else about Home is fine.
+2. **R5** — why a stream drops unprompted, still unknown; and the >1 min network case, which neither
+   the owner nor I can run (sdb shell is silent on this retail TV, and cutting the router takes my own
+   link with it).
+3. **R7** — the frozen-picture case was not re-captured this round.
+4. **R3** — the recent-channel card flashing the list was not re-checked.
