@@ -8,14 +8,17 @@ import { MpegtsAdapter } from '../../../player/MpegtsAdapter'
 import { canPlayAudio } from '../../../player/mseTypes'
 import { learnBad, learnedBad } from '../../../player/learnedAudio'
 
-/** Where [el] is on screen, in the 1920x1080 coordinates AVPlay's setDisplayRect takes. */
+/**
+ * Where [el] is on the SCREEN, in the 1920x1080 coordinates AVPlay's setDisplayRect takes. AVPlay
+ * draws on the TV's own plane under the page, so this is window-relative, not stage-relative: with a
+ * letterboxed stage the two differ (W4 QA R2). One factor from the width only - the screen's pixels
+ * are square, and the height shrinks while the TV keyboard is open.
+ */
 function rectIn1080p(el: HTMLElement | null): Rect | null {
   if (!el) return null
-  // Relative to the stage (the 1920x1080 design), so the scale and any letterbox offset drop out.
-  const st = document.getElementById('stage')?.getBoundingClientRect()
   const r = el.getBoundingClientRect()
-  const k = st && st.width ? 1920 / st.width : 1920 / window.innerWidth
-  return { x: (r.left - (st?.left ?? 0)) * k, y: (r.top - (st?.top ?? 0)) * k, w: r.width * k, h: r.height * k }
+  const k = 1920 / (window.innerWidth || 1920)
+  return { x: r.left * k, y: r.top * k, w: r.width * k, h: r.height * k }
 }
 
 /**

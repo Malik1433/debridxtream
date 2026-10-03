@@ -573,6 +573,11 @@ html.avplay-on .vod-player video { visibility: hidden; }
 .guide-prog { height: 2px; margin-top: 8px; background: rgba(255, 255, 255, 0.1); } .guide-prog > div { height: 100%; background: #00F0FF; }
 body.player-full .live2-header, body.player-full .live2-list, body.player-full .live2-actions, body.player-full .live2-guide-head,
 body.player-full .live2-guide { visibility: hidden; }
+/* W4 QA R2: AVPlay draws UNDER the page, so the Live page must be see-through where the picture is.
+   The page goes transparent and the preview frame paints the page colour around itself instead
+   (a spread shadow, kept under the list and header by the negative z-index). */
+html.avplay-on .live2 { background: transparent; isolation: isolate; }
+html.avplay-on .live2-frame:not(.full) { z-index: -1; box-shadow: 0 0 0 4000px #06090E; }
 /* Fullscreen OSD (view_live_player_osd) */
 .lo-root { position: absolute; left: 0; top: 0; right: 0; bottom: 0; }
 .lo-scrim-top { position: absolute; left: 0; right: 0; top: 0; height: 220px; background: linear-gradient(rgba(0, 0, 0, 0.75), transparent); }
