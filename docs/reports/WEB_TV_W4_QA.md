@@ -788,3 +788,114 @@ the unprompted VOD drop and the frozen picture stand where round 6 left them.
 The probe is the useful thing to keep. It turns "the app feels slow" into a table, it needs nothing
 from the owner but normal use, and it cannot be fooled by the HUD. ⚠️ It is injected into the built
 package only — if someone rebuilds without it, the numbers go back to being read off a television.
+
+---
+
+# Round 8 — the 11 seconds, named (2026-10-03)
+
+Branch @ `5f5f00b3`, **144 tests pass**, probe build installed (probe in `build-tizen/` only; repo
+clean). The probe now also reports the app's own `dx:` spans, so the stages can be read by name
+instead of guessed.
+
+## ⭐ Opening Movies, cold — where the time goes
+
+Category **All Movies**, sort **Recently added** (the span names carry `-recent`).
+
+| `dx:` stage | ms |
+|---|---|
+| **`read:lib-movies`** | **6253** |
+| `load:lib-items-movies` (wraps the read) | 6344 |
+| **`memo:home-top-movies`** | **1212** |
+| **`memo:lib-sorted-movies-__all-recent`** | **1136** |
+| `read:lib-shows` | 1078 |
+| `load:lib-items-shows` | 1094 |
+| `memo:lib-index-movies` | 202 |
+| `memo:lib-rows-movies` | 125 |
+| `parental:lib-movies` | 90 |
+| `load:lib-cats-movies` | 81 |
+| `memo:lib-shown-movies-__all` | 0 |
+
+**Two thirds of it is one line: reading the movies table out of IndexedDB — 6.3 s.** Then sorting all
+of them (1.1 s) and building the Home top-10 (1.2 s). Everything else is noise by comparison:
+parental filtering is 90 ms, the category list 81 ms, the rows 125 ms.
+
+⚠️ **So the round-4 cache was right but not enough.** `Session.once` stops the *second* read; the
+**first** one still costs 6.3 s, on the main thread, and that is the screen that will not open. The
+same shape on boot: `read:lib-shows` 5517 ms in the first seconds of the app.
+
+**Warm is fine.** Re-opening Movies or Series later:
+`memo:lib-sorted-shows-__all-recent` 86 ms · `load:lib-cats-shows` 39 ms ·
+`memo:lib-sorted-movies-1033-recent` 6 ms. Nothing above 100 ms.
+
+⭐ One more, found in passing: **`memo:movie-title-index` = 1656 ms** — building the title index
+(search) blocks for 1.7 s on its own.
+
+## Home per-key after `5f5f00b3`
+
+Still key-triggered (`not key-triggered: 0`), still expensive:
+
+| | fps | JS long (5 s) | worst tasks |
+|---|---|---|---|
+| round 7 | 35–52 | 5–17 / 0.5–1.6 s | 344 · 820 ms |
+| **round 8** | 30–51 | 2–12 / 0.5–2.5 s | 303 · 599 · 577 ms |
+
+Memoizing the cards took the worst single task from ~820 ms to ~600 ms, but a focus move on Home still
+costs **300–600 ms of JavaScript**. The detail page remains the control: zero long tasks there.
+
+## What this means for the next attempt
+
+1. **`read:lib-*` is the first thing to fix** — 6.3 s for movies, 5.5 s for shows, and nobody can open
+   a screen while it runs. It is one `getAll` of ~69,500 records with the structured clone that comes
+   with it, on the main thread.
+2. **`memo:*-sorted-*` (1.1 s) and `memo:home-top-movies` (1.2 s)** are next, and they are the same
+   shape: whole-catalogue work done at once.
+3. **`memo:movie-title-index` 1.7 s** — the same again, for search.
+4. **Home's per-key 300–600 ms** is a separate problem from all of the above and is not improving as
+   fast; it is the only one the viewer feels on every single press.
+
+## Not re-checked
+
+R3 (recent-channel card), R5 (unprompted VOD drop) and R7 (frozen picture) — no new `vod:` or
+`picture:` lines appeared in this session's capture.
+
+## Owner, during this round: focus does not follow the standard, and the rest should be checked too
+
+> *"The focus rules don't look standard, and the rest of the app should be world standard everywhere -
+> look at these as well, alongside."*
+
+Recorded as an open item for the next round. ⚠️ Deliberately **not** acted on yet: "focus is not
+standard" can mean several different things and guessing which is how two earlier rounds went the
+wrong way. What a focus pass has to be checked against is already written down and should be used as
+the checklist rather than re-invented — CLAUDE.md's **TV rulebook** (everything D-pad reachable in a
+predictable ladder, focus always visible, never stolen on a data refresh, BACK goes up and never
+traps), the **Samsung TV checklist** (Return/Exit keys, exit popup, multitasking hide/resume,
+network-loss message, loading indicators, media/colour/number keys, screensaver during playback), and
+the **10-foot conventions** the owner already settled in round 4: Android sets the shape, the
+published standards decide only what Android leaves open.
+
+### What a first pass found: the focus RULES pass, the focus SPEED does not
+
+Driven with real arrow/BACK key events on Home (desktop browser, same build — **not** the TV):
+
+| TV rulebook item | Result |
+|---|---|
+| Everything D-pad reachable, predictable ladder | ✅ hero → rows → rail, and back; no dead ends |
+| LEFT from the first card reaches the rail | ✅ |
+| Focus always **visible** | ✅ `vis=true` at every step of every walk |
+| Focus never lost | ✅ at the end of the rail it **stays** on the last item |
+| BACK goes up, never traps | ✅ Home + BACK → exit dialog; BACK again dismisses it |
+| Exit dialog opens on the **safe** button | ✅ focus lands on **Stay**, matching the Android destructive-dialog rule |
+
+So on Home the ladder is standard. ⚠️ **What is not standard is the response time** — a focus move
+costs 300–600 ms of JavaScript (round 7/8 above), and a control that answers a third of a second late
+reads as "the focus is wrong" long before anyone inspects the ladder. That is the likeliest thing
+behind the owner's remark, and it is already the top open item.
+
+⚠️ **Two limits on this pass, stated rather than glossed:** it covers **Home only**, and it ran in a
+desktop browser, not on the TV. The other screens (Live's three columns, the Movies/Series sidebar and
+grid, Settings' two panes, the player OSDs) have not been walked this way.
+
+⚠️ And a warning for whoever repeats it: the first run reported focus **trapped between the two hero
+buttons**, which was false. The browser pane was hidden, so `window.innerWidth` was 0, every element
+measured 0×0, and spatial navigation — which works from geometry — had nothing to work with. Check
+`window.innerWidth` and the stage's size before trusting any focus result.
