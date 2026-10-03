@@ -4,6 +4,7 @@ import type { RecentChannel } from '../../../data/recentLive'
 import type { Enrichment } from '../../../data/tmdb'
 import type { Movie, Show } from '../../../data/vodApi'
 import type { WatchEntry } from '../../../data/watchState'
+import { topBy } from '../../../data/topBy'
 import { clockOf } from '../../../player/vod/vodTypes'
 import type { AppController, AppState } from '../../controller'
 import { SoftBackdrop } from '../../SoftBackdrop'
@@ -52,7 +53,7 @@ export function HomeScreen({ state, controller, onMovie, onShow, onPlayMovie, on
     return () => { live = false }
   }, [controller, libAt])
 
-  const topMovies = useMemo(() => controller.memo(`home-top-movies:${movies.length}`, () => [...movies].sort((a, b) => b.added - a.added).slice(0, 10)), [controller, movies])
+  const topMovies = useMemo(() => controller.memo(`home-top-movies:${movies.length}`, () => topBy(movies, 10, (m) => m.added)), [controller, movies])
   const topShows = useMemo(() => shows.slice(0, 10), [shows])
   const cont = useMemo(() => controller.continueWatching(), [controller])
   const recent = useMemo<RecentChannel[]>(() => controller.recentChannels(), [controller])
