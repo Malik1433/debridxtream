@@ -63,13 +63,21 @@ export function HomeScreen({ state, controller, onMovie, onShow, onPlayMovie, on
   // Vertical scroll: the focused row's top sits at ROW_ANCHOR_Y; the hero takes the top.
   const page = useRef<HTMLDivElement>(null)
   const [scrollY, setScrollY] = useState(0)
+  // Round 7 (the TV's long tasks are JavaScript): reading offsetTop forces the browser to lay the whole
+  // page out there and then, and this ran on every focus move along a row. A row's place on the page
+  // does not change while the rows stay the same, so each is measured once and remembered.
+  const rowTops = useRef(new Map<string, number>())
   const scrollTo = useCallback((rowId: string | null) => {
     if (!rowId) { setScrollY(0); return }
-    const el = page.current?.querySelector<HTMLElement>(`[data-row="${rowId}"]`)
-    if (!el) return
-    // offsetTop up to the page (layout px, unaffected by the stage's scale transform).
-    let y = 0
-    for (let n: HTMLElement | null = el; n && n !== page.current; n = n.offsetParent as HTMLElement | null) y += n.offsetTop
+    let y = rowTops.current.get(rowId)
+    if (y === undefined) {
+      const el = page.current?.querySelector<HTMLElement>(`[data-row="${rowId}"]`)
+      if (!el) return
+      // offsetTop up to the page (layout px, unaffected by the stage's scale transform).
+      y = 0
+      for (let n: HTMLElement | null = el; n && n !== page.current; n = n.offsetParent as HTMLElement | null) y += n.offsetTop
+      rowTops.current.set(rowId, y)
+    }
     setScrollY(Math.max(0, y - ROW_ANCHOR_Y))
   }, [])
 
@@ -137,6 +145,8 @@ export function HomeScreen({ state, controller, onMovie, onShow, onPlayMovie, on
         )}
       </div>
   ), [cont, topMovies, topShows, recent, lib, onContinue, onMovie, onShow, onChannel, scrollTo])
+  // New rows (a row appeared or emptied): their places are measured again.
+  useEffect(() => { rowTops.current.clear() }, [rows])
 
   const clock = useClock()
   const licence = state.license.kind === 'active' ? (state.license.trialDaysLeft !== null ? `TRIAL · ${state.license.trialDaysLeft}D` : 'ACTIVE') : 'LOCKED'
