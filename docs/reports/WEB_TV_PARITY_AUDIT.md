@@ -37,10 +37,11 @@ tv-web already uses the same bg and cyan. The look differs in structure, not col
 
 Deviations, said out loud:
 - **Search result columns.** Android computes 6 columns of 95 dp but draws 128 dp posters into them;
-  tv-web draws 5 columns that fit beside the rail. A live result opens Live TV on that channel
-  (Android opens the player directly; tv-web's live player lives on the Live screen).
-- **Settings rail.** Android selects a category on OK; tv-web opens it on focus (250 ms debounce),
-  the 10-foot rule in CLAUDE.md, and OK still works.
+  tv-web draws 5 columns that fit beside the rail. (A live result now plays the channel full screen
+  and BACK returns to Search, as on Android - `e969aef`.)
+- ~~Settings rail opens on focus~~ - **withdrawn 2026-10-03 (W4 QA R1, `855086b`)**: every category
+  list - Movies/Series, the Live chips, the Settings rail - now opens on OK and takes focus into its
+  list, as Android does. Rule 1: Android sets the shape; a general convention does not override it.
 - **Settings items left out (no tv-web counterpart):** Home Screen (app language, layout, row
   pickers), Addons, preferred audio languages and the smart-audio toggle (Playback shows what this TV
   decodes instead), TV-guide zoom / density / colours / auto-update, diagnostics, clear cached data,

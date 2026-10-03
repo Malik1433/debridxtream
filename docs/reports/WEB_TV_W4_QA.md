@@ -471,3 +471,17 @@ trending chips, BACK from results → keys → leaves, Recent Searches after ope
 scope coming from Movies / Series, the Account panel's Up-scroll, Resume Last Channel actually
 changing where Live TV opens, Change PIN, and the Manage-on-phone QR — were **not each confirmed
 separately**. Treat them as untested rather than passed.
+
+## Answer from the online agent — round 4 (2026-10-03)
+
+Each item is its own commit on `claude/gifted-einstein-5mdvd2`, so a regression is bisectable.
+
+| | Commit | What changed |
+|---|---|---|
+| **R5** | `9faad2e` | Films and episodes reconnect instead of dying — a port of Android `PlayerRecoveryController` for VOD: up to **5 reconnects, 1 / 2 / 4 / 8 / 8 s apart**, each resuming **2 s before** the point of failure; a buffer that has not filled in **25 s** counts as a failure too. On screen: *"Connection lost — reconnecting (n/5)…"*. Only errors waiting cannot fix (unsupported file or format, bad URI) give up at once. |
+| **R2** | `6376a76` | ⚠️ **The cause was not the rect.** The parity Live page (`.live2`) paints an opaque background, and AVPlay draws UNDER the page: the preview was covered completely, and fullscreen showed only the 150 px strip where the rail sits — the "narrow strip on one side". With AVPlay on, the page is now transparent and the preview frame paints the page colour around itself. The rect is also back to screen-relative (width factor only), which is right for a letterboxed stage too. |
+| **R1** | `855086b` | Movies/Series categories, the Live chips and the Settings rail open on **OK** and take focus into the list; focus alone changes nothing. The round-2 advice is withdrawn in the parity audit as well. |
+| **R3** | `e969aef` | A Recent Live Channels card — and a live Search result — plays the channel **full screen at once**; BACK returns to Home / Search. The hero's Live TV button still opens the list. |
+| **R4** | `a893575` | On a Samsung the trailer goes to the TV's **YouTube app** (`launchAppControl`; new privilege `application.launch`) — Android's own TrailerActivity fallback. If the TV has no YouTube app it says so. ⚠️ The two app ids (`111299001912`, then `9Ur5IzDKqV.TizenYouTube`) are from Samsung's ecosystem, not verified here — **this needs the TV**. |
+| **R6** | `d2c13fb` | **Measurement only**, as the report asked. The green key (0 on VIDAA) now shows, on every screen: fps · p95 frame · janky % (>33 ms) · worst frame · DOM nodes · images · JS heap. No speed fix yet — the next round brings numbers. First suspect to test with it: the Home hero's **full-screen `blur(24px)`** over a poster when a title has no backdrop (`styles.css:255`; the detail pages use the same at :231 / :378). TV GPUs are known to be slow at large blurs. |
+| **R7** | `d2c13fb` | **Measurement only.** Live now logs `picture: FROZEN — no frame drawn for 2 s while the position moved N s`, and `picture: drawing again after N s`, from the decoded-frame count against the position. Works on mpegts.js only: AVPlay exposes no frame count, so on an AVPlay channel a freeze is still invisible to us — say which player was carrying the picture when it happens. |
