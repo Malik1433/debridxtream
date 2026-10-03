@@ -31,11 +31,13 @@ type Load = { kind: 'loading' } | { kind: 'ready'; cats: LiveCategory[]; streams
 const NUMBER_WAIT_MS = 1_500
 const LAST_KEY = 'dx.srv.live.last'
 
-export function LiveScreen({ platform, controller, startChannelId = null, onStarted }: {
+export function LiveScreen({ platform, controller, startChannelId = null, startFull = false, onStarted }: {
   platform: Platform; controller: AppController
   /** Open on this channel and play it (from Search). */
   startChannelId?: string | null
   onStarted?: () => void
+  /** Home's Recent card and Search play the channel full screen; BACK then leaves Live (W4 QA R3). */
+  startFull?: boolean
 }) {
   // Warm cache = the list on the first frame; "loading" only on a genuine cold start (W4 QA P1).
   const [load, setLoad] = useState<Load>(() => {
@@ -124,9 +126,12 @@ export function LiveScreen({ platform, controller, startChannelId = null, onStar
   useEffect(() => {
     if (!startChannelId || !engine || cat < 0 || !channels.some((x) => x.id === startChannelId)) return
     const idx = channels.findIndex((x) => x.id === startChannelId)
-    if (idx >= 0) play(channels, idx)
+    if (idx >= 0) {
+      play(channels, idx)
+      if (startFull) { direct.current = true; setFull(true); setOsdUntil(Date.now() + OSD_MS) }
+    }
     onStarted?.()
-  }, [startChannelId, engine, cat, rows, channels, play, onStarted])
+  }, [startChannelId, startFull, engine, cat, rows, channels, play, onStarted])
 
   // Samsung multitasking: hidden = the stream stops (one provider connection, nothing playing
   // unseen); back in front = the same channel again.
@@ -157,6 +162,7 @@ export function LiveScreen({ platform, controller, startChannelId = null, onStar
     return () => clearTimeout(t)
   }, [numEntry, playing, channels, play, full])
 
+  const direct = useRef(false)
   const goFull = useCallback(() => { if (current) { setFull(true); setOsdUntil(Date.now() + OSD_MS) } }, [current])
 
   const onChannelEnter = useCallback((i: number) => {
@@ -171,6 +177,9 @@ export function LiveScreen({ platform, controller, startChannelId = null, onStar
     if (!full) return
     pause()
     const off = pushBackHandler(() => {
+      // Started straight into full screen: BACK goes back where the viewer came from, as Android's
+      // player does; the App's own BACK takes it from here.
+      if (direct.current) { direct.current = false; return false }
       setFull(false)
       return true
     })
@@ -192,6 +201,7 @@ export function LiveScreen({ platform, controller, startChannelId = null, onStar
       const idx = channels.findIndex((c) => c.id === playing.list[playing.index]?.id)
       if (idx >= 0) { setChanStart(idx); setListGen((g) => g + 1); pendingFocus.current = `live-chans-${idx}` }
     }
+    if (wasFull.current && !full) direct.current = false
     wasFull.current = full
   }, [full, playing, channels])
 

@@ -38,7 +38,8 @@ export function HomeScreen({ state, controller, onMovie, onShow, onPlayMovie, on
   onShow: (s: Show) => void
   onPlayMovie: (m: Movie) => void
   onContinue: (e: WatchEntry) => void
-  onChannel: (id: string) => void
+  /** `play`: start the channel full screen at once (a Recent card, W4 QA R3) rather than open the list. */
+  onChannel: (id: string, play?: boolean) => void
 }) {
   const [movies, setMovies] = useState<Movie[]>(() => controller.peek<Movie[]>('lib-items-movies') ?? [])
   const [shows, setShows] = useState<Show[]>(() => controller.peek<Show[]>('lib-items-shows') ?? [])
@@ -168,7 +169,7 @@ export function HomeScreen({ state, controller, onMovie, onShow, onPlayMovie, on
             keyOf={(s) => s.id} onEnter={onShow}
             render={(s) => <TopCard poster={s.poster} title={s.name} sub={[s.year, s.rating ? `★ ${s.rating.toFixed(1)}` : ''].filter(Boolean).join(' · ')} />} />
           <HRow id="rl" title="Recent Live Channels" count={recent.length} items={recent} step={280} cardClass="live-card" onRowFocus={() => scrollTo('rl')}
-            keyOf={(c) => c.id} onEnter={(c) => onChannel(c.id)}
+            keyOf={(c) => c.id} onEnter={(c) => onChannel(c.id, true)}
             render={(c) => (
               <div className="live-card-glass">
                 <span className="live-badge">LIVE</span>

@@ -40,6 +40,12 @@ export function App({ platform, state, controller, onSyncNow }: { platform: Plat
   const [detail, setDetail] = useState<Detail>(null)
   const [play, setPlay] = useState<PlayRequest | null>(null)
   const [liveStart, setLiveStart] = useState<string | null>(null)
+  /** Started straight into full screen from Home or Search: BACK returns there (Android's player). */
+  const [liveDirect, setLiveDirect] = useState(false)
+  const playChannel = useCallback((id: string) => {
+    setLiveStart(id); setLiveDirect(true)
+    router.push('live'); setScreen(router.current)
+  }, [router])
   const online = useOnline()
   // Android: Movies and Series carry their own sidebar, and detail pages are full-bleed - no rail there.
   const showRail = !detail && screen !== 'movies' && screen !== 'series'
@@ -153,16 +159,16 @@ export function App({ platform, state, controller, onSyncNow }: { platform: Plat
           {detail?.kind === 'show' && <ShowDetail key={detail.item.id} show={detail.item} controller={controller} onPlay={setPlay} />}
           {!detail && screen === 'home' && (
             <HomeScreen state={state} controller={controller} onContinue={onContinue}
-              onChannel={(id) => { setLiveStart(id || null); open('live') }}
+              onChannel={(id, now) => { if (now && id) { playChannel(id); return } setLiveStart(id || null); setLiveDirect(false); open('live') }}
               onMovie={(m) => setDetail({ kind: 'movie', item: m })} onShow={(m) => setDetail({ kind: 'show', item: m })}
               onPlayMovie={(m) => setPlay({ kind: 'movie', id: m.id, ext: m.ext, title: m.name, subtitle: '', poster: m.poster,
                 startMs: resumePointMs(controller.watchEntry('movie', m.id)) })} />
           )}
-          {!detail && screen === 'live' && <LiveScreen platform={platform} controller={controller} startChannelId={liveStart} onStarted={() => setLiveStart(null)} />}
+          {!detail && screen === 'live' && <LiveScreen platform={platform} controller={controller} startChannelId={liveStart} startFull={liveDirect} onStarted={() => setLiveStart(null)} />}
           {!detail && screen === 'movies' && <LibraryScreen<Movie> kind="movies" controller={controller} state={state} onOpen={(m) => setDetail({ kind: 'movie', item: m })} onSearch={openSearchOver} />}
           {!detail && screen === 'series' && <LibraryScreen<Show> kind="shows" controller={controller} state={state} onOpen={(m) => setDetail({ kind: 'show', item: m })} onSearch={openSearchOver} />}
           {!detail && screen === 'search' && (
-            <SearchScreen key={searchCtx ? `${searchCtx.scope}-${searchCtx.categoryId ?? ''}` : 'all'} controller={controller} context={searchCtx} onChannel={(c) => { setLiveStart(c.id); open('live') }}
+            <SearchScreen key={searchCtx ? `${searchCtx.scope}-${searchCtx.categoryId ?? ''}` : 'all'} controller={controller} context={searchCtx} onChannel={(c) => playChannel(c.id)}
               onMovie={(m) => setDetail({ kind: 'movie', item: m })} onShow={(m) => setDetail({ kind: 'show', item: m })} />
           )}
           {!detail && screen === 'settings' && <SettingsScreen platform={platform} state={state} controller={controller} onSyncNow={onSyncNow} />}
