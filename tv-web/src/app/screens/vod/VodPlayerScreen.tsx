@@ -10,6 +10,7 @@ import { clockOf, seekStep, type VodPlayer } from '../../../player/vod/vodTypes'
 import { VOD_BUFFER_TIMEOUT_MS, VOD_MAX_RETRIES, VodRecovery } from '../../../policy/vodRecovery'
 import type { Episode } from '../../../data/vodApi'
 import { pushBackHandler } from '../../backStack'
+import { recordLifecycle } from '../../perf/lifecycle'
 import type { AppController } from '../../controller'
 import { episodeRequest, nextEpisode, prevEpisode, showNextPrompt, type PlayRequest } from './playRequest'
 import { PlayerChrome, controlsFor } from './PlayerChrome'
@@ -71,6 +72,8 @@ export function VodPlayerScreen({ platform, controller, request, onClose }: {
     const fail = (message: string) => {
       clearStall()
       const r = url ? recovery.onFailure(message) : null
+      // W4 QA R5: why a film drops by itself is unknown - keep when, where and what, past a restart.
+      recordLifecycle(localStorage, `vod: ${message} at ${clockOf(player.positionMs())} - ${r ? `reconnect ${r.attempt}/${VOD_MAX_RETRIES}` : 'gave up'}`)
       if (!r || !url) { setStatus('error'); setError(message); return }
       setStatus('buffering')
       setNotice(`Connection lost — reconnecting (${r.attempt}/${VOD_MAX_RETRIES})…`)
