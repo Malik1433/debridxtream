@@ -899,3 +899,70 @@ grid, Settings' two panes, the player OSDs) have not been walked this way.
 buttons**, which was false. The browser pane was hidden, so `window.innerWidth` was 0, every element
 measured 0×0, and spatial navigation — which works from geometry — had nothing to work with. Check
 `window.innerWidth` and the stage's size before trusting any focus result.
+
+---
+
+# Round 9 — one stage gone, one unmoved (2026-10-03)
+
+Branch @ `3f733e0a`, **150 tests pass**, probe build installed (probe in `build-tizen/` only).
+Report only.
+
+## The dx: table, against round 8
+
+| `dx:` stage | round 8 | **round 9** | |
+|---|---|---|---|
+| `read:lib-movies` | 6253 ms | **4632 ms** | −26 %, still the largest by far |
+| `read:lib-shows` | 1078 ms | **544–892 ms** | −30 % |
+| **`memo:home-top-movies`** | **1212 ms** | **0–60 ms** | ⭐ **gone** |
+| **`memo:lib-sorted-movies-__all-recent`** | **1136 ms** | **1135 ms** | ⚠️ **unchanged** |
+| `memo:lib-index-movies` | 202 ms | 199 ms | unchanged |
+| `memo:lib-rows-movies` | 125 ms | 112 ms | unchanged |
+| `parental:lib-movies` | 90 ms | 66–93 ms | unchanged, never the problem |
+| `load:lib-cats-movies` | 81 ms | 19 ms | |
+| **`match:similar-movies`** (replaces `memo:movie-title-index`) | 1656 ms | **858–948 ms** | −45 %, still ~0.9 s |
+
+Warm opens stay cheap: `memo:lib-sorted-shows-__recent-recent` 3 ms, `load:lib-cats-shows` 15 ms.
+
+**What that says:**
+
+⭐ **`topBy` worked completely** — Home's top-10 went from 1212 ms to effectively nothing. That stage
+can be closed.
+
+⚠️ **The sort did not move at all.** `memo:lib-sorted-movies-__all-recent` is 1135 ms against 1136 ms:
+sorting the whole movie list for "All Movies / Recently added" is untouched by anything done so far,
+and it is now the second-largest cost after the read.
+
+⚠️ **The read is better but still the wall.** 4.6 s for movies. The record-format change helped (or
+part of the gain is the new format — see the caveat below), but nobody can open Movies while 4.6 s of
+main-thread work runs.
+
+⚠️ **Caveat on these two numbers:** the brief said to let a library sync finish first because the
+record format changed in `57617dd`. The owner reported doing the steps, but I did **not** verify that
+"updating" had cleared before the cold read was captured. If the sync had not completed, `read:lib-*`
+may still be partly reading old-format rows, and the true figure could be better or worse. Worth one
+re-measure before anyone sizes the next fix against it.
+
+## Home per-key — unchanged
+
+| | worst single tasks |
+|---|---|
+| round 7 | 344 · 820 ms |
+| round 8 (cards memoized) | 303 · 599 · 577 ms |
+| **round 9** | **512 · 520 · 532 · 548 · 553 · 618 ms** |
+
+fps 31–53 while moving along a row, `not key-triggered: 0` — still caused by the press. **Memoizing
+the cards in round 8 was the last thing that moved this, and nothing since has.** A focus move on
+Home still costs half a second. This is the only item on the list the viewer meets on every single
+key press, and it has now stood still for two rounds.
+
+## Not reached
+
+R3 (recent-channel card), and no new `vod:` or `picture:` lines appeared in this capture.
+
+## The list as it stands
+
+1. **Home per-key ~550 ms** — unmoved for two rounds, felt on every press.
+2. **`read:lib-movies` 4.6 s** — the cold-open wall.
+3. **`memo:lib-sorted-*` 1.1 s** — untouched so far.
+4. **`match:similar-movies` 0.9 s** — halved, not gone.
+5. Older: R3, R5 (unprompted VOD drop), R7 (frozen picture).
