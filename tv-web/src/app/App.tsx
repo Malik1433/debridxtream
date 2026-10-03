@@ -16,6 +16,7 @@ import { ShowDetail } from './screens/detail/ShowDetail'
 import { LibraryScreen } from './screens/library/LibraryScreen'
 import { markReturn } from './screens/library/focusMemory'
 import { SearchScreen } from './screens/search/SearchScreen'
+import type { SearchContext } from './screens/search/searchModel'
 import { VodPlayerScreen } from './screens/vod/VodPlayerScreen'
 import { episodeRequest, type PlayRequest } from './screens/vod/playRequest'
 import type { Movie, Show } from '../data/vodApi'
@@ -35,6 +36,7 @@ export function App({ platform, state, controller, onSyncNow }: { platform: Plat
   const router = useRef(new Router()).current
   const [screen, setScreen] = useState<Screen>('home')
   const [exitAsked, setExitAsked] = useState(false)
+  const [searchCtx, setSearchCtx] = useState<SearchContext | null>(null)
   const [detail, setDetail] = useState<Detail>(null)
   const [play, setPlay] = useState<PlayRequest | null>(null)
   const [liveStart, setLiveStart] = useState<string | null>(null)
@@ -44,13 +46,16 @@ export function App({ platform, state, controller, onSyncNow }: { platform: Plat
   const content = useFocusable({ focusKey: 'content', saveLastFocusedChild: false })
 
   const open = useCallback((s: Screen) => {
+    if (s === 'search') setSearchCtx(null)
     router.open(s)
     setScreen(router.current)
     setDetail(null)
     try { localStorage.setItem(LAST_SCREEN, router.current) } catch { /* storage full or blocked */ }
   }, [router])
 
-  const openSearchOver = useCallback(() => {
+  /** Movies/Series open Search over themselves, scoped to their kind and open category (Android). */
+  const openSearchOver = useCallback((ctx: SearchContext) => {
+    setSearchCtx(ctx)
     router.push('search')
     setScreen(router.current)
   }, [router])
@@ -162,7 +167,7 @@ export function App({ platform, state, controller, onSyncNow }: { platform: Plat
           {!detail && screen === 'movies' && <LibraryScreen<Movie> kind="movies" controller={controller} state={state} onOpen={(m) => setDetail({ kind: 'movie', item: m })} onSearch={openSearchOver} />}
           {!detail && screen === 'series' && <LibraryScreen<Show> kind="shows" controller={controller} state={state} onOpen={(m) => setDetail({ kind: 'show', item: m })} onSearch={openSearchOver} />}
           {!detail && screen === 'search' && (
-            <SearchScreen controller={controller} onChannel={(c) => { setLiveStart(c.id); open('live') }}
+            <SearchScreen key={searchCtx ? `${searchCtx.scope}-${searchCtx.categoryId ?? ''}` : 'all'} controller={controller} context={searchCtx} onChannel={(c) => { setLiveStart(c.id); open('live') }}
               onMovie={(m) => setDetail({ kind: 'movie', item: m })} onShow={(m) => setDetail({ kind: 'show', item: m })} />
           )}
           {!detail && screen === 'settings' && <Settings platform={platform} state={state} controller={controller} onSyncNow={onSyncNow} onHome={goHome} />}

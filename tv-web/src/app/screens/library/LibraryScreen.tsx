@@ -12,6 +12,7 @@ import { VirtualList } from '../live/VirtualList'
 import { recall, remember, takeReturn } from './focusMemory'
 import { FAV_ID, SORTS, itemsOf, libraryRows, sortItems, startRow, type SortMode } from './libraryModel'
 import { VirtualGrid } from './VirtualGrid'
+import type { SearchContext } from '../search/searchModel'
 
 type Load<T> = { kind: 'loading' } | { kind: 'ready'; cats: VodCategory[]; items: T[] } | { kind: 'error'; message: string }
 
@@ -27,7 +28,7 @@ const COLUMNS = 5
  * favourite and progress badges.
  */
 export function LibraryScreen<T extends Movie | Show>({ kind, controller, state, onOpen, onSearch }: {
-  kind: LibraryKind; controller: AppController; state: AppState; onOpen: (item: T) => void; onSearch: () => void
+  kind: LibraryKind; controller: AppController; state: AppState; onOpen: (item: T) => void; onSearch: (ctx: SearchContext) => void
 }) {
   const [load, setLoad] = useState<Load<T>>(() => {
     const cats = controller.peek<VodCategory[]>(`lib-cats-${kind}`), items = controller.peek<T[]>(`lib-items-${kind}`)
@@ -97,7 +98,12 @@ export function LibraryScreen<T extends Movie | Show>({ kind, controller, state,
           <div className="vod-dx">DX</div>
           <div><div className="vod-logo-t">IPTV</div><div className="vod-logo-s">{isMovies ? 'MOVIES' : 'SERIES'}</div></div>
         </div>
-        <Focusable focusKey="lib-search" className="vod-search" onEnter={onSearch}>
+        <Focusable focusKey="lib-search" className="vod-search" onEnter={() => onSearch({
+          scope: isMovies ? 'movie' : 'series',
+          // Android VodFragment.openSearch: the virtual rows (All, Recently Added) search everything.
+          categoryId: rowId && !rowId.startsWith('__') ? rowId : null,
+          categoryName: rowId && !rowId.startsWith('__') ? rows[row]?.name ?? null : null,
+        })}>
           <Icon name="search" size={26} /><span>{isMovies ? 'Search movies…' : 'Search series…'}</span>
         </Focusable>
         <div className="vod-sidebar-divider" />

@@ -19,6 +19,7 @@ import type { LibrarySync } from '../data/session'
 import { episodeUrl, movieInfo, movieUrl, showInfo, type Movie, type MovieInfo, type Show, type ShowInfo, type VodCategory } from '../data/vodApi'
 import { enrich, type Enrichment } from '../data/tmdb'
 import { recentChannels, recordChannel, type RecentChannel } from '../data/recentLive'
+import { recentSearches, recordSearch } from '../data/recentSearches'
 import { allWatch, continueWatching, markWatched, recordProgress, watchEntry, watchedEpisodes, type WatchEntry } from '../data/watchState'
 import { liveUrl } from '../xtream'
 import type { LiveCategory, LiveStream } from '../data/xtreamApi'
@@ -197,6 +198,8 @@ export class AppController {
   markWatched(e: Parameters<typeof markWatched>[1], watched: boolean): void { markWatched(localStorage, e, watched) }
   recentChannels(): RecentChannel[] { return recentChannels(localStorage) }
   recordChannel(c: RecentChannel): void { recordChannel(localStorage, c) }
+  recentSearches(): string[] { return recentSearches(localStorage) }
+  recordSearch(q: string): void { recordSearch(localStorage, q) }
   watchedEpisodes(seriesId: string): Map<string, WatchEntry> { return watchedEpisodes(localStorage, seriesId) }
   retryLibrary(): void { void this.runLibrarySync() }
 
