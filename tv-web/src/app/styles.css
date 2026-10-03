@@ -41,8 +41,6 @@ html, body { margin: 0; background: var(--bg); color: var(--text); overflow: hid
 .tile .s { font-size: 24px; color: var(--muted); margin-top: 6px; }
 .tile.focused { box-shadow: var(--focus-ring); transform: scale(1.04); }
 
-.info { font-size: 28px; line-height: 1.8; }
-.info b { color: var(--text-2); font-weight: 500; display: inline-block; width: 320px; }
 
 .dialog-scrim { position: absolute; inset: 0; background: rgba(0, 0, 0, 0.7); display: flex;
   align-items: center; justify-content: center; }
@@ -669,3 +667,47 @@ body.player-full .live2-guide { visibility: hidden; }
 .srch-none-t { margin-top: 16px; font-size: 19px; font-weight: 600; color: #64748B; }
 .srch-none-s { margin-top: 12px; font-size: 15px; color: #475569; }
 .srch-wait { color: #64748B; font-size: 18px; }
+
+/* ── Settings: Android layout-television/fragment_settings_v2 (dp × 2) ── */
+.content.screen-settings { padding: 0; }
+.set2 { position: absolute; inset: 0; display: flex; background: #06090E; }
+.set2-rail { width: 660px; flex: none; box-sizing: border-box; padding: 64px 32px 48px 50px; }
+.set2-brand { display: flex; align-items: center; gap: 20px; color: #00F0FF; }
+.set2-brand h1 { margin: 0; font-size: 52px; font-weight: 800; letter-spacing: -0.02em; color: #F1F5F9; }
+.set2-version { margin: 12px 0 28px; font-family: 'Share Tech Mono', monospace; font-size: 26px; letter-spacing: 0.12em; color: #3D4F60; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.set2-cat { display: flex; align-items: center; padding: 10px 36px 10px 0; margin-bottom: 6px; border-radius: 12px; border: 2px solid transparent; }
+.set2-cat.on { background: rgba(0, 240, 255, 0.12); border-color: rgba(0, 240, 255, 0.3); }
+.set2-cat.focused { background: rgba(0, 240, 255, 0.07); border-color: rgba(0, 240, 255, 0.35); }
+.set2-cat-bar { width: 8px; height: 60px; border-radius: 2px; margin-right: 28px; visibility: hidden; }
+.set2-cat.on .set2-cat-bar { visibility: visible; }
+.set2-cat-icon { width: 68px; height: 68px; flex: none; box-sizing: border-box; display: flex; align-items: center; justify-content: center; margin-right: 32px; border-radius: 10px; border: 2px solid; }
+.set2-cat-text { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.set2-cat-t { font-size: 36px; font-weight: 600; color: #94A3B8; }
+.set2-cat.on .set2-cat-t { color: #F1F5F9; }
+.set2-cat-s { margin-top: 6px; font-family: 'Share Tech Mono', monospace; font-size: 24px; color: #3D4F60; letter-spacing: 0.08em; }
+.set2-cat.on .set2-cat-s { color: #475569; }
+.set2-cat-arrow { color: #3D4F60; transform: rotate(180deg); }
+.set2-cat.on .set2-cat-arrow { color: #00F0FF; }
+.set2-divider { width: 2px; flex: none; background: rgba(255, 255, 255, 0.05); }
+.set2-panel { flex: 1; min-width: 0; box-sizing: border-box; padding: 80px 112px 64px 88px; display: flex; flex-direction: column; }
+.set2-head { display: flex; align-items: center; font-size: 52px; font-weight: 700; color: #F1F5F9; }
+.set2-dot { width: 18px; height: 18px; border-radius: 50%; margin-right: 24px; }
+.set2-desc { margin: 12px 0 52px 42px; font-family: 'Share Tech Mono', monospace; font-size: 28px; letter-spacing: 0.1em; color: #3D4F60; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.set2-rows { flex: 1; overflow: hidden; padding: 4px; }
+.set2-row { display: flex; align-items: center; min-height: 148px; box-sizing: border-box; padding: 20px 48px 20px 40px; margin-bottom: 16px; border-radius: 20px;
+  background: rgba(12, 17, 27, 0.4); border: 2px solid rgba(255, 255, 255, 0.04); }
+.set2-row.focused { background: rgba(0, 240, 255, 0.08); border: 4px solid rgba(0, 240, 255, 0.36); padding: 18px 46px 18px 38px; }
+.set2-icon { width: 76px; height: 76px; flex: none; box-sizing: border-box; display: flex; align-items: center; justify-content: center; margin-right: 36px; border-radius: 18px; border: 2px solid; }
+.set2-text { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.set2-title { font-size: 34px; font-weight: 600; color: #F1F5F9; }
+.set2-sub { margin-top: 8px; font-size: 27px; color: #94A3B8; }
+.set2-value { margin-left: 40px; font-size: 32px; color: #94A3B8; text-align: right; max-width: 55%; }
+.set2-chevron { margin-left: 24px; color: #64748B; transform: rotate(180deg); }
+.set2-pill { position: relative; width: 112px; height: 60px; flex: none; margin-left: 40px; box-sizing: border-box; border-radius: 30px; background: rgba(255, 255, 255, 0.06); border: 2px solid rgba(255, 255, 255, 0.1); }
+.set2-pill i { position: absolute; top: 50%; left: 8px; width: 44px; height: 44px; margin-top: -22px; border-radius: 50%; background: #475569; transition: left 0.15s; }
+.set2-pill.on i { left: 56px; }
+.set2-modal { position: fixed; inset: 0; z-index: 50; display: flex; align-items: center; justify-content: center; background: rgba(2, 4, 8, 0.82); }
+.set2-modal-card { width: 760px; padding: 56px; border-radius: 28px; text-align: center; background: #0C111B; border: 2px solid rgba(0, 240, 255, 0.25); }
+.set2-modal-card h2 { margin: 0 0 32px; font-size: 40px; color: #F1F5F9; }
+.set2-modal-card svg, .set2-modal-card img { background: #fff; padding: 16px; border-radius: 16px; }
+.set2-modal-card p { margin: 28px 0 36px; font-size: 26px; line-height: 1.5; color: #94A3B8; }

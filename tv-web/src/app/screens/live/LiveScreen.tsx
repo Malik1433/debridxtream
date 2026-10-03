@@ -6,6 +6,7 @@ import { appKey, digitOf } from '../../../keys'
 import { setScreenSaver, type Platform } from '../../../platform'
 import { pushBackHandler } from '../../backStack'
 import type { AppController } from '../../controller'
+import { resumeLastLive } from '../../../data/livePrefs'
 import { Focusable } from '../../Focusable'
 import { LiveDebugPanel } from './LiveDebugPanel'
 import { ChipRow } from './ChipRow'
@@ -82,7 +83,8 @@ export function LiveScreen({ platform, controller, startChannelId = null, onStar
   useEffect(() => {
     if (cat >= 0 || !rows.length) return
     let last: { cat?: string; ch?: string } = {}
-    try { last = JSON.parse(localStorage.getItem(LAST_KEY) ?? '{}') } catch { /* none */ }
+    // Android: back on the last channel only when Settings → Live TV → Resume Last Channel is on.
+    if (resumeLastLive(localStorage)) { try { last = JSON.parse(localStorage.getItem(LAST_KEY) ?? '{}') } catch { /* none */ } }
     const want = startChannelId ? streams.find((x) => x.id === startChannelId)?.categoryId : last.cat
     const ci = want ? rows.findIndex((r) => r.id === want) : -1
     const c = ci >= 0 ? ci : startCategory(rows)

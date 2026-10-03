@@ -2,9 +2,11 @@
  * The Android app's own icons (res/drawable/ic_*.xml vector paths), so the TV app draws the same
  * glyphs - owner rule: tv-web is a copy of Android. Generated from the XML; colour is currentColor.
  */
-export type IconName = 'search' | 'home' | 'live_tv' | 'movie' | 'series' | 'settings' | 'play' | 'hero_info' | 'hero_plus' | 'favorite' | 'favorite_border' | 'check_circle' | 'rewind' | 'forward' | 'skip_next' | 'skip_previous' | 'pause' | 'live_star' | 'live_list' | 'live_guide' | 'live_audio' | 'back' | 'chevron_left' | 'player_episodes' | 'player_subtitles' | 'aspect_ratio' | 'audio'
+export type IconName = 'person' | 'logout' | 'search' | 'home' | 'live_tv' | 'movie' | 'series' | 'settings' | 'play' | 'hero_info' | 'hero_plus' | 'favorite' | 'favorite_border' | 'check_circle' | 'rewind' | 'forward' | 'skip_next' | 'skip_previous' | 'pause' | 'live_star' | 'live_list' | 'live_guide' | 'live_audio' | 'back' | 'chevron_left' | 'player_episodes' | 'player_subtitles' | 'aspect_ratio' | 'audio'
 
 const ICONS: Record<IconName, { vb: string; paths: Array<{ d: string; stroke: boolean; w: number }> }> = {
+ "person": { "vb": "0 0 24 24", "paths": [{ "d": "M12,4a4,4 0,0,1 4,4 4,4 0,0,1 -4,4 4,4 0,0,1 -4,-4 4,4 0,0,1 4,-4m0,10c4.42,0 8,1.79 8,4v2H4v-2c0,-2.21 3.58,-4 8,-4z", "stroke": false, "w": 2 }] },
+ "logout": { "vb": "0 0 24 24", "paths": [{ "d": "M17,7l-1.41,1.41L18.17,11H8v2h10.17l-2.58,2.58L17,17l5,-5zM4,5h8V3H4c-1.1,0 -2,0.9 -2,2v14c0,1.1 0.9,2 2,2h8v-2H4V5z", "stroke": false, "w": 2 }] },
  "search": {
   "vb": "0 0 24 24",
   "paths": [

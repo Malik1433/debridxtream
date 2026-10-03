@@ -10,7 +10,7 @@ import { Router, type Screen } from './router'
 import { HomeScreen } from './screens/home/HomeScreen'
 import { resumePointMs } from '../data/watchState'
 import { LiveScreen } from './screens/live/LiveScreen'
-import { Settings } from './screens/Settings'
+import { SettingsScreen } from './screens/settings/SettingsScreen'
 import { MovieDetail } from './screens/detail/MovieDetail'
 import { ShowDetail } from './screens/detail/ShowDetail'
 import { LibraryScreen } from './screens/library/LibraryScreen'
@@ -81,11 +81,6 @@ export function App({ platform, state, controller, onSyncNow }: { platform: Plat
       setPlay(ep ? episodeRequest(ep, show, info.episodes, e.progressMs) : single)
     }).catch(() => setPlay(single))
   }, [controller])
-
-  const goHome = useCallback(() => {
-    open('home')
-    void setFocus('nav-home')
-  }, [open])
 
   // BACK goes up; at the top it asks to leave. Never a dead key (TV rulebook).
   useEffect(() => {
@@ -170,7 +165,7 @@ export function App({ platform, state, controller, onSyncNow }: { platform: Plat
             <SearchScreen key={searchCtx ? `${searchCtx.scope}-${searchCtx.categoryId ?? ''}` : 'all'} controller={controller} context={searchCtx} onChannel={(c) => { setLiveStart(c.id); open('live') }}
               onMovie={(m) => setDetail({ kind: 'movie', item: m })} onShow={(m) => setDetail({ kind: 'show', item: m })} />
           )}
-          {!detail && screen === 'settings' && <Settings platform={platform} state={state} controller={controller} onSyncNow={onSyncNow} onHome={goHome} />}
+          {!detail && screen === 'settings' && <SettingsScreen platform={platform} state={state} controller={controller} onSyncNow={onSyncNow} />}
         </div>
       </FocusContext.Provider>
       {!online && <div className="net-banner">No internet connection — DX Play will carry on when it is back.</div>}

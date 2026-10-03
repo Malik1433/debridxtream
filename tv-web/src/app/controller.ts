@@ -200,6 +200,8 @@ export class AppController {
   recordChannel(c: RecentChannel): void { recordChannel(localStorage, c) }
   recentSearches(): string[] { return recentSearches(localStorage) }
   recordSearch(q: string): void { recordSearch(localStorage, q) }
+  /** The provider login this box uses (Settings → Account → Signed in as, as on Android). */
+  accountUser(): string | null { return this.session.account()?.username ?? null }
   watchedEpisodes(seriesId: string): Map<string, WatchEntry> { return watchedEpisodes(localStorage, seriesId) }
   retryLibrary(): void { void this.runLibrarySync() }
 
