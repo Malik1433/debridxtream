@@ -7,7 +7,8 @@
 /** `memo:lib-sorted-movies-__all-recent` stays; a trailing `:<count/ids>` or `|mode` goes. */
 export const label = (name: string) => name.replace(/^([^:|]+:[^:|]*).*$/, '$1')
 
-function note(name: string, start: number): void {
+/** A measure from `start` to now, for work that is only worth naming once it has succeeded. */
+export function note(name: string, start: number): void {
   try { performance.measure(`dx:${label(name)}`, { start, duration: performance.now() - start } as PerformanceMeasureOptions) } catch { /* older engine: no named measures */ }
 }
 

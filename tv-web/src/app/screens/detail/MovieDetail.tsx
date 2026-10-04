@@ -1,13 +1,13 @@
 import { setFocus } from '@noriginmedia/norigin-spatial-navigation'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { cardText, cleanTitle } from '../../../data/titles'
 import { normalizeTitle, type Enrichment } from '../../../data/tmdb'
-import { matchTitles } from '../../../data/titleMatch'
+import { matchTitlesOffThread } from '../../../data/titleMatch'
 import type { Movie, MovieInfo } from '../../../data/vodApi'
 import { resumePointMs } from '../../../data/watchState'
 import { clockOf } from '../../../player/vod/vodTypes'
 import type { AppController } from '../../controller'
-import { span } from '../../perf/span'
+import { spanAsync } from '../../perf/span'
 import { SoftBackdrop } from '../../SoftBackdrop'
 import { Focusable } from '../../Focusable'
 import { Icon } from '../../icons'
@@ -47,14 +47,23 @@ export function MovieDetail({ movie, controller, onPlay, onOpenMovie }: {
   }, [controller, movie])
   useEffect(() => { void setFocus('detail-play') }, [])
 
-  // SIMILAR MOVIES: TMDB recommendations that this provider actually has.
-  const similar = useMemo(() => {
-    if (!tmdb?.recommendations.length) return []
+  // SIMILAR MOVIES: TMDB recommendations that this provider actually has. The scan of every title
+  // runs in the worker when it holds the catalogue's names (round 10), so opening a detail page no
+  // longer stalls the remote for ~0.9 s on the Samsung; without it, the same match runs here.
+  const [similar, setSimilar] = useState<Movie[]>([])
+  useEffect(() => {
+    setSimilar([])
+    if (!tmdb?.recommendations.length) return
     const all = controller.peek<Movie[]>('lib-items-movies') ?? []
-    const byTitle = span('match:similar-movies', () => matchTitles(all, tmdb.recommendations.map((r) => r.title)))
-    const out: Movie[] = []
-    for (const r of tmdb.recommendations) { const hit = byTitle.get(normalizeTitle(r.title) ?? ''); if (hit && hit.id !== movie.id && !out.includes(hit)) out.push(hit) }
-    return out.slice(0, 12)
+    const titles = tmdb.recommendations.map((r) => r.title)
+    let live = true
+    void spanAsync('match:similar-movies', () => matchTitlesOffThread('movies', all, titles)).then((byTitle) => {
+      if (!live) return
+      const out: Movie[] = []
+      for (const r of tmdb.recommendations) { const hit = byTitle.get(normalizeTitle(r.title) ?? ''); if (hit && hit.id !== movie.id && !out.includes(hit)) out.push(hit) }
+      setSimilar(out.slice(0, 12))
+    })
+    return () => { live = false }
   }, [tmdb, controller, movie.id])
 
   const play = (startMs: number) => onPlay({

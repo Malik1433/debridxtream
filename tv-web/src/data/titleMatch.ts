@@ -1,3 +1,4 @@
+import { findNames } from './offThreadSort'
 import { cleanTitle } from './titles'
 import { normalizeTitle } from './tmdb'
 
@@ -20,6 +21,24 @@ export function matchTitles<T extends { name: string }>(items: readonly T[], tit
     if (found.size === wanted.size) break
     const raw = x.name.toLowerCase().replace(/[^a-z0-9]/g, '')
     if (!keys.some((k) => raw.includes(k))) continue
+    const k = titleKey(x.name)
+    if (k && wanted.has(k) && !found.has(k)) found.set(k, x)
+  }
+  return found
+}
+
+/**
+ * The same answer as matchTitles, with the scan of every name done by the worker when it holds this
+ * list (round 10: `match:similar-movies` still cost ~0.9 s on the Samsung). Only the few candidates it
+ * returns get the full clean-up here. Without the worker it is matchTitles, unchanged.
+ */
+export async function matchTitlesOffThread<T extends { name: string }>(set: string, items: readonly T[], titles: readonly string[]): Promise<Map<string, T>> {
+  const wanted = new Set(titles.map((t) => normalizeTitle(t)).filter((k): k is string => Boolean(k)))
+  const idx = await findNames(set, items, [...wanted])
+  if (!idx) return matchTitles(items, titles)
+  const found = new Map<string, T>()
+  for (let i = 0; i < idx.length; i++) {
+    const x = items[idx[i]]
     const k = titleKey(x.name)
     if (k && wanted.has(k) && !found.has(k)) found.set(k, x)
   }

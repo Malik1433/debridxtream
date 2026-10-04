@@ -29,6 +29,18 @@ export function applyOrder<T>(items: readonly T[], idx: Uint32Array): T[] {
   return out
 }
 
+/** Letters and digits only - the cheap first pass of title matching (data/titleMatch). ES5-plain: the worker runs its source. */
+export function stripName(s: string): string { return s.toLowerCase().replace(/[^a-z0-9]/g, '') }
+
+/** Indexes of the names that contain any of the keys - the worker's half of SIMILAR MOVIES. */
+export function namesContaining(names: string[], keys: string[]): Uint32Array {
+  var out: number[] = []
+  for (var i = 0; i < names.length; i++) {
+    for (var k = 0; k < keys.length; k++) { if (names[i].indexOf(keys[k]) !== -1) { out.push(i); break } }
+  }
+  return new Uint32Array(out)
+}
+
 let worker: Worker | null | undefined
 let seq = 0
 const waiting = new Map<number, (r: Uint32Array | null) => void>()
@@ -36,23 +48,53 @@ const waiting = new Map<number, (r: Uint32Array | null) => void>()
 function getWorker(): Worker | null {
   if (worker !== undefined) return worker
   try {
-    const src = `var orderBy = ${orderBy.toString()};\nonmessage = function (e) { var r = orderBy(e.data.p, e.data.s); postMessage({ id: e.data.id, r: r }, [r.buffer]) }`
+    const src = [
+      `var orderBy = ${orderBy.toString()};`,
+      `var stripName = ${stripName.toString()};`,
+      `var namesContaining = ${namesContaining.toString()};`,
+      'var names = {};',
+      'onmessage = function (e) { var d = e.data, r = null;',
+      "  if (d.t === 'sort') r = orderBy(d.p, d.s);",
+      "  else if (d.t === 'names') { var a = d.names; for (var i = 0; i < a.length; i++) a[i] = stripName(a[i]); names[d.set] = a; r = new Uint32Array([a.length]); }",
+      "  else if (d.t === 'find') r = names[d.set] ? namesContaining(names[d.set], d.keys) : null;",
+      '  postMessage({ id: d.id, r: r }, r ? [r.buffer] : []) }',
+    ].join('\n')
     worker = new Worker(URL.createObjectURL(new Blob([src], { type: 'text/javascript' })))
-    worker.onmessage = (e: MessageEvent<{ id: number; r: Uint32Array }>) => { waiting.get(e.data.id)?.(e.data.r); waiting.delete(e.data.id) }
-    worker.onerror = () => { waiting.forEach((done) => done(null)); waiting.clear(); worker = null }
+    worker.onmessage = (e: MessageEvent<{ id: number; r: Uint32Array | null }>) => { waiting.get(e.data.id)?.(e.data.r); waiting.delete(e.data.id) }
+    worker.onerror = () => { waiting.forEach((done) => done(null)); waiting.clear(); worker = null; namesHeld.clear() }
   } catch { worker = null }
   return worker
 }
 
-/** The order, from the worker - or null (no worker on this TV, or it failed): the caller sorts as before. */
-export function orderOffThread(primary: Float64Array, secondary: Float64Array | null, timeoutMs = 30_000): Promise<Uint32Array | null> {
+function ask(msg: Record<string, unknown>, transfer: Transferable[], timeoutMs: number): Promise<Uint32Array | null> {
   const w = getWorker()
   if (!w) return Promise.resolve(null)
   const id = ++seq
   return new Promise((resolve) => {
     const t = setTimeout(() => { waiting.delete(id); resolve(null) }, timeoutMs)
     waiting.set(id, (r) => { clearTimeout(t); resolve(r) })
-    const transfer = secondary ? [primary.buffer, secondary.buffer] : [primary.buffer]
-    try { w.postMessage({ id, p: primary, s: secondary }, transfer) } catch { clearTimeout(t); waiting.delete(id); resolve(null) }
+    try { w.postMessage({ ...msg, id }, transfer) } catch { clearTimeout(t); waiting.delete(id); resolve(null) }
   })
+}
+
+/** The order, from the worker - or null (no worker on this TV, or it failed): the caller sorts as before. */
+export function orderOffThread(primary: Float64Array, secondary: Float64Array | null, timeoutMs = 30_000): Promise<Uint32Array | null> {
+  return ask({ t: 'sort', p: primary, s: secondary }, secondary ? [primary.buffer, secondary.buffer] : [primary.buffer], timeoutMs)
+}
+
+/** Which name lists the worker holds, by the list they were made from (a new library = a new list). */
+const namesHeld = new Map<string, readonly unknown[]>()
+
+/** Hand the worker a catalogue's names once, in the background; it keeps them stripped for `findNames`. */
+export async function holdNames(set: string, items: ReadonlyArray<{ name: string }>): Promise<boolean> {
+  if (namesHeld.get(set) === items) return true
+  const done = await ask({ t: 'names', set, names: items.map((x) => x.name) }, [], 60_000)
+  if (done && done[0] === items.length) namesHeld.set(set, items)
+  return namesHeld.get(set) === items
+}
+
+/** Indexes into `items` whose name contains a key - null when the worker does not hold this list (caller matches as before). */
+export function findNames(set: string, items: readonly unknown[], keys: string[]): Promise<Uint32Array | null> {
+  if (namesHeld.get(set) !== items || !keys.length) return Promise.resolve(null)
+  return ask({ t: 'find', set, keys }, [], 10_000)
 }

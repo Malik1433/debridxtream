@@ -22,3 +22,17 @@ describe('off-thread sort', () => {
     expect(await orderOffThread(k.primary, k.secondary)).toBeNull()
   })
 })
+
+describe('worker title scan', () => {
+  it('strips names and finds the ones holding a key, in catalogue order', async () => {
+    const { stripName, namesContaining } = await import('./offThreadSort')
+    const names = ['EN - Dune: Part Two (2024)', 'The Batman', 'Dune', 'Nope'].map(stripName)
+    expect(names[0]).toBe('enduneparttwo2024')
+    expect(Array.from(namesContaining(names, ['duneparttwo', 'batman']))).toEqual([0, 1])
+  })
+  it('falls back to the same matcher when the worker does not hold the list', async () => {
+    const { matchTitles, matchTitlesOffThread } = await import('./titleMatch')
+    const items = [{ name: 'The Batman (2022)' }, { name: 'Dune' }]
+    expect(await matchTitlesOffThread('movies', items, ['The Batman'])).toEqual(matchTitles(items, ['The Batman']))
+  })
+})

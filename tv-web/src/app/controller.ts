@@ -20,8 +20,8 @@ import { episodeUrl, movieInfo, movieUrl, showInfo, type Movie, type MovieInfo, 
 import { enrich, type Enrichment } from '../data/tmdb'
 import { recentChannels, recordChannel, type RecentChannel } from '../data/recentLive'
 import { recentSearches, recordSearch } from '../data/recentSearches'
-import { span, spanAsync } from './perf/span'
-import { applyOrder, orderOffThread } from '../data/offThreadSort'
+import { note, span, spanAsync } from './perf/span'
+import { applyOrder, holdNames, orderOffThread } from '../data/offThreadSort'
 import { ALL_ID, numericSortKeys, type SortMode } from './screens/library/libraryModel'
 
 /** Let the first screen settle before the background sorts start. */
@@ -139,7 +139,14 @@ export class AppController {
       const [cats, items] = await spanAsync(`read:lib-${kind}`, () => Promise.all([this.session.libraryCategories(kind), this.session.libraryItems<T>(kind)]))
       return span(`parental:lib-${kind}`, () => this.parental.filterItems(items, cats))
     })
-    void p.then((items) => this.prewarmSorts(kind, items)).catch(() => undefined)
+    void p.then((items) => {
+      this.prewarmSorts(kind, items)
+      // SIMILAR MOVIES looks titles up in the worker (round 10): hand it the names once, in the background.
+      if (kind === 'movies') setTimeout(() => {
+        const t = performance.now()
+        void holdNames('movies', items).then((ok) => { if (ok) note('prewarm:names-movies', t) })
+      }, PREWARM_AFTER_MS + 2_000)
+    }).catch(() => undefined)
     return p
   }
 
