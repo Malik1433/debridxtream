@@ -1229,3 +1229,99 @@ whether the row shows the *right* films has not been confirmed by anyone. The pr
 4. SIMILAR MOVIES correctness — unverified.
 5. Older and still open: R3, R5 (unprompted VOD drop), R7 (frozen picture).
 6. ~~Sort chips~~ · ~~Home per-key~~ · ~~`memo:lib-sorted-*-recent`~~ · ~~Home top-10~~ — closed.
+
+---
+
+# Round 13 — two clean cold runs, and the first-call wait has a cause (2026-10-04)
+
+Branch @ `362c5fb6`, **159 tests pass**, probe build installed. Measurement only, no fix, no guess.
+
+**How these were taken.** The owner could not close the app from the TV, so I did both runs myself:
+an install terminates the app, so each run is a genuine cold start, and I launched it with `tizen run`
+and **touched nothing** for 50 s. ⚠️ `sdb shell 0 kill` does reach this TV but refuses
+(`processing result : General error [-1] failed`) — the install is the only way to stop it.
+**No key was pressed in either run.** The probe now reports `startTime` as well as duration, so these
+are timelines rather than totals.
+
+## Run 1 — timeline (ms from page start)
+
+| at | stage | ms |
+|---|---|---|
+| 2443 | `memo:home-top-movies` | 1 |
+| 3388 | **`idb:open`** | **2345** |
+| 4577 | `load:live-cats` | 3864 |
+| 4580 | **`load:live-streams`** | **4993** |
+| 4581 | **`read:live`** | **4954** |
+| 5734 | **`idb:get-movies-cats`** | **2617** |
+| 5738 | `idb:get-movies` / `-shows` / `-shows-cats` | 2621 / 2634 / 2627 |
+| 9535 | `parental:live` | 37 |
+| 31883→33753 | `idb:parse-movies` × 14 chunks | **1296 total** |
+| 34864 | `parental:lib-movies` | 141 |
+| 42460 | `prewarm:names-send-movies` | 126 |
+| 42970 | `prewarm:lib-sorted-movies-recent` | 12 |
+
+## Run 2 — same app, same build, untouched
+
+| at | stage | ms |
+|---|---|---|
+| 2562 | **`idb:open`** | **1756** |
+| 4219 | `load:live-cats` | **265** |
+| 4319 | **`idb:get-movies-cats`** | **34** |
+| 4321 | `idb:get-movies` / `-shows-cats` / `-shows` | 38 / 44 / 47 |
+| 9089 | `parental:live` | 36 |
+| — | `idb:parse-movies` × 14 chunks | **1108 total** |
+| 19232 | `prewarm:names-movies` | 798 |
+| 19233 | `prewarm:names-send-movies` | 126 |
+| 17524–19075 | all eight `prewarm:lib-sorted-*` | 0–40 each |
+
+## ⭐ The answers
+
+**`idb:open` = 1756–2345 ms.** Opening the database costs about two seconds before anything else can
+start. Consistent across both runs.
+
+**`idb:get-movies-cats` is 2617 ms in run 1 and 34 ms in run 2** — the same call, the same build,
+nothing touched. So **the wait is not IndexedDB's answer time.** When it is free it answers in 34 ms.
+
+**What it was waiting for is in the timeline.** In run 1, Live's own read was in flight across exactly
+that window:
+
+```
+4580  load:live-streams  4993      (ends ~9573)
+4581  read:live          4954
+5734  idb:get-movies-cats 2617     (starts inside Live's read, ends ~8351)
+```
+
+In run 2, `read:live` does not appear at all and `load:live-cats` is 265 ms — and the library gets
+drop to 34–47 ms. **Live's catalogue read and the library reads are competing for the same database,
+and the library loses.** That is the "first call waits on something" seen in rounds 10, 11 and 12; the
+something is Live.
+
+⚠️ And it answers round 12's open question too: of Live's named parts, **`read:live` (4954 ms) is what
+carries the cost**, not `load:live-cats`, `parental:live` (37 ms) or the memos (44–50 ms).
+
+**`idb:get-movies-cats` is not stuck behind chunk parsing or the prewarm.** The parses do not begin
+until 31883 ms — long after the gets finish — and the prewarm not until 42460 ms. Both are *after*,
+not *before*.
+
+**Chunk parsing is cheap:** 14 chunks, **1108–1296 ms in total**, 51–232 ms each. `idb:chunk-first-movies`
+and `idb:chunks-movies` did not appear in either run.
+
+**`prewarm:names-send-movies` = 126 ms** against `prewarm:names-movies` = 798 ms. Handing the names to
+the worker costs almost nothing; the 2–4.3 s figures of round 12 are gone — this round it is 798 ms,
+and only 126 ms of that is on the main thread.
+
+## ⚠️ One thing neither run explains
+
+Run 1 has **23 seconds of idle** between the library gets finishing (~8.4 s) and the chunk parses
+starting (31.9 s) — no long tasks at all in that window, so the main thread was not busy, it was
+waiting. Run 2's largest idle gap is 15.7 s. Something defers the library parse by a long way after
+its data is in hand. Not investigated; recorded as measured.
+
+## The list now
+
+1. **`read:live` ~5 s blocking the library reads** — the cause of the first-call wait in rounds 10–12.
+2. **`idb:open` ~2 s** before anything can start.
+3. **The 15–23 s idle gap** before the library parse begins.
+4. `idb:parse-movies` 1.1–1.3 s total · `prewarm:names-movies` 798 ms — both modest now.
+5. SIMILAR MOVIES correctness — still unverified by eye.
+6. Older and still open: R3, R5, R7.
