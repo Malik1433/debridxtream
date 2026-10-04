@@ -1327,3 +1327,100 @@ its data is in hand. Not investigated; recorded as measured.
    under a known title look right. The scan has been in the worker since round 11, so that move is
    clean and not merely faster.
 6. Older and still open: R3, R5, R7.
+
+---
+
+# Round 14 — the launch sync is the wall (2026-10-04)
+
+Branch @ `dfa3a848` (includes `5c5790e`), **159 tests pass**, probe build installed. Measurement only.
+
+⚠️ **Run 1 is clean. Run 2 is not** — it carries `dx:key` aggregates (`n=6 avg=1027 max 2910`) and a
+wider spread of DOM sizes, so keys were pressed during it. Its timings are shown because they agree
+with run 1 at every point, but **run 1 is the record**.
+
+## First: why `idb:chunk-first-*` and `idb:chunks-*` were missing in round 13
+
+**My probe dropped them, the app always emitted them.** `note()` stamps a measure with the time the
+work *started*, but the entry only becomes visible when it *finishes*. The probe was filtering on
+"newer than the last thing I saw", so any long span that began early and ended late was silently
+discarded — which is exactly the shape of those two. Changed to de-duplicate by identity, and both
+appear in every run below. ⚠️ **Round 13's timelines were missing spans for this reason**; its
+conclusions are revised below.
+
+## Run 1 — timeline (ms from page start, clean run, app opened on **Home**)
+
+| at | span | ms |
+|---|---|---|
+| 2051 | `sync:login` | 2108 |
+| 2808–3464 | **`read:lib-movies`** (1st) | **32083** |
+| 3468 | `idb:open` | **917** |
+| 3473 | `read:lib-shows` (1st) | 30699 |
+| 4063 | `load:lib-cats-movies` | 4613 |
+| 4159 | `sync:fetch-live` | 1634 |
+| 4387 | `idb:get-movies-cats` / `-movies` / `-shows` | 4270 / 4931 / 4954 |
+| **5794** | **`sync:write-live`** | **23810** |
+| 9324 | **`idb:chunk-first-movies`** | **22963** |
+| 9324 | `idb:chunks-movies` | 25133 |
+| 9344 | `idb:chunk-first-shows` / `idb:chunks-shows` | 24591 / 24713 |
+| 29609 | `sync:fetch-movies` | 12018 |
+| 29617 | `sync:fetch-shows` | 6097 |
+| 32287–34444 | `idb:parse-movies` × 14 | ~1230 total |
+| 35715 | `sync:write-shows` | 8791 |
+| 39839 | `memo:lib-sorted-movies-__all-recent` | 1136 |
+| 41627 | `sync:write-movies` | 5296 |
+| 43298 | `prewarm:names-movies` ×2 | 1577 · 2988 |
+| 46964 | **`read:lib-movies`** (2nd) | **2609** |
+| 46989 | **`idb:chunk-first-movies`** (2nd) | **181** |
+| 46989 | `idb:chunks-movies` (2nd) | 1537 |
+| 49948 | `memo:lib-sorted-movies-__all-recent` (2nd) | 1191 |
+
+Run 2 agrees throughout: `sync:write-live` **19981**, `idb:chunk-first-movies` **18916**, second read
+`chunk-first` **186**, `idb:open` **712**, `sync:fetch-movies` 12314, `sync:write-movies` 5318.
+
+## ⭐ The answers
+
+**(b) and (c) — yes, and this is the whole finding.** `sync:write-live` runs **5794 → 29604 ms**, and
+the library's first chunk read sits inside it:
+
+```
+5794   sync:write-live          23810
+9324   idb:chunk-first-movies   22963     <- starts inside the write, ends with it
+```
+
+The same read later in the same run, after the sync has finished:
+
+```
+46989  idb:chunk-first-movies     181
+```
+
+**22963 ms against 181 ms, same call, same run.** The library is not slow; it is **queued behind the
+Live sync writing to the same database**. That is round 13's "15–23 s idle gap" — it was never idle,
+it was `sync:write-live`, which round 13 could not see because the probe was dropping exactly these
+spans.
+
+⚠️ **This revises round 13.** Round 13 blamed `read:live` for starving the library. The real blocker
+is the **write**, not the read, and it is an order of magnitude larger — 23.8 s against ~5 s. Round
+13's direction was right (Live versus the library on one database) and its named cause was wrong.
+
+**(d) `read:lib-movies` appears TWICE per run**, exactly as predicted: **32083 ms** then **2609 ms**
+in run 1, **26888** then **4119** in run 2. The whole library is read once while the sync is writing
+it, and then read again afterwards.
+
+**(a)/(e) The sync spans:** `sync:login` 2108 · `sync:fetch-live` 1634 · **`sync:write-live` 23810** ·
+`sync:fetch-movies` **12018** (network) · `sync:fetch-shows` 6097 · `sync:write-shows` 8791 ·
+**`sync:write-movies` 5296**. The movie fetch is the largest network cost; the live **write** is the
+largest cost of any kind in the run.
+
+**(f) `idb:open` is 917 ms (run 1) and 712 ms (run 2)** — no longer ~2 s. Round 13's 1756–2345 ms does
+not reproduce.
+
+**(2) The app opened on Home in both runs** (DOM 46–274, never the ~2000 of Live), and `read:live` does
+not appear at all. Round 13 run 1 opened on Live, which is why it saw `read:live` there.
+
+## The list now
+
+1. **`sync:write-live` 20–24 s**, blocking every library read behind it — the cold-start wall.
+2. **The library is read twice per launch** — once while the sync overwrites it, once after.
+3. `sync:fetch-movies` ~12 s of network, `sync:write-shows` ~8.8 s, `sync:write-movies` ~5.3 s.
+4. `memo:lib-sorted-movies-__all-recent` ~1.15 s, now paid **twice** per launch for the same reason.
+5. Older and still open: R3, R5, R7.
