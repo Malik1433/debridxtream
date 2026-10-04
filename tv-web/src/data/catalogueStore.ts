@@ -35,9 +35,30 @@ interface LibraryBlobV1 { id: LibraryKind; categories: VodCategory[]; items: Arr
  */
 interface LibraryBlobV2 { id: LibraryKind; categories: VodCategory[]; itemsJson: string }
 type LibraryBlob = LibraryBlobV1 | LibraryBlobV2
+type LibraryRecord = LibraryBlob | LibraryHeadV3
 /** The categories alone, so reading them never decodes the items (they used to: two full reads per open). */
 interface LibraryCats { id: `${LibraryKind}-cats`; categories: VodCategory[] }
 
+/**
+ * Since W4 QA round 10: the items in chunks of 5,000, each its own record and its own JSON string.
+ * Round 10 caught cold starts blocking the Samsung's main thread for 3-5 s at a stretch - one
+ * JSON.parse of all 69,500 films - while everything else waited behind it (`load:lib-cats-movies`
+ * 5.7 s cold, 18 ms warm: the categories were ready, their callback could not run). Each chunk is read
+ * by its own request and parsed in its own task, so keys, paint and the categories get a turn between
+ * them. Same total work, no multi-second block.
+ */
+export const CHUNK = 5_000
+interface LibraryHeadV3 { id: LibraryKind; categories: VodCategory[]; chunks: number; count: number }
+interface LibraryChunk { id: string; json: string }
+const chunkKey = (kind: LibraryKind, i: number) => `${kind}#${i}`
+
+export function encodeChunks(kind: LibraryKind, categories: VodCategory[], items: Array<Movie | Show>): { head: LibraryHeadV3; chunks: LibraryChunk[] } {
+  const chunks: LibraryChunk[] = []
+  for (let i = 0; i * CHUNK < items.length; i++) chunks.push({ id: chunkKey(kind, i), json: JSON.stringify(items.slice(i * CHUNK, (i + 1) * CHUNK)) })
+  return { head: { id: kind, categories, chunks: chunks.length, count: items.length }, chunks }
+}
+
+/** Kept for the tests of the round-8 format, which is still read. */
 export function encodeLibrary(kind: LibraryKind, categories: VodCategory[], items: Array<Movie | Show>): LibraryBlobV2 {
   return { id: kind, categories, itemsJson: JSON.stringify(items) }
 }
@@ -99,7 +120,11 @@ export class IdbCatalogueStore implements CatalogueStore {
     const db = await this.conn()
     const tx = db.transaction(['library', catStore, itemStore], 'readwrite')
     const lib = tx.objectStore('library')
-    lib.put(encodeLibrary(kind, categories, items))
+    const { head, chunks } = encodeChunks(kind, categories, items)
+    // A previous, longer write's extra chunks must not survive: they would never be read, only kept.
+    lib.delete(IDBKeyRange.bound(`${kind}#`, `${kind}#\uffff`))
+    lib.put(head)
+    chunks.forEach((c) => lib.put(c))
     lib.put({ id: `${kind}-cats`, categories } satisfies LibraryCats)
     // The v2 copy is superseded: clearing a store is one request, not one per row.
     tx.objectStore(catStore).clear(); tx.objectStore(itemStore).clear()
@@ -120,11 +145,39 @@ export class IdbCatalogueStore implements CatalogueStore {
   private library(kind: LibraryKind) {
     let p = this.libs.get(kind)
     if (!p) {
-      p = this.get<LibraryBlob>('library', kind).then((b) => (b ? decodeLibrary(b) : null))
+      p = this.get<LibraryRecord>('library', kind).then((b) => (!b ? null : 'chunks' in b ? this.readChunks(kind, b) : decodeLibrary(b)))
       p.catch(() => this.libs.delete(kind))
       this.libs.set(kind, p)
     }
     return p
+  }
+
+  /**
+   * All chunks asked for at once, in one transaction - but each answer arrives as its own event and is
+   * parsed there, so no single task holds the TV for the whole library (round 10). Read one by one in
+   * separate transactions the load got 2-4x slower in total; this keeps the short tasks without that.
+   */
+  private async readChunks(kind: LibraryKind, head: LibraryHeadV3): Promise<{ categories: VodCategory[]; items: Array<Movie | Show> }> {
+    const db = await this.conn()
+    const parts: Array<Array<Movie | Show>> = new Array(head.chunks)
+    await new Promise<void>((resolve, reject) => {
+      const store = db.transaction('library', 'readonly').objectStore('library')
+      let left = head.chunks
+      if (!left) { resolve(); return }
+      for (let i = 0; i < head.chunks; i++) {
+        const req = store.get(chunkKey(kind, i))
+        req.onsuccess = () => {
+          const c = req.result as LibraryChunk | undefined
+          if (!c) { reject(new Error(`library ${kind}: chunk ${i} of ${head.chunks} is missing`)); return }
+          try { parts[i] = JSON.parse(c.json) } catch (e) { reject(e); return }
+          if (--left === 0) resolve()
+        }
+        req.onerror = () => reject(req.error)
+      }
+    })
+    const items: Array<Movie | Show> = []
+    for (const part of parts) for (let j = 0; j < part.length; j++) items.push(part[j])
+    return { categories: head.categories, items }
   }
 
   async libraryCategories(kind: LibraryKind): Promise<VodCategory[]> {

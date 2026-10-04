@@ -15,3 +15,14 @@ describe('library record', () => {
     expect(decodeLibrary<Movie>(old).items).toEqual([m(3)])
   })
 })
+
+describe('library chunks (round 10)', () => {
+  it('splits into 5,000-item JSON chunks that join back to the same list', async () => {
+    const { CHUNK, encodeChunks } = await import('./catalogueStore')
+    const items = Array.from({ length: CHUNK * 2 + 7 }, (_, i) => m(i))
+    const { head, chunks } = encodeChunks('movies', [], items)
+    expect(head).toMatchObject({ id: 'movies', chunks: 3, count: items.length })
+    expect(chunks.map((c) => c.id)).toEqual(['movies#0', 'movies#1', 'movies#2'])
+    expect(chunks.flatMap((c) => JSON.parse(c.json))).toEqual(items)
+  })
+})
