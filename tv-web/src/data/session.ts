@@ -1,3 +1,4 @@
+import { spanAsync } from '../app/perf/span'
 import type { CatalogueStore, LibraryKind } from './catalogueStore'
 import { movieLibrary, showLibrary, type Movie, type Show, type VodCategory } from './vodApi'
 import { NO_SERVER, serverFingerprint } from './serverIdentity'
@@ -93,9 +94,11 @@ export class Session {
     const had = this.lastLibrarySync()
     const one = async (kind: LibraryKind): Promise<{ count: number; error: string | null }> => {
       try {
-        const { categories, items } = kind === 'movies' ? await movieLibrary(a, fetcher) : await showLibrary(a, fetcher)
+        // Round 14: the launch refresh in named parts, so the probe can see whether its writes are what
+        // the library reads wait behind (round 13's 15-23 s of idle before the parse).
+        const { categories, items } = await spanAsync<{ categories: VodCategory[]; items: Array<Movie | Show> }>(`sync:fetch-${kind}`, () => (kind === 'movies' ? movieLibrary(a, fetcher) : showLibrary(a, fetcher)))
         if (items.length === 0) return { count: had?.[kind] ?? 0, error: null }
-        await this.store.replaceLibrary(kind, categories, items)
+        await spanAsync(`sync:write-${kind}`, () => this.store.replaceLibrary(kind, categories, items))
         this.forget()
         return { count: items.length, error: null }
       } catch (e) {
@@ -148,13 +151,13 @@ export class Session {
     const a = this.account()
     if (!a) throw new Error('no account')
     if (this.isServerDataStale()) await this.purge()
-    const account = await login(a, fetcher)
-    const { categories, streams } = await liveCatalogue(a, fetcher)
+    const account = await spanAsync('sync:login', () => login(a, fetcher))
+    const { categories, streams } = await spanAsync('sync:fetch-live', () => liveCatalogue(a, fetcher))
     if (streams.length === 0) {
       const had = this.lastSync()
       if (had && had.channels > 0) return { account, categories: had.categories, channels: had.channels }
     } else {
-      await this.store.replaceLive(categories, streams)
+      await spanAsync('sync:write-live', () => this.store.replaceLive(categories, streams))
       this.forget()
     }
     const rec = { at: Date.now(), categories: categories.length, channels: streams.length }
