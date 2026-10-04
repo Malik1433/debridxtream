@@ -21,7 +21,7 @@ import { enrich, type Enrichment } from '../data/tmdb'
 import { recentChannels, recordChannel, type RecentChannel } from '../data/recentLive'
 import { recentSearches, recordSearch } from '../data/recentSearches'
 import { note, span, spanAsync } from './perf/span'
-import { applyOrder, holdNames, orderOffThread } from '../data/offThreadSort'
+import { applyOrder, holdNames, orderNamesOffThread, orderOffThread } from '../data/offThreadSort'
 import { ALL_ID, numericSortKeys, type SortMode } from './screens/library/libraryModel'
 
 /** Let the first screen settle before the background sorts start. */
@@ -152,8 +152,8 @@ export class AppController {
 
   /**
    * W4 QA round 10: opening Movies sorted all 69,500 films on the main thread (1.1-1.3 s on the
-   * Samsung, `memo:lib-sorted-*`). A little after the library is in, the sorts the screen will open
-   * with - All in Recently Added, and the viewer's last chosen sort - are computed in a worker and
+   * Samsung, `memo:lib-sorted-*`). A little after the library is in, every sort of All - the one the
+   * screen opens with and the viewer's last choice first, then the other chips - is computed in a worker and
    * dropped into the same memo the screen reads, so it finds them ready. Whatever is not ready yet
    * (or a TV with no worker) is sorted on the spot as before; nothing waits on this.
    */
@@ -166,7 +166,9 @@ export class AppController {
     this.prewarmed.add(tag)
     let saved: string | null = null
     try { saved = sessionStorage.getItem(`lib:${kind}:sort`) } catch { /* private mode */ }
-    const modes = Array.from(new Set<SortMode>(['recent', (saved as SortMode | null) ?? 'recent']))
+    // Round 11: every chip, not just the opening ones - choosing TOP RATED / A - Z / NEWEST on All
+    // sorted 69,500 films on the spot (1.1-3.5 s on the Samsung). The likely ones go first.
+    const modes = Array.from(new Set<SortMode>(['recent', (saved as SortMode | null) ?? 'recent', 'rated', 'newest', 'az']))
     const gen = this.generation
     setTimeout(() => {
       void (async () => {
@@ -174,8 +176,7 @@ export class AppController {
           const k = `lib-sorted-${kind}-${ALL_ID}-${m}|${mode}`
           if (this.derivedMemo.has(k)) continue
           const keys = numericSortKeys(items, m)
-          if (!keys) continue
-          const idx = await orderOffThread(keys.primary, keys.secondary)
+          const idx = keys ? await orderOffThread(keys.primary, keys.secondary) : await orderNamesOffThread(items.map((x) => x.name))
           // A sync or a parental change since: these items are no longer what the screen shows.
           if (!idx || gen !== this.generation || mode !== this.mode() || this.derivedMemo.has(k)) continue
           this.derivedMemo.set(k, span(`prewarm:lib-sorted-${kind}-${m}`, () => applyOrder(items, idx)))

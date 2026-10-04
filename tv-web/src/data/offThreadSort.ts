@@ -23,6 +23,15 @@ export function orderBy(primary: Float64Array, secondary: Float64Array | null): 
   return idx
 }
 
+/** A - Z, as sortItems does it (`localeCompare`, ties in the original order). ES5-plain: the worker runs its source. */
+export function orderByName(names: string[]): Uint32Array {
+  var n = names.length
+  var idx = new Uint32Array(n)
+  for (var i = 0; i < n; i++) idx[i] = i
+  idx.sort(function (a, b) { var c = names[a].localeCompare(names[b]); return c !== 0 ? c : a - b })
+  return idx
+}
+
 export function applyOrder<T>(items: readonly T[], idx: Uint32Array): T[] {
   const out = new Array<T>(idx.length)
   for (let i = 0; i < idx.length; i++) out[i] = items[idx[i]]
@@ -51,10 +60,12 @@ function getWorker(): Worker | null {
     const src = [
       `var orderBy = ${orderBy.toString()};`,
       `var stripName = ${stripName.toString()};`,
+      `var orderByName = ${orderByName.toString()};`,
       `var namesContaining = ${namesContaining.toString()};`,
       'var names = {};',
       'onmessage = function (e) { var d = e.data, r = null;',
       "  if (d.t === 'sort') r = orderBy(d.p, d.s);",
+      "  else if (d.t === 'sortNames') r = orderByName(d.names);",
       "  else if (d.t === 'names') { var a = d.names; for (var i = 0; i < a.length; i++) a[i] = stripName(a[i]); names[d.set] = a; r = new Uint32Array([a.length]); }",
       "  else if (d.t === 'find') r = names[d.set] ? namesContaining(names[d.set], d.keys) : null;",
       '  postMessage({ id: d.id, r: r }, r ? [r.buffer] : []) }',
@@ -80,6 +91,11 @@ function ask(msg: Record<string, unknown>, transfer: Transferable[], timeoutMs: 
 /** The order, from the worker - or null (no worker on this TV, or it failed): the caller sorts as before. */
 export function orderOffThread(primary: Float64Array, secondary: Float64Array | null, timeoutMs = 30_000): Promise<Uint32Array | null> {
   return ask({ t: 'sort', p: primary, s: secondary }, secondary ? [primary.buffer, secondary.buffer] : [primary.buffer], timeoutMs)
+}
+
+/** A - Z off the main thread (round 11: the sort chips cost 1.1-3.5 s on the Samsung). Null = sort as before. */
+export function orderNamesOffThread(names: string[], timeoutMs = 60_000): Promise<Uint32Array | null> {
+  return ask({ t: 'sortNames', names }, [], timeoutMs)
 }
 
 /** Which name lists the worker holds, by the list they were made from (a new library = a new list). */

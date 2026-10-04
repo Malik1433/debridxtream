@@ -36,3 +36,11 @@ describe('worker title scan', () => {
     expect(await matchTitlesOffThread('movies', items, ['The Batman'])).toEqual(matchTitles(items, ['The Batman']))
   })
 })
+
+describe('A - Z off the main thread', () => {
+  it('gives exactly sortItems order for az, ties included', async () => {
+    const { orderByName } = await import('./offThreadSort')
+    const named = items.map((x, i) => ({ ...x, name: i % 9 ? `Title ${(i * 31) % 500}` : 'Ägypten' }))
+    expect(applyOrder(named, orderByName(named.map((x) => x.name))).map((x) => x.id)).toEqual(sortItems(named, 'az').map((x) => x.id))
+  })
+})
