@@ -1323,6 +1323,7 @@ its data is in hand. Not investigated; recorded as measured.
 2. **`idb:open` ~2 s** before anything can start.
 3. **The 15–23 s idle gap** before the library parse begins.
 4. `idb:parse-movies` 1.1–1.3 s total · `prewarm:names-movies` 798 ms — both modest now.
-5. ~~SIMILAR MOVIES correctness~~ — **confirmed by the owner, 2026-10-04: the films shown are right.**
-   The scan has been in the worker since round 11 and the row is still correct, so that move is clean.
+5. ~~SIMILAR MOVIES correctness~~ — ✅ **closed 2026-10-04 by the owner, by eye on the TV:** the films
+   under a known title look right. The scan has been in the worker since round 11, so that move is
+   clean and not merely faster.
 6. Older and still open: R3, R5, R7.
