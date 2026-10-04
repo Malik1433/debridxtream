@@ -1137,3 +1137,95 @@ installed or synced beforehand, before anyone sizes a fix against it.
 4. **`read:lib-movies` 2.4 s** on a warm run — 6253 → 4632 → 2703 → 2449 across four rounds.
 5. Older and still open: R3 (recent-channel card), R5 (unprompted VOD drop), R7 (frozen picture).
 6. ~~Home per-key~~ · ~~`load:lib-cats-movies`~~ · ~~`memo:lib-sorted-*-recent`~~ · ~~Home top-10~~ — closed.
+
+---
+
+# Round 12 — the chips are fixed; the prewarm brought its own bill (2026-10-04)
+
+Branch @ `f60dd70f`, **159 tests pass**, probe build installed. Report only.
+
+## ⭐ Sort chips — fixed, and proved by the control
+
+After the app has been running ~15 s, all four sorts are prewarmed and cost nothing:
+
+```
+prewarm:lib-sorted-movies-rated=3   newest=3   az=4   recent=9
+```
+
+Pressing the chips then: `dx:key` **avg 11–86 ms, max 12–239 ms**, and **no**
+`memo:lib-sorted-movies-__all-<chip>` line appears at all.
+
+**The control test is what makes this conclusive.** Pressing a chip within the first seconds of a
+cold start — before the prewarm has run — still pays the old price:
+
+```
+16:26:06  memo:lib-sorted-movies-__all-newest = 3214 ms   dx:key max 3495 ms
+16:26:23  memo:lib-sorted-movies-__all-newest = 3640 ms   dx:key max 5586 ms
+```
+
+Same work, same cost, only earlier. So the improvement is the prewarm and nothing else.
+Round 11's worst item is closed.
+
+## ⚠️ Correction to round 11: `load:lib-cats-movies` is NOT 78 ms
+
+Round 11 recorded it as closed at 78 ms. **That was a warm call.** On a cold first call this round,
+three times:
+
+```
+11:14:12  load:lib-cats-movies = 3999 ms
+16:23:27  load:lib-cats-movies = 5137 ms
+16:25:38  load:lib-cats-movies = 4511 ms
+```
+
+and 19–162 ms on every later call in the same run. The 5.7 s first call reported in round 10 was
+never fixed — I measured the warm one and called it closed. **It is still open, at 4–5 s.** This is
+the third time in this report that a number has been read from the wrong moment; the pattern is
+always the same, a first call that waits on something, and it has to be measured on a genuinely cold
+run or not at all.
+
+## ⚠️ New: the prewarm itself blocks for 2–4 s
+
+The fix for the chips is not free. `prewarm:names-movies` runs at start-up and is expensive:
+
+```
+prewarm:names-movies = 2027 · 2228 · 2496 · 2742 · 3978 · 4317 ms
+```
+
+and the windows carrying it show the damage — `JS 25 / 8492 ms`, `JS 13 / 2604 ms`, fps 2–12. So the
+whole-catalogue work was not removed, it was **moved earlier**, into the first seconds after launch,
+where it now competes with everything else the app is doing to start. The chips are instant because
+this ran; this is why a cold start is still rough.
+
+## Live — named parts, and none of them carries 3.5 s
+
+```
+load:live-cats = 642 ms   parental:live = 32 ms   memo:live-rows = 65 ms   memo:live-index = 69 ms
+```
+
+No single part accounts for round 11's `load:live-streams = 3521 ms`. Either Live genuinely got
+cheaper when it was split, or the read landed in a blocked window again. ⚠️ Not claiming it fixed —
+`read:live` did not appear at all this round, which is the same gap that produced the correction
+above.
+
+## Holding from earlier rounds
+
+| | round 11 | **round 12** |
+|---|---|---|
+| Home per-key | avg 10–18 ms | **avg 17 ms, max 44–62 ms** ✅ |
+| `match:similar-movies` | 376–454 ms | **426–485 ms** ✅ |
+| `read:lib-movies` (warm) | 2449 ms | 2713–3358 ms |
+
+## Still needing eyes, not the probe
+
+**SIMILAR MOVIES** — the scan moved into the worker two rounds ago and the timing is good, but
+whether the row shows the *right* films has not been confirmed by anyone. The probe cannot answer it.
+
+## The list now
+
+1. **`load:lib-cats-movies` 4–5 s on a cold first call** — reopened; round 11 closed it on a warm
+   reading.
+2. **`prewarm:names-movies` 2–4.3 s** — new, and it is the price of the chip fix.
+3. **`read:lib-movies` ~2.7–3.4 s**, and the unexplained first-call wait behind both of the above.
+4. SIMILAR MOVIES correctness — unverified.
+5. Older and still open: R3, R5 (unprompted VOD drop), R7 (frozen picture).
+6. ~~Sort chips~~ · ~~Home per-key~~ · ~~`memo:lib-sorted-*-recent`~~ · ~~Home top-10~~ — closed.
