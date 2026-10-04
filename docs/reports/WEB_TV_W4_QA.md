@@ -1067,3 +1067,73 @@ Full cold-start picture on this build:
 4. **`read:lib-movies` 2.7 s** — down from 6.3 s over two rounds, still worth more.
 5. Older and still open: R3 (recent-channel card), R5 (unprompted VOD drop), R7 (frozen picture).
 6. ~~Home per-key~~ — **closed this round.**
+
+---
+
+# Round 11 — three closed, one new and large (2026-10-04)
+
+Branch @ `e36c0da3`, **158 tests pass**, probe build installed, one library sync finished on the new
+5,000-item chunk format before measuring. Report only.
+
+## Closed this round
+
+| | round 10 | **round 11** |
+|---|---|---|
+| **`load:lib-cats-movies`** (first call) | **5697 ms** | **78 ms** ⭐ |
+| **`memo:lib-sorted-movies-__all-recent`** | 1155–1258 ms | **does not appear** ⭐ |
+| `prewarm:lib-sorted-movies-recent` | — | **11–16 ms** |
+| **`match:similar-movies`** | 894 ms | **376–454 ms** ⭐ |
+| `prewarm:names-movies` | — | 689 ms once, then 0 |
+| Home per-key | avg 10–16 ms | **avg 10–18 ms, max 33–56 ms** ✅ holds |
+
+⭐ The prewarm works exactly as intended: opening Movies (All / Recently added) shows
+`memo:lib-sorted-movies--recent=0` and **no** `__all-recent` line at all — the sort has already
+happened, for 16 ms, before the viewer asked. The 5.7 s first category call is gone. Moving the
+SIMILAR MOVIES scan into the worker halved it again.
+
+## ⚠️ New, and the largest thing on the list: changing the sort chip
+
+Only the **saved** sort is prewarmed. Choosing a different one pays the whole cost, and it lands as a
+single key press:
+
+| sort chosen | `memo:lib-sorted-movies-__all-*` | the press that triggered it |
+|---|---|---|
+| **NEWEST** | **3311 ms** | `dx:key max 3455 ms` |
+| A–Z | 1304 ms | `dx:key max 1386 ms` |
+| TOP RATED | 1104 ms | `dx:key max 1180 ms` |
+
+**A sort chip takes 1.1–3.5 seconds, and for that whole time the remote is dead** — the press and the
+paint both show it (`key-paint max 3462 ms` on NEWEST). This is the same work the prewarm removed for
+"Recently added", just not prewarmed for the other three. It is now the worst single thing a viewer
+can do in the app.
+
+## Live TV loading is not prewarmed either
+
+```
+load:live-streams = 3521 ms      load:live-cats = 760 ms
+```
+Opening Live costs 3.5 s of the same shape. Nothing has been done here yet.
+
+## Cold start — a number that needs a second look
+
+```
+10:20:54  read:lib-movies = 30299 ms   read:lib-shows = 30591 ms
+10:21:07  read:lib-movies =  2449 ms   read:lib-shows =  2817 ms
+```
+
+⚠️ **30 seconds on the first read, 2.4 s on the second, in the same run.** I am **not** reporting that
+as the read's cost: the app had just been reinstalled, which forces a restart and may have started a
+library sync, so the first read was probably waiting on that sync rather than doing 30 s of work. It
+is the same shape as round 10's 5.7 s first category call — *the first call waits on something* — and
+that pattern has now appeared twice. **Worth one clean measurement** on a run where nothing was
+installed or synced beforehand, before anyone sizes a fix against it.
+
+## The list now
+
+1. **Sort chips 1.1–3.5 s** — new, the worst thing a viewer can hit, and the fix shape already exists
+   (prewarm) and simply does not cover these three.
+2. **`load:live-streams` 3.5 s** — Live's equivalent, untouched.
+3. **The first-call wait** (30 s read / 5.7 s cats) — measure cleanly before acting.
+4. **`read:lib-movies` 2.4 s** on a warm run — 6253 → 4632 → 2703 → 2449 across four rounds.
+5. Older and still open: R3 (recent-channel card), R5 (unprompted VOD drop), R7 (frozen picture).
+6. ~~Home per-key~~ · ~~`load:lib-cats-movies`~~ · ~~`memo:lib-sorted-*-recent`~~ · ~~Home top-10~~ — closed.
