@@ -26,3 +26,16 @@ describe('library chunks (round 10)', () => {
     expect(chunks.flatMap((c) => JSON.parse(c.json))).toEqual(items)
   })
 })
+
+describe('live chunks (round 14)', () => {
+  it('keeps the channels as 5,000-item JSON chunks that join back in order, categories in the head', async () => {
+    const { CHUNK, encodeLive } = await import('./catalogueStore')
+    const streams = Array.from({ length: CHUNK + 3 }, (_, i) => ({ id: String(i), name: `Channel ${i}`, categoryId: '1', icon: '', epgId: '', archive: false, order: i }))
+    const cats = [{ id: '1', name: 'News' }]
+    const { head, chunks } = encodeLive(cats, streams)
+    expect(head).toEqual({ id: 'live', categories: cats, chunks: 2, count: streams.length })
+    // Keys of their own: never `movies`, `shows` or their chunks and categories.
+    expect(chunks.map((c) => c.id)).toEqual(['live#0', 'live#1'])
+    expect(chunks.flatMap((c) => JSON.parse(c.json))).toEqual(streams)
+  })
+})

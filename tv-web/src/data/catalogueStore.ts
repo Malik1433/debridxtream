@@ -51,12 +51,34 @@ interface LibraryCats { id: `${LibraryKind}-cats`; categories: VodCategory[] }
 export const CHUNK = 5_000
 interface LibraryHeadV3 { id: LibraryKind; categories: VodCategory[]; chunks: number; count: number }
 interface LibraryChunk { id: string; json: string }
-const chunkKey = (kind: LibraryKind, i: number) => `${kind}#${i}`
+/** A list kept in chunks: one half of the library, or (since round 14) the Live channels. */
+type ChunkSet = LibraryKind | 'live'
+const chunkKey = (set: ChunkSet, i: number) => `${set}#${i}`
+const chunksOf = (set: ChunkSet) => IDBKeyRange.bound(`${set}#`, `${set}#\uffff`)
+
+function toChunks(set: ChunkSet, items: readonly unknown[]): LibraryChunk[] {
+  const chunks: LibraryChunk[] = []
+  for (let i = 0; i * CHUNK < items.length; i++) chunks.push({ id: chunkKey(set, i), json: JSON.stringify(items.slice(i * CHUNK, (i + 1) * CHUNK)) })
+  return chunks
+}
 
 export function encodeChunks(kind: LibraryKind, categories: VodCategory[], items: Array<Movie | Show>): { head: LibraryHeadV3; chunks: LibraryChunk[] } {
-  const chunks: LibraryChunk[] = []
-  for (let i = 0; i * CHUNK < items.length; i++) chunks.push({ id: chunkKey(kind, i), json: JSON.stringify(items.slice(i * CHUNK, (i + 1) * CHUNK)) })
+  const chunks = toChunks(kind, items)
   return { head: { id: kind, categories, chunks: chunks.length, count: items.length }, chunks }
+}
+
+/**
+ * Live as the library is kept, since W4 QA round 14: `sync:write-live` took 23.8 s on the Samsung -
+ * 17,000 channels as 17,000 puts - and every library read on the TV waited behind it
+ * (`idb:chunk-first-movies` 22,963 ms during that write, 181 ms after it). Narrowing the transaction
+ * to the Live stores does not help: measured in Chromium, a read of another store still waits for the
+ * whole commit. A handful of JSON records is a ~15x shorter write (2,277 -> 133 ms in the lab at 6x
+ * CPU), and the read waits only that long. The head carries the categories.
+ */
+interface LiveHead { id: 'live'; categories: LiveCategory[]; chunks: number; count: number }
+export function encodeLive(categories: LiveCategory[], streams: LiveStream[]): { head: LiveHead; chunks: LibraryChunk[] } {
+  const chunks = toChunks('live', streams)
+  return { head: { id: 'live', categories, chunks: chunks.length, count: streams.length }, chunks }
 }
 
 /** Kept for the tests of the round-8 format, which is still read. */
@@ -110,12 +132,14 @@ export class IdbCatalogueStore implements CatalogueStore {
   /** One transaction: a failed write leaves the previous catalogue, never half of the new one. */
   async replaceLive(categories: LiveCategory[], streams: LiveStream[]): Promise<void> {
     const db = await this.conn()
-    const tx = db.transaction(STORES as unknown as string[], 'readwrite')
-    const cats = tx.objectStore('live_categories')
-    const chans = tx.objectStore('live_streams')
-    cats.clear(); chans.clear()
-    categories.forEach((c) => cats.put(c))
-    streams.forEach((s) => chans.put(s))
+    const tx = db.transaction(['library', 'live_categories', 'live_streams'], 'readwrite')
+    const lib = tx.objectStore('library')
+    const { head, chunks } = encodeLive(categories, streams)
+    lib.delete(chunksOf('live'))
+    lib.put(head)
+    chunks.forEach((c) => lib.put(c))
+    // The per-channel copy is superseded: clearing a store is one request, not one per row.
+    tx.objectStore('live_categories').clear(); tx.objectStore('live_streams').clear()
     await done(tx)
   }
 
@@ -132,7 +156,7 @@ export class IdbCatalogueStore implements CatalogueStore {
     const lib = tx.objectStore('library')
     const { head, chunks } = encodeChunks(kind, categories, items)
     // A previous, longer write's extra chunks must not survive: they would never be read, only kept.
-    lib.delete(IDBKeyRange.bound(`${kind}#`, `${kind}#\uffff`))
+    lib.delete(chunksOf(kind))
     lib.put(head)
     chunks.forEach((c) => lib.put(c))
     lib.put({ id: `${kind}-cats`, categories } satisfies LibraryCats)
@@ -156,7 +180,9 @@ export class IdbCatalogueStore implements CatalogueStore {
   private library(kind: LibraryKind) {
     let p = this.libs.get(kind)
     if (!p) {
-      p = this.get<LibraryRecord>('library', kind).then((b) => (!b ? null : 'chunks' in b ? this.readChunks(kind, b) : decodeLibrary(b)))
+      p = this.get<LibraryRecord>('library', kind).then((b) => (!b ? null : 'chunks' in b
+        ? this.readChunks<Movie | Show>(kind, b.chunks).then((items) => ({ categories: b.categories, items }))
+        : decodeLibrary(b)))
       p.catch(() => this.libs.delete(kind))
       this.libs.set(kind, p)
     }
@@ -168,20 +194,20 @@ export class IdbCatalogueStore implements CatalogueStore {
    * parsed there, so no single task holds the TV for the whole library (round 10). Read one by one in
    * separate transactions the load got 2-4x slower in total; this keeps the short tasks without that.
    */
-  private async readChunks(kind: LibraryKind, head: LibraryHeadV3): Promise<{ categories: VodCategory[]; items: Array<Movie | Show> }> {
+  private async readChunks<T>(kind: ChunkSet, count: number): Promise<T[]> {
     const db = await this.conn()
-    const parts: Array<Array<Movie | Show>> = new Array(head.chunks)
+    const parts: T[][] = new Array(count)
     await new Promise<void>((resolve, reject) => {
       const store = db.transaction('library', 'readonly').objectStore('library')
       const t = performance.now()
-      let left = head.chunks
+      let left = count
       if (!left) { resolve(); return }
-      for (let i = 0; i < head.chunks; i++) {
+      for (let i = 0; i < count; i++) {
         const req = store.get(chunkKey(kind, i))
         req.onsuccess = () => {
           const c = req.result as LibraryChunk | undefined
-          if (!c) { reject(new Error(`library ${kind}: chunk ${i} of ${head.chunks} is missing`)); return }
-          if (left === head.chunks) note(`idb:chunk-first-${kind}`, t)
+          if (!c) { reject(new Error(`${kind}: chunk ${i} of ${count} is missing`)); return }
+          if (left === count) note(`idb:chunk-first-${kind}`, t)
           const p = performance.now()
           try { parts[i] = JSON.parse(c.json) } catch (e) { reject(e); return }
           note(`idb:parse-${kind}`, p)
@@ -190,9 +216,9 @@ export class IdbCatalogueStore implements CatalogueStore {
         req.onerror = () => reject(req.error)
       }
     })
-    const items: Array<Movie | Show> = []
+    const items: T[] = []
     for (const part of parts) for (let j = 0; j < part.length; j++) items.push(part[j])
-    return { categories: head.categories, items }
+    return items
   }
 
   async libraryCategories(kind: LibraryKind): Promise<VodCategory[]> {
@@ -209,8 +235,15 @@ export class IdbCatalogueStore implements CatalogueStore {
     return b ? (b.items as T[]) : all<T>(await this.conn(), LIB_STORES[kind][1])
   }
 
-  async liveCategories(): Promise<LiveCategory[]> { return all(await this.conn(), 'live_categories') }
-  async liveStreams(): Promise<LiveStream[]> { return all(await this.conn(), 'live_streams') }
+  /** The chunked copy (round 14) when there is one; the per-channel stores of older builds until then. */
+  async liveCategories(): Promise<LiveCategory[]> {
+    const head = await this.get<LiveHead>('library', 'live')
+    return head ? head.categories : all(await this.conn(), 'live_categories')
+  }
+  async liveStreams(): Promise<LiveStream[]> {
+    const head = await this.get<LiveHead>('library', 'live')
+    return head ? this.readChunks<LiveStream>('live', head.chunks) : all(await this.conn(), 'live_streams')
+  }
 
   async clear(): Promise<void> {
     const db = await this.conn()
