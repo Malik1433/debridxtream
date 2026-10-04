@@ -120,8 +120,10 @@ export class AppController {
 
   async liveStreams(): Promise<LiveStream[]> {
     return this.filtered('live-streams', async () => {
-      const [cats, streams] = await Promise.all([this.session.liveCategories(), this.session.liveStreams()])
-      return this.parental.filterItems(streams, cats)
+      // Round 11: load:live-streams read 3.5 s on the Samsung. Named parts, so the probe can tell the
+      // read from the filter from time spent waiting behind other work.
+      const [cats, streams] = await spanAsync('read:live', () => Promise.all([this.session.liveCategories(), this.session.liveStreams()]))
+      return span('parental:live', () => this.parental.filterItems(streams, cats))
     })
   }
   /** Built from the current session every time: an absolute stream URL is never stored (CLAUDE.md). */
