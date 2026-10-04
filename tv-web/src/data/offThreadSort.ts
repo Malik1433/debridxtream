@@ -1,3 +1,5 @@
+import { span } from '../app/perf/span'
+
 /**
  * Sorting the whole catalogue OFF the main thread (W4 QA round 10: `memo:lib-sorted-movies-__all-recent`
  * blocked the Samsung for 1.1-1.3 s every time Movies opened, three rounds running). Only numbers
@@ -104,7 +106,8 @@ const namesHeld = new Map<string, readonly unknown[]>()
 /** Hand the worker a catalogue's names once, in the background; it keeps them stripped for `findNames`. */
 export async function holdNames(set: string, items: ReadonlyArray<{ name: string }>): Promise<boolean> {
   if (namesHeld.get(set) === items) return true
-  const done = await ask({ t: 'names', set, names: items.map((x) => x.name) }, [], 60_000)
+  // Round 13: the main thread's share (the list and its copy into the message) apart from the wait.
+  const done = await span(`prewarm:names-send-${set}`, () => ask({ t: 'names', set, names: items.map((x) => x.name) }, [], 60_000))
   if (done && done[0] === items.length) namesHeld.set(set, items)
   return namesHeld.get(set) === items
 }

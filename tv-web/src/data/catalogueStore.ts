@@ -1,3 +1,4 @@
+import { note } from '../app/perf/span'
 import type { Movie, Show, VodCategory } from './vodApi'
 import type { LiveCategory, LiveStream } from './xtreamApi'
 
@@ -95,7 +96,16 @@ function all<T>(db: IDBDatabase, store: string): Promise<T[]> {
 
 export class IdbCatalogueStore implements CatalogueStore {
   private db: Promise<IDBDatabase> | null = null
-  private conn(): Promise<IDBDatabase> { return (this.db ??= open()) }
+  private conn(): Promise<IDBDatabase> {
+    if (!this.db) {
+      // W4 QA round 13: the cold first call is measured in its parts - opening the database, each
+      // request's wait for its answer, and the parsing in between - before anything is changed again.
+      const t = performance.now()
+      this.db = open()
+      this.db.then(() => note('idb:open', t), () => undefined)
+    }
+    return this.db
+  }
 
   /** One transaction: a failed write leaves the previous catalogue, never half of the new one. */
   async replaceLive(categories: LiveCategory[], streams: LiveStream[]): Promise<void> {
@@ -134,8 +144,9 @@ export class IdbCatalogueStore implements CatalogueStore {
 
   private get<T>(store: string, key: string): Promise<T | null> {
     return this.conn().then((db) => new Promise<T | null>((resolve, reject) => {
+      const t = performance.now()
       const req = db.transaction(store, 'readonly').objectStore(store).get(key)
-      req.onsuccess = () => resolve((req.result as T | undefined) ?? null)
+      req.onsuccess = () => { note(`idb:get-${key}`, t); resolve((req.result as T | undefined) ?? null) }
       req.onerror = () => reject(req.error)
     }))
   }
@@ -162,6 +173,7 @@ export class IdbCatalogueStore implements CatalogueStore {
     const parts: Array<Array<Movie | Show>> = new Array(head.chunks)
     await new Promise<void>((resolve, reject) => {
       const store = db.transaction('library', 'readonly').objectStore('library')
+      const t = performance.now()
       let left = head.chunks
       if (!left) { resolve(); return }
       for (let i = 0; i < head.chunks; i++) {
@@ -169,8 +181,11 @@ export class IdbCatalogueStore implements CatalogueStore {
         req.onsuccess = () => {
           const c = req.result as LibraryChunk | undefined
           if (!c) { reject(new Error(`library ${kind}: chunk ${i} of ${head.chunks} is missing`)); return }
+          if (left === head.chunks) note(`idb:chunk-first-${kind}`, t)
+          const p = performance.now()
           try { parts[i] = JSON.parse(c.json) } catch (e) { reject(e); return }
-          if (--left === 0) resolve()
+          note(`idb:parse-${kind}`, p)
+          if (--left === 0) { note(`idb:chunks-${kind}`, t); resolve() }
         }
         req.onerror = () => reject(req.error)
       }
