@@ -46,6 +46,23 @@ export const SORTS: Array<{ mode: SortMode; label: string }> = [
 
 const yearOf = (i: Item): number => Number(i.year) || Number(/\((\d{4})\)/.exec(i.name)?.[1]) || 0
 
+/**
+ * The numeric keys behind a sort mode, for sorting off the main thread (round 10); null for A - Z,
+ * which compares strings and stays where it is. Same order as sortItems: see offThreadSort.orderBy.
+ */
+export function numericSortKeys(items: readonly Item[], mode: SortMode): { primary: Float64Array; secondary: Float64Array | null } | null {
+  if (mode === 'az') return null
+  const n = items.length
+  const primary = new Float64Array(n)
+  const secondary = mode === 'newest' ? new Float64Array(n) : null
+  for (let i = 0; i < n; i++) {
+    const it = items[i]
+    primary[i] = mode === 'recent' ? it.added : mode === 'rated' ? it.rating : yearOf(it)
+    if (secondary) secondary[i] = it.added
+  }
+  return { primary, secondary }
+}
+
 export function sortItems<T extends Item>(items: T[], mode: SortMode): T[] {
   const a = [...items]
   if (mode === 'recent') return a.sort((x, y) => y.added - x.added)

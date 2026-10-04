@@ -21,6 +21,11 @@ import { enrich, type Enrichment } from '../data/tmdb'
 import { recentChannels, recordChannel, type RecentChannel } from '../data/recentLive'
 import { recentSearches, recordSearch } from '../data/recentSearches'
 import { span, spanAsync } from './perf/span'
+import { applyOrder, orderOffThread } from '../data/offThreadSort'
+import { ALL_ID, numericSortKeys, type SortMode } from './screens/library/libraryModel'
+
+/** Let the first screen settle before the background sorts start. */
+const PREWARM_AFTER_MS = 3_000
 import { allWatch, continueWatching, markWatched, recordProgress, watchEntry, watchedEpisodes, type WatchEntry } from '../data/watchState'
 import { liveUrl } from '../xtream'
 import type { LiveCategory, LiveStream } from '../data/xtreamApi'
@@ -130,10 +135,46 @@ export class AppController {
   }
 
   async libraryItems<T extends Movie | Show>(kind: LibraryKind): Promise<T[]> {
-    return this.filtered(`lib-items-${kind}`, async () => {
+    const p = this.filtered(`lib-items-${kind}`, async () => {
       const [cats, items] = await spanAsync(`read:lib-${kind}`, () => Promise.all([this.session.libraryCategories(kind), this.session.libraryItems<T>(kind)]))
       return span(`parental:lib-${kind}`, () => this.parental.filterItems(items, cats))
     })
+    void p.then((items) => this.prewarmSorts(kind, items)).catch(() => undefined)
+    return p
+  }
+
+  /**
+   * W4 QA round 10: opening Movies sorted all 69,500 films on the main thread (1.1-1.3 s on the
+   * Samsung, `memo:lib-sorted-*`). A little after the library is in, the sorts the screen will open
+   * with - All in Recently Added, and the viewer's last chosen sort - are computed in a worker and
+   * dropped into the same memo the screen reads, so it finds them ready. Whatever is not ready yet
+   * (or a TV with no worker) is sorted on the spot as before; nothing waits on this.
+   */
+  private prewarmed = new Set<string>()
+  private generation = 0
+  private prewarmSorts(kind: LibraryKind, items: Array<Movie | Show>): void {
+    const mode = this.mode()
+    const tag = `${kind}|${mode}`
+    if (this.prewarmed.has(tag)) return
+    this.prewarmed.add(tag)
+    let saved: string | null = null
+    try { saved = sessionStorage.getItem(`lib:${kind}:sort`) } catch { /* private mode */ }
+    const modes = Array.from(new Set<SortMode>(['recent', (saved as SortMode | null) ?? 'recent']))
+    const gen = this.generation
+    setTimeout(() => {
+      void (async () => {
+        for (const m of modes) {
+          const k = `lib-sorted-${kind}-${ALL_ID}-${m}|${mode}`
+          if (this.derivedMemo.has(k)) continue
+          const keys = numericSortKeys(items, m)
+          if (!keys) continue
+          const idx = await orderOffThread(keys.primary, keys.secondary)
+          // A sync or a parental change since: these items are no longer what the screen shows.
+          if (!idx || gen !== this.generation || mode !== this.mode() || this.derivedMemo.has(k)) continue
+          this.derivedMemo.set(k, span(`prewarm:lib-sorted-${kind}-${m}`, () => applyOrder(items, idx)))
+        }
+      })()
+    }, PREWARM_AFTER_MS)
   }
 
   /**
@@ -185,7 +226,7 @@ export class AppController {
     return v
   }
 
-  private forgetFiltered(): void { this.filteredMemo.clear(); this.filteredReady.clear(); this.derivedMemo.clear() }
+  private forgetFiltered(): void { this.filteredMemo.clear(); this.filteredReady.clear(); this.derivedMemo.clear(); this.prewarmed.clear(); this.generation++ }
   movieInfo(id: string, ext: string): Promise<MovieInfo> { return this.withAccount((a) => movieInfo(a, id, ext)) }
   showInfo(id: string): Promise<ShowInfo> { return this.withAccount((a) => showInfo(a, id)) }
   /** TMDB, as the Android detail pages use it (plot, backdrop, cast...). Null without a key or a match. */
