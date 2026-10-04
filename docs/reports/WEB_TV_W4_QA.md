@@ -966,3 +966,104 @@ R3 (recent-channel card), and no new `vod:` or `picture:` lines appeared in this
 3. **`memo:lib-sorted-*` 1.1 s** — untouched so far.
 4. **`match:similar-movies` 0.9 s** — halved, not gone.
 5. Older: R3, R5 (unprompted VOD drop), R7 (frozen picture).
+
+---
+
+# Round 10 — ⭐ the per-key cost is gone (2026-10-04)
+
+Branch @ `af724496`, **150 tests pass**, probe build installed. The probe now reports the app's own
+`dx:key` and `dx:key-paint` per press, summarised as count / avg / max — so for the first time this is
+the cost of **one key press**, not a 5-second total divided by guesswork.
+
+## Home, moving along a row — the item that had not moved for two rounds
+
+| | per-key cost |
+|---|---|
+| round 7 | 344 · 820 ms (worst tasks) |
+| round 8 (cards memoized) | 303 · 599 · 577 ms |
+| round 9 | 512 · 520 · 532 · 548 · 553 · 618 ms |
+| **round 10** | **avg 10–16 ms, max 38–96 ms** |
+
+Sustained navigation on Home (`dom 395`, 20–41 presses per 5 s window):
+
+```
+n=20  dx:key avg 16  max 60    dx:key-paint avg 33  max 62
+n=23  dx:key avg 13  max 38    dx:key-paint avg 31  max 70
+n=38  dx:key avg 16  max 96    dx:key-paint avg 31  max 97
+n=37  dx:key avg 10  max 41    dx:key-paint avg 26  max 44
+n=12  dx:key avg 12  max 44    dx:key-paint avg 26  max 45
+```
+
+⭐ **`adc8ff4` closed it.** Not measuring the row's cards on every ◀▶ took a focus move from roughly
+half a second to **ten to sixteen milliseconds** — and `dx:key-paint` says the picture follows within
+~30 ms, which is inside one or two frames. fps on Home while navigating is now **48–56**.
+
+**The detail page, as the control:** `dx:key` avg **5–9 ms**, max 13–18 ms. Home at 10–16 ms is now in
+the same class as the screen that was always free. The gap that this report has been chasing since
+round 6 is closed.
+
+⚠️ **Two honest qualifications.** Occasional single presses still cost more — 292, 396, 786 ms — but
+they appear as `n=1` samples, i.e. screen changes and first entries, not row navigation. And a
+`dom 199` screen showed `dx:key-paint max 1697 ms` once, worth a look if it recurs. The sustained
+figures above are what a viewer meets while browsing.
+
+## What did NOT move
+
+| `dx:` stage | round 9 | round 10 |
+|---|---|---|
+| `memo:lib-sorted-movies-__all-recent` | 1135 ms | **1156 · 1258 ms** |
+| `match:similar-movies` | 858–948 ms | **894 ms** |
+| `memo:lib-index-movies` | 199 ms | 172 ms |
+| `parental:lib-movies` | 66–93 ms | 75 ms |
+| `memo:home-top-movies` | 0–60 ms | **1 ms** (stays closed) |
+
+The whole-list sort is now, with the per-key cost gone, **the largest thing left that anyone can see**,
+and three rounds have not touched it.
+
+## `read:lib-*` — probe fixed, then measured
+
+It was missed twice, and the fault was mine, not the app's: the probe only forwarded `dx:` measures
+newer than the **last batch** it sent, and during a cold start the main thread blocks for 3–5 s at a
+stretch (`JS 13/4780 ms`, `19/6843 ms` recorded), so the window carrying `read:lib-movies` was
+skipped. Changed to a high-water mark **per entry**, reinstalled, and captured on a real cold start:
+
+| | round 8 | round 9 | **round 10** |
+|---|---|---|---|
+| `read:lib-movies` | 6253 ms | 4632 ms | **2703 ms** |
+| `load:lib-items-movies` (wraps it) | 6344 ms | 4703 ms | **2777 ms** |
+
+**The read is now 43 % of what it was two rounds ago**, and no longer the largest single stage.
+
+⚠️ **But a new one appeared in its place.** On the very first call of the run:
+
+```
+load:lib-cats-movies = 5697 ms      (later calls in the same run: 18 ms)
+```
+
+Nearly six seconds to fetch the movie category list, once, at start-up — then eighteen milliseconds
+for the same call afterwards. That is not the category list itself; something that first call waits
+on is the cost. It has never been visible before because the probe was dropping exactly these
+windows. **This is now the largest thing in a cold start.**
+
+Full cold-start picture on this build:
+
+| stage | ms |
+|---|---|
+| **`load:lib-cats-movies`** (first call only) | **5697** |
+| `read:lib-movies` | 2703 |
+| `memo:lib-sorted-movies-__all-recent` | 1155 · 1165 |
+| `memo:lib-index-movies` | 167–169 |
+| `memo:lib-rows-movies` | 84–101 |
+| `parental:lib-movies` | 66–72 |
+
+## The list now
+
+1. **`load:lib-cats-movies` 5.7 s on the first call** — newly visible, and now the largest cost in a
+   cold start. Eighteen milliseconds on every later call, so the question is what that first one waits
+   for, not what it computes.
+2. **`memo:lib-sorted-*` ~1.2 s** — untouched for three rounds; the largest thing anyone has actually
+   tried to look at.
+3. **`match:similar-movies` ~0.9 s** — halved in round 9, unchanged since.
+4. **`read:lib-movies` 2.7 s** — down from 6.3 s over two rounds, still worth more.
+5. Older and still open: R3 (recent-channel card), R5 (unprompted VOD drop), R7 (frozen picture).
+6. ~~Home per-key~~ — **closed this round.**
